@@ -1,0 +1,85 @@
+from __future__ import annotations
+
+from datetime import date, datetime
+from pathlib import Path
+
+from bralpha.infra.http import HttpClient
+from bralpha.metadata.datasets import DatasetConfig, SourceUrlConfig
+
+from .common import (
+    IbgeDownloadResult,
+    client_context,
+    download_ibge_request,
+    ibge_dataset,
+    ibge_manifest_writer,
+    ibge_paths,
+    ibge_raw_store,
+)
+
+
+def download_release_calendar(
+    repo_root: Path,
+    *,
+    start: date,
+    end: date,
+    product_id: int | None = None,
+    page_size: int = 1000,
+    client: HttpClient | None = None,
+    downloaded_at: datetime | None = None,
+) -> list[IbgeDownloadResult]:
+    dataset = ibge_dataset(repo_root, "ibge_release_calendar")
+    paths = ibge_paths(repo_root)
+    url, params, filename = build_calendar_request(
+        dataset,
+        start=start,
+        end=end,
+        product_id=product_id,
+        page_size=page_size,
+    )
+    with client_context(client) as owned_client:
+        return [
+            download_ibge_request(
+                dataset=dataset,
+                raw_store=ibge_raw_store(paths),
+                manifest_writer=ibge_manifest_writer(paths),
+                url=url,
+                params=params,
+                filename=filename,
+                client=owned_client,
+                downloaded_at=downloaded_at,
+                manifest_params={
+                    "product_id": product_id,
+                    "start": start.isoformat(),
+                    "end": end.isoformat(),
+                    **params,
+                },
+            )
+        ]
+
+
+def build_calendar_request(
+    dataset: DatasetConfig,
+    *,
+    start: date,
+    end: date,
+    product_id: int | None = None,
+    page_size: int = 1000,
+) -> tuple[str, dict[str, str], str]:
+    source_url = _calendar_source(dataset, product_id=product_id)
+    url, params, _, filename = source_url.render(
+        start=start,
+        end=end,
+        product_id=product_id,
+        page_size=page_size,
+    )
+    if filename is None:
+        filename = f"ibge_calendar_{start:%Y%m%d}_{end:%Y%m%d}.json"
+    return url, params, filename
+
+
+def _calendar_source(dataset: DatasetConfig, *, product_id: int | None) -> SourceUrlConfig:
+    target = "calendar_by_product" if product_id is not None else "calendar_all"
+    for source_url in dataset.source_urls:
+        if source_url.name == target:
+            return source_url
+    return dataset.first_source_url()
