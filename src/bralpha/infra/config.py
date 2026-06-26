@@ -1,0 +1,126 @@
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+import yaml
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from bralpha.infra.paths import ResolvedPaths, resolve_project_paths
+from bralpha.metadata.datasets import DatasetRegistry
+
+
+class ProjectSection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    package: str
+    timezone: str
+    frequency: str
+
+
+class EngineeringConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    hardware_constrained: bool
+    lean_code: bool
+    table_format: str
+
+
+class PointInTimeConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    required: bool
+    availability_field: str
+
+
+class ProjectConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    project: ProjectSection
+    engineering: EngineeringConfig
+    point_in_time: PointInTimeConfig
+
+
+class PathsSection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    data_root: Path
+    raw: Path
+    bronze: Path
+    silver: Path
+    gold: Path
+    manifests: Path
+    external: Path
+    reports: Path
+
+
+class PathsConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    paths: PathsSection
+
+
+class SleeveConfig(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    description: str | None = None
+    primary_roots: list[str] = Field(default_factory=list)
+    secondary_roots: list[str] = Field(default_factory=list)
+
+    @field_validator("primary_roots", "secondary_roots")
+    @classmethod
+    def normalize_roots(cls, roots: list[str]) -> list[str]:
+        return [root.strip().upper() for root in roots]
+
+
+class InstrumentsConfig(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    traded_sleeves: dict[str, SleeveConfig]
+    research_context_roots: dict[str, Any] = Field(default_factory=dict)
+    horizons: list[int]
+
+
+def _load_yaml(repo_root: Path, relative_path: str) -> dict[str, Any]:
+    path = repo_root / relative_path
+    if not path.exists():
+        raise FileNotFoundError(f"Config file not found: {path}")
+    with path.open("r", encoding="utf-8") as handle:
+        data = yaml.safe_load(handle)
+    if not isinstance(data, dict):
+        raise ValueError(f"Config file must contain a YAML mapping: {path}")
+    return data
+
+
+def load_project_config(repo_root: Path) -> ProjectConfig:
+    return ProjectConfig.model_validate(_load_yaml(repo_root, "configs/project.yaml"))
+
+
+def load_paths_config(repo_root: Path) -> PathsConfig:
+    return PathsConfig.model_validate(_load_yaml(repo_root, "configs/paths.yaml"))
+
+
+def load_instruments_config(repo_root: Path) -> InstrumentsConfig:
+    return InstrumentsConfig.model_validate(_load_yaml(repo_root, "configs/instruments.yaml"))
+
+
+def load_b3_dataset_registry(repo_root: Path) -> DatasetRegistry:
+    return DatasetRegistry.model_validate(_load_yaml(repo_root, "configs/datasets/b3.yaml"))
+
+
+__all__ = [
+    "EngineeringConfig",
+    "InstrumentsConfig",
+    "PathsConfig",
+    "PointInTimeConfig",
+    "ProjectConfig",
+    "ProjectSection",
+    "ResolvedPaths",
+    "SleeveConfig",
+    "load_b3_dataset_registry",
+    "load_instruments_config",
+    "load_paths_config",
+    "load_project_config",
+    "resolve_project_paths",
+]
