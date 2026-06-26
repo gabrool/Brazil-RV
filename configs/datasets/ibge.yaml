@@ -1,0 +1,132 @@
+source: ibge
+free_access_default: true
+requires_auth_default: false
+point_in_time_required: true
+
+raw_storage:
+  path_template: data/raw/ibge/{dataset_id}/{download_date}/
+  manifest_path: data/manifests/ibge/downloads.jsonl
+
+bronze_storage:
+  path_template: data/bronze/ibge/{dataset_id}/
+  format: parquet
+
+silver_storage:
+  path_template: data/silver/{dataset_id}/
+  format: parquet
+
+datasets:
+  - dataset_id: ibge_sidra_series
+    source: ibge
+    priority: P0
+    frequency: mixed
+    raw_format: sidra_json
+    canonical_table: ibge_sidra_observation
+    partition_keys: [dataset_slug, year]
+    primary_keys:
+      - dataset_slug
+      - aggregate_id
+      - variable_id
+      - period_code
+      - geography_id
+      - classification_key
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+      - available_date_on_or_after_ref_date
+    source_map_status: live_download
+    source_urls:
+      - name: sidra_aggregate_variables
+        url_template: "https://servicodados.ibge.gov.br/api/v3/agregados/{aggregate_id}/periodos/{periods}/variaveis/{variables}"
+        params:
+          localidades: "{locations}"
+          classificacao: "{classifications}"
+          view: "{view}"
+        filename_template: "ibge_sidra_{dataset_slug}_{aggregate_id}_{periods_hash}.json"
+    license_note: IBGE public API data. Verify redistribution terms before publication.
+
+  - dataset_id: ibge_release_calendar
+    source: ibge
+    priority: P0
+    frequency: daily_or_event
+    raw_format: calendar_json
+    canonical_table: ibge_release_calendar
+    partition_keys: [year]
+    primary_keys: [event_id]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+    source_map_status: live_download
+    source_urls:
+      - name: calendar_all
+        url_template: "https://servicodados.ibge.gov.br/api/v3/calendario/"
+        params:
+          de: "{start:%Y-%m-%d}"
+          ate: "{end:%Y-%m-%d}"
+          qtd: "{page_size}"
+          page: "{page}"
+        filename_template: "ibge_calendar_{start:%Y%m%d}_{end:%Y%m%d}_page{page}.json"
+      - name: calendar_by_product
+        url_template: "https://servicodados.ibge.gov.br/api/v3/calendario/{product_id}"
+        params:
+          de: "{start:%Y-%m-%d}"
+          ate: "{end:%Y-%m-%d}"
+          qtd: "{page_size}"
+          page: "{page}"
+        filename_template: "ibge_calendar_{product_id}_{start:%Y%m%d}_{end:%Y%m%d}_page{page}.json"
+    license_note: IBGE public API data. Verify redistribution terms before publication.
+
+  - dataset_id: ibge_products_metadata
+    source: ibge
+    priority: P0
+    frequency: periodic
+    raw_format: products_json
+    canonical_table: ibge_product_reference
+    partition_keys: []
+    primary_keys: [product_id]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+    source_map_status: live_download
+    source_urls:
+      - name: products_statistics
+        url_template: "https://servicodados.ibge.gov.br/api/v1/produtos/estatisticas"
+        params: {}
+        filename_template: "ibge_products_statistics.json"
+    license_note: IBGE public API data. Verify redistribution terms before publication.
+
+  - dataset_id: ibge_news_releases_metadata
+    source: ibge
+    priority: P1
+    frequency: daily_or_event
+    raw_format: news_json
+    canonical_table: ibge_news_metadata
+    partition_keys: [year]
+    primary_keys: [news_id]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+    source_map_status: live_download_metadata_only
+    source_urls:
+      - name: noticias
+        url_template: "https://servicodados.ibge.gov.br/api/v3/noticias/"
+        params:
+          de: "{start:%Y-%m-%d}"
+          ate: "{end:%Y-%m-%d}"
+          qtd: "{page_size}"
+          page: "{page}"
+          tipo: "{tipo}"
+          idproduto: "{product_id}"
+        filename_template: "ibge_news_{tipo}_{start:%Y%m%d}_{end:%Y%m%d}_page{page}.json"
+    license_note: IBGE public API data. Verify redistribution terms before publication.
+    notes: Metadata only. Do not parse article body, introduction text, images, or scraped pages.
+
+  - dataset_id: ibge_errata_revisions_metadata
+    source: ibge
+    priority: P1
+    frequency: daily_or_event
+    raw_format: news_or_metadata_json
+    canonical_table: ibge_revision_metadata
+    source_map_status: not_implemented_pending_url
+    source_urls: []
+    notes: Source-map candidate only until a stable documented metadata endpoint/query is confirmed. No text parsing.

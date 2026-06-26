@@ -1,0 +1,480 @@
+series:
+  - dataset_slug: ipca
+    priority: P0
+    aggregate_id: 7060
+    table_name: "IPCA variation and monthly weights"
+    survey_code: snipc
+    frequency: monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: "315[all]"
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9256
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: ipca15
+    priority: P0
+    aggregate_id: 7062
+    table_name: "IPCA-15 variation and monthly weights"
+    survey_code: snipc
+    frequency: monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: "315[all]"
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9260
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: inpc
+    priority: P0
+    aggregate_id: 7063
+    table_name: "INPC variation and monthly weights"
+    survey_code: snipc
+    frequency: monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: "315[all]"
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9258
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: gdp_volume_change
+    priority: P0
+    aggregate_id: 5932
+    table_name: "Quarterly national accounts volume change"
+    survey_code: scnt
+    frequency: quarterly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9300
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: gdp_volume_index
+    priority: P0
+    aggregate_id: 1620
+    table_name: "Quarterly national accounts volume index"
+    survey_code: scnt
+    frequency: quarterly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9300
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: gdp_current_values
+    priority: P0
+    aggregate_id: 1846
+    table_name: "Quarterly national accounts current values"
+    survey_code: scnt
+    frequency: quarterly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9300
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: pim_industrial_production
+    priority: P0
+    aggregate_id: 8888
+    table_name: "PIM-PF industrial production"
+    survey_code: pim_pf
+    frequency: monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9294
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: pmc_retail_index
+    priority: P0
+    aggregate_id: 8880
+    table_name: "PMC retail index 2022 base"
+    survey_code: pmc
+    frequency: monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9227
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: pmc_broad_retail_index
+    priority: P0
+    aggregate_id: 8881
+    table_name: "PMC broad retail index 2022 base"
+    survey_code: pmc
+    frequency: monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9227
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: pmc_retail_by_activity
+    priority: P0
+    aggregate_id: 8882
+    table_name: "PMC retail by activity 2022 base"
+    survey_code: pmc
+    frequency: monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9227
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: pmc_broad_retail_by_activity
+    priority: P0
+    aggregate_id: 8883
+    table_name: "PMC broad retail by activity 2022 base"
+    survey_code: pmc
+    frequency: monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9227
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: pms_services_index
+    priority: P0
+    aggregate_id: 5906
+    table_name: "PMS services index"
+    survey_code: pms
+    frequency: monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9229
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: pms_services_segments
+    priority: P0
+    aggregate_id: 8163
+    table_name: "PMS services segments"
+    survey_code: pms
+    frequency: monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9229
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: pms_services_activities
+    priority: P0
+    aggregate_id: 8688
+    table_name: "PMS services activities"
+    survey_code: pms
+    frequency: monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9229
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: pnad_unemployment_rate
+    priority: P0
+    aggregate_id: 6381
+    table_name: "PNAD Continuous unemployment rate"
+    survey_code: pnadc
+    frequency: moving_quarter_monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9171
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: pnad_participation_rate
+    priority: P0
+    aggregate_id: 5944
+    table_name: "PNAD Continuous participation rate"
+    survey_code: pnadc
+    frequency: moving_quarter_monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9171
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: pnad_occupation_level
+    priority: P0
+    aggregate_id: 6379
+    table_name: "PNAD Continuous occupation level"
+    survey_code: pnadc
+    frequency: moving_quarter_monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9171
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: pnad_underutilization_rate
+    priority: P0
+    aggregate_id: 6438
+    table_name: "PNAD Continuous underutilization rate"
+    survey_code: pnadc
+    frequency: moving_quarter_monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9171
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: pnad_underutilization_level
+    priority: P0
+    aggregate_id: 6441
+    table_name: "PNAD Continuous underutilization level"
+    survey_code: pnadc
+    frequency: moving_quarter_monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9171
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: pnad_real_income
+    priority: P0
+    aggregate_id: 6390
+    table_name: "PNAD Continuous real income"
+    survey_code: pnadc
+    frequency: moving_quarter_monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9171
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: pnad_real_income_usual
+    priority: P0
+    aggregate_id: 6387
+    table_name: "PNAD Continuous usual real income"
+    survey_code: pnadc
+    frequency: moving_quarter_monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9171
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: pnad_real_income_mass
+    priority: P0
+    aggregate_id: 6392
+    table_name: "PNAD Continuous real income mass"
+    survey_code: pnadc
+    frequency: moving_quarter_monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9171
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: pnad_real_income_mass_usual
+    priority: P0
+    aggregate_id: 6393
+    table_name: "PNAD Continuous usual real income mass"
+    survey_code: pnadc
+    frequency: moving_quarter_monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9171
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: sinapi_cost_m2
+    priority: P0
+    aggregate_id: 2296
+    table_name: "SINAPI cost per square meter"
+    survey_code: sinapi
+    frequency: monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9270
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: pms_services_regional
+    priority: P1
+    aggregate_id: 8693
+    table_name: "PMS optional regional services table"
+    survey_code: pms
+    frequency: monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9229
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: pms_services_activity_regional
+    priority: P1
+    aggregate_id: 8694
+    table_name: "PMS optional activity regional table"
+    survey_code: pms
+    frequency: monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9229
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: pms_services_special_regional
+    priority: P1
+    aggregate_id: 8695
+    table_name: "PMS optional special regional table"
+    survey_code: pms
+    frequency: monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9229
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: sinapi_cost_m2_no_payroll_exemption
+    priority: P1
+    aggregate_id: 6586
+    table_name: "SINAPI cost per square meter without payroll exemption"
+    survey_code: sinapi
+    frequency: monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9270
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: sinapi_project_cost
+    priority: P1
+    aggregate_id: 647
+    table_name: "SINAPI project cost"
+    survey_code: sinapi
+    frequency: monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9270
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: ipp_producer_prices
+    priority: P1
+    aggregate_id: 6903
+    table_name: "IPP producer prices"
+    survey_code: ipp
+    frequency: monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9282
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: ipp_producer_prices_index
+    priority: P1
+    aggregate_id: 6904
+    table_name: "IPP producer prices index"
+    survey_code: ipp
+    frequency: monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9282
+    availability_policy: calendar_or_date_only_next_business_day
+
+  - dataset_slug: ipp_producer_prices_by_activity
+    priority: P1
+    aggregate_id: 6723
+    table_name: "IPP producer prices by activity"
+    survey_code: ipp
+    frequency: monthly
+    period_selector: date_range
+    variables: all
+    locations: "N1[all]"
+    classifications: ""
+    view: ""
+    model_usable: true
+    release_calendar_product_id: 9282
+    availability_policy: calendar_or_date_only_next_business_day
