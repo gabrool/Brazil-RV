@@ -70,7 +70,15 @@ datasets:
     raw_format: odata_json
     canonical_table: bcb_focus_expectation
     partition_keys: [endpoint, year]
-    primary_keys: [endpoint, ref_date, indicator, reference_period, statistic_scope]
+    primary_keys:
+      - endpoint
+      - ref_date
+      - indicator
+      - indicator_detail
+      - reference_period
+      - meeting
+      - calculation_type
+      - base_calculation
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys
@@ -94,7 +102,15 @@ datasets:
     raw_format: odata_json
     canonical_table: bcb_focus_expectation
     partition_keys: [endpoint, year]
-    primary_keys: [endpoint, ref_date, indicator, reference_period, calculation_type]
+    primary_keys:
+      - endpoint
+      - ref_date
+      - indicator
+      - indicator_detail
+      - reference_period
+      - meeting
+      - calculation_type
+      - base_calculation
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys

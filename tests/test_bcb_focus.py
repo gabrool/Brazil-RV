@@ -11,12 +11,14 @@ from bralpha.infra.http import HttpResponse
 from bralpha.ingestion.bcb.focus import build_focus_request, download_focus_dataset
 from bralpha.metadata.datasets import dataset_endpoint_names
 from bralpha.normalization.bcb_focus import (
+    BCB_FOCUS_EXPECTATION_COLUMNS,
     FOCUS_EXPECTATION_PRIMARY_KEYS,
     FOCUS_REFERENCE_DATE_PRIMARY_KEYS,
     normalize_focus_expectations_to_silver,
     normalize_focus_reference_dates_to_silver,
 )
 from bralpha.parsing.bcb_focus import parse_focus_bytes, write_focus_bronze
+from bralpha.quality.checks import run_quality_checks
 
 
 class MockClient:
@@ -271,6 +273,41 @@ def test_focus_primary_key_keeps_indicator_detail_from_colliding():
     assert silver.group_by(FOCUS_EXPECTATION_PRIMARY_KEYS).len().height == 2
 
 
+def test_focus_config_quality_uses_full_expectation_key_for_indicator_detail(repo_root):
+    bronze = parse_focus_bytes(
+        b'{"value":[{"Indicador":"IPCA","IndicadorDetalhe":"Livres",'
+        b'"Data":"2024-01-02","DataReferencia":"2025","Media":4.0,'
+        b'"baseCalculo":1},{"Indicador":"IPCA","IndicadorDetalhe":"Administrados",'
+        b'"Data":"2024-01-02","DataReferencia":"2025","Media":5.0,'
+        b'"baseCalculo":1}]}',
+        endpoint="ExpectativasMercadoAnuais",
+        source_dataset="bcb_focus_expectations",
+        download_timestamp_utc=datetime(2024, 1, 2, 12, tzinfo=UTC),
+        raw_path=__file__,
+        sha256="abc",
+    )
+    silver = normalize_focus_expectations_to_silver(bronze)
+
+    _run_focus_config_quality(repo_root, "bcb_focus_expectations", silver)
+
+
+def test_focus_top5_config_quality_uses_full_expectation_key_for_meeting(repo_root):
+    bronze = parse_focus_bytes(
+        b'{"value":[{"indicador":"Selic","Data":"2024-01-02","reuniao":"R1",'
+        b'"tipoCalculo":"C","media":9.8},{"indicador":"Selic",'
+        b'"Data":"2024-01-02","reuniao":"R2","tipoCalculo":"C",'
+        b'"media":9.7}]}',
+        endpoint="ExpectativasMercadoTop5Selic",
+        source_dataset="bcb_focus_top5_expectations",
+        download_timestamp_utc=datetime(2024, 1, 2, 12, tzinfo=UTC),
+        raw_path=__file__,
+        sha256="def",
+    )
+    silver = normalize_focus_expectations_to_silver(bronze)
+
+    _run_focus_config_quality(repo_root, "bcb_focus_top5_expectations", silver)
+
+
 def test_deactivated_institution_level_expectations_resource_is_absent(repo_root):
     registry = load_bcb_dataset_registry(repo_root)
     endpoints = {
@@ -280,6 +317,18 @@ def test_deactivated_institution_level_expectations_resource_is_absent(repo_root
     }
 
     assert "ExpectativasMercadoInstituicoes" not in endpoints
+
+
+def _run_focus_config_quality(repo_root, dataset_id: str, silver: pl.DataFrame) -> None:
+    dataset = load_bcb_dataset_registry(repo_root).get(dataset_id)
+
+    assert dataset.primary_keys == FOCUS_EXPECTATION_PRIMARY_KEYS
+    run_quality_checks(
+        silver,
+        check_names=dataset.quality_checks,
+        primary_keys=dataset.primary_keys,
+        required_columns=BCB_FOCUS_EXPECTATION_COLUMNS,
+    )
 
 
 def _set_page_size(repo_root, dataset_id: str, page_size: int) -> None:
