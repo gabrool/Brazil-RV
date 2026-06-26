@@ -8,7 +8,7 @@ The initial target is to build a point-in-time daily research pipeline for:
 - **FX:** USD/BRL futures.
 - **Equity beta:** Ibovespa futures.
 
-The project intentionally begins with free or freely attainable data, broad ingestion, strict point-in-time discipline, and modular feature attribution.
+The project intentionally begins with free or freely attainable data, broad ingestion, strict point-in-time discipline, hardware-aware engineering, and modular feature attribution.
 
 ## Source-of-truth docs
 
@@ -16,7 +16,8 @@ Codex and other agents should read these first:
 
 1. [`AGENTS.md`](AGENTS.md) — working rules, architecture, and non-negotiable project assumptions.
 2. [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) — full strategy and data plan.
-3. [`docs/B3_INGESTION_SETUP.md`](docs/B3_INGESTION_SETUP.md) — immediate setup plan for downloading and normalizing B3 data.
+3. [`docs/ENGINEERING_GUIDELINES.md`](docs/ENGINEERING_GUIDELINES.md) — hardware-aware, lean-code engineering contract.
+4. [`docs/B3_INGESTION_SETUP.md`](docs/B3_INGESTION_SETUP.md) — immediate setup plan for downloading and normalizing B3 data.
 
 ## Current phase
 
@@ -29,6 +30,10 @@ The current phase is **B3 ingestion setup**. Do not start model research before 
 - COTAHIST.
 - Index levels and composition.
 - Investor participation and related public B3 reports.
+
+## Engineering constraints
+
+The project is hardware constrained. Speed, memory use, disk use, and clean lean code are first-class requirements from the beginning.
 
 ## Storage convention
 
