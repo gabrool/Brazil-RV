@@ -52,7 +52,21 @@ def parse_settlements_bytes(
     raw_path: Path,
     sha256: str,
 ) -> pl.DataFrame:
-    source = read_delimited_or_html(content)
+    source = read_delimited_or_html(
+        content,
+        required_all=[
+            ["maturity_code", "vencto", "vencimento"],
+            [
+                "settlement",
+                "ajuste",
+                "preco_ajuste",
+                "open_interest",
+                "contr_abert",
+                "volume",
+                "contr_negoc",
+            ],
+        ],
+    )
     columns: dict[str, list[object]] = {}
     row_count = source.height
     for canonical, aliases in ALIASES.items():

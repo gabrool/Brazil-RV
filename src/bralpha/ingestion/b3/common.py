@@ -30,12 +30,13 @@ def download_daily_dataset_for_date(
     **request_values: object,
 ) -> DownloadResult:
     timestamp = downloaded_at or datetime.now(UTC)
+    request_params = {"ref_date": ref_date.isoformat(), **request_values}
     if not is_business_day(ref_date, holidays):
         record = ManifestRecord(
             dataset_id=dataset.dataset_id,
             source=dataset.source or "b3",
             source_url="",
-            request_params={"ref_date": ref_date.isoformat(), **request_values},
+            request_params=request_params,
             download_timestamp_utc=timestamp,
             file_size_bytes=0,
             license_note=dataset.license_note,
@@ -45,11 +46,28 @@ def download_daily_dataset_for_date(
         manifest_writer.append(record)
         return DownloadResult(record=record, raw_path=None)
 
-    url, params, headers, filename = render_dataset_request(
-        dataset,
-        ref_date=ref_date,
-        **request_values,
-    )
+    try:
+        url, params, headers, filename = render_dataset_request(
+            dataset,
+            ref_date=ref_date,
+            **request_values,
+        )
+    except Exception as exc:
+        record = ManifestRecord(
+            dataset_id=dataset.dataset_id,
+            source=dataset.source or "b3",
+            source_url="",
+            request_params=request_params,
+            download_timestamp_utc=timestamp,
+            file_size_bytes=0,
+            license_note=dataset.license_note,
+            success=False,
+            error_message=str(exc),
+        )
+        manifest_writer.append(record)
+        return DownloadResult(record=record, raw_path=None)
+
+    response: HttpResponse | None = None
     try:
         response = client.get_bytes(url, params=params, headers=headers)
         success = 200 <= response.status_code < 300
@@ -73,17 +91,29 @@ def download_daily_dataset_for_date(
             error_message=None if success else f"HTTP {response.status_code}",
         )
     except Exception as exc:
-        record = ManifestRecord(
-            dataset_id=dataset.dataset_id,
-            source=dataset.source or "b3",
-            source_url=url,
-            request_params=params,
-            download_timestamp_utc=timestamp,
-            file_size_bytes=0,
-            license_note=dataset.license_note,
-            success=False,
-            error_message=str(exc),
-        )
+        if response is None:
+            record = ManifestRecord(
+                dataset_id=dataset.dataset_id,
+                source=dataset.source or "b3",
+                source_url=url,
+                request_params=params,
+                download_timestamp_utc=timestamp,
+                file_size_bytes=0,
+                license_note=dataset.license_note,
+                success=False,
+                error_message=str(exc),
+            )
+        else:
+            record = _manifest_from_response(
+                dataset=dataset,
+                response=response,
+                params=params,
+                timestamp=timestamp,
+                raw_path=None,
+                content_hash=sha256_bytes(response.content),
+                success=False,
+                error_message=str(exc),
+            )
         raw_path = None
     manifest_writer.append(record)
     return DownloadResult(record=record, raw_path=raw_path)

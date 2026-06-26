@@ -5,8 +5,9 @@ import html.parser
 import io
 import re
 import unicodedata
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from pathlib import Path
+from typing import Literal
 
 import polars as pl
 
@@ -22,13 +23,25 @@ def normalize_columns(frame: pl.DataFrame) -> pl.DataFrame:
     return frame.rename({column: normalize_column_name(column) for column in frame.columns})
 
 
-def read_delimited_or_html(content: bytes) -> pl.DataFrame:
+HeaderRequirement = str | Sequence[str]
+
+
+def read_delimited_or_html(
+    content: bytes,
+    *,
+    required_any: Sequence[str] | None = None,
+    required_all: Sequence[HeaderRequirement] | None = None,
+) -> pl.DataFrame:
     text = _decode_text(content)
     if "<table" in text.lower():
         tables = _extract_html_tables(text)
         if not tables:
             raise ValueError("No HTML table found in content")
-        rows = tables[0]
+        rows = select_table_by_headers(
+            tables,
+            required_any=required_any,
+            required_all=required_all,
+        )
         if len(rows) < 2:
             raise ValueError("HTML table must contain a header and at least one row")
         return normalize_columns(pl.DataFrame(rows[1:], schema=rows[0], orient="row"))
@@ -84,6 +97,24 @@ def select_first_existing(frame: pl.DataFrame, aliases: Iterable[str]) -> str | 
     return None
 
 
+def select_table_by_headers(
+    tables: Sequence[Sequence[Sequence[str]]],
+    *,
+    required_any: Sequence[str] | None = None,
+    required_all: Sequence[HeaderRequirement] | None = None,
+) -> list[list[str]]:
+    for table in tables:
+        if not table:
+            continue
+        headers = [normalize_column_name(header) for header in table[0]]
+        if required_any and not any(_has_header(headers, item) for item in required_any):
+            continue
+        if required_all and not all(_requirement_matches(headers, item) for item in required_all):
+            continue
+        return [list(row) for row in table]
+    raise ValueError("No HTML table matched required headers")
+
+
 def write_partitioned_by_year(
     frame: pl.DataFrame,
     output_root: Path,
@@ -110,6 +141,45 @@ def write_partitioned_by_year(
             part = pl.concat([existing, part], how="diagonal_relaxed")
             if primary_keys:
                 part = part.unique(subset=primary_keys, keep="last", maintain_order=True)
+        part.write_parquet(path)
+        paths.append(path)
+    return paths
+
+
+def write_source_partitioned(
+    frame: pl.DataFrame,
+    output_root: Path,
+    *,
+    ref_date_col: str = "ref_date",
+    primary_keys: list[str] | None = None,
+    mode: Literal["upsert", "append_chunks"] = "upsert",
+    filename: str = "data.parquet",
+) -> list[Path]:
+    if frame.is_empty():
+        return []
+    if ref_date_col not in frame.columns:
+        raise ValueError(f"Missing partition date column: {ref_date_col}")
+
+    output_root.mkdir(parents=True, exist_ok=True)
+    frame = frame.with_columns(pl.col(ref_date_col).dt.year().alias("__year"))
+    paths: list[Path] = []
+    for year in frame.select("__year").unique().to_series().to_list():
+        part_dir = output_root / f"year={year}"
+        part_dir.mkdir(parents=True, exist_ok=True)
+        part = frame.filter(pl.col("__year") == year).drop("__year")
+        if mode == "append_chunks":
+            path = part_dir / _next_chunk_filename(part_dir)
+        elif mode == "upsert":
+            path = part_dir / filename
+            if path.exists():
+                part = pl.concat([pl.read_parquet(path), part], how="diagonal_relaxed")
+                if primary_keys:
+                    keys = list(primary_keys)
+                    if "source_dataset" in part.columns and "source_dataset" not in keys:
+                        keys.append("source_dataset")
+                    part = part.unique(subset=keys, keep="last", maintain_order=True)
+        else:
+            raise ValueError(f"Unsupported write mode: {mode}")
         part.write_parquet(path)
         paths.append(path)
     return paths
@@ -154,6 +224,27 @@ def _extract_html_tables(text: str) -> list[list[list[str]]]:
     parser = _TableParser()
     parser.feed(text)
     return parser.tables
+
+
+def _requirement_matches(headers: Sequence[str], requirement: HeaderRequirement) -> bool:
+    if isinstance(requirement, str):
+        return _has_header(headers, requirement)
+    return any(_has_header(headers, item) for item in requirement)
+
+
+def _has_header(headers: Sequence[str], expected: str) -> bool:
+    normalized = normalize_column_name(expected)
+    return any(
+        header == normalized
+        or header.startswith(f"{normalized}_")
+        or normalized.startswith(f"{header}_")
+        for header in headers
+    )
+
+
+def _next_chunk_filename(part_dir: Path) -> str:
+    existing = sorted(part_dir.glob("chunk-*.parquet"))
+    return f"chunk-{len(existing):06d}.parquet"
 
 
 def _detect_delimiter(sample: str) -> str:

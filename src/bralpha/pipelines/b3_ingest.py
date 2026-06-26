@@ -65,7 +65,7 @@ def run_b3_ingest(
         primary_keys=dataset.primary_keys,
         required_columns=MARKET_DAILY_COLUMNS,
     )
-    write_market_daily(silver, paths.silver / dataset.canonical_table, dataset.primary_keys)
+    write_market_daily(silver, paths.silver / dataset_id, dataset.primary_keys)
 
 
 def main(argv: list[str] | None = None) -> None:

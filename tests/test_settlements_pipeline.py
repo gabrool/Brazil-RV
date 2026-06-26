@@ -45,6 +45,11 @@ class MockClient:
         )
 
 
+class FailingRawStore:
+    def write_bytes(self, *args, **kwargs):
+        raise OSError("raw store unavailable")
+
+
 def test_mocked_settlement_download_writes_raw_and_manifest(repo_root, tmp_path):
     dataset = _settlement_dataset(repo_root)
     manifest_path = tmp_path / "manifest.jsonl"
@@ -64,6 +69,27 @@ def test_mocked_settlement_download_writes_raw_and_manifest(repo_root, tmp_path)
     record = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert record["success"] is True
     assert record["sha256"] == sha256_bytes(SETTLEMENT_CSV.encode("utf-8"))
+
+
+def test_render_failure_still_writes_failure_manifest(repo_root, tmp_path):
+    dataset = _settlement_dataset(repo_root).model_copy(update={"source_urls": []})
+    manifest_path = tmp_path / "manifest.jsonl"
+
+    result = download_daily_dataset_for_date(
+        dataset=dataset,
+        raw_store=RawStore(tmp_path / "raw"),
+        manifest_writer=ManifestWriter(manifest_path),
+        ref_date=date(2024, 1, 2),
+        client=MockClient(),
+        downloaded_at=datetime(2024, 1, 2, 12, tzinfo=UTC),
+        commodity="DI1",
+    )
+
+    assert result.raw_path is None
+    record = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert record["success"] is False
+    assert record["source_url"] == ""
+    assert "no configured source URL" in record["error_message"]
 
 
 def test_failed_http_call_writes_failure_manifest(repo_root, tmp_path):
@@ -86,6 +112,28 @@ def test_failed_http_call_writes_failure_manifest(repo_root, tmp_path):
     assert record["error_message"] == "HTTP 500"
 
 
+def test_raw_write_failure_writes_failure_manifest(repo_root, tmp_path):
+    dataset = _settlement_dataset(repo_root)
+    manifest_path = tmp_path / "manifest.jsonl"
+
+    result = download_daily_dataset_for_date(
+        dataset=dataset,
+        raw_store=FailingRawStore(),
+        manifest_writer=ManifestWriter(manifest_path),
+        ref_date=date(2024, 1, 2),
+        client=MockClient(),
+        downloaded_at=datetime(2024, 1, 2, 12, tzinfo=UTC),
+        commodity="DI1",
+    )
+
+    assert result.raw_path is None
+    record = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert record["success"] is False
+    assert record["http_status"] == 200
+    assert record["sha256"] == sha256_bytes(SETTLEMENT_CSV.encode("utf-8"))
+    assert "raw store unavailable" in record["error_message"]
+
+
 def test_non_trading_day_writes_skip_manifest(repo_root, tmp_path):
     dataset = _settlement_dataset(repo_root)
     manifest_path = tmp_path / "manifest.jsonl"
@@ -105,6 +153,34 @@ def test_non_trading_day_writes_skip_manifest(repo_root, tmp_path):
     assert record["error_message"] == "skipped_non_business_day"
 
 
+def test_html_parser_ignores_irrelevant_first_table(repo_root):
+    timestamp = datetime(2024, 1, 2, 12, tzinfo=UTC)
+    html = b"""
+    <table>
+      <tr><th>Menu</th><th>Link</th></tr>
+      <tr><td>Layout</td><td>Ignore me</td></tr>
+    </table>
+    <table>
+      <tr><th>VENCTO</th><th>AJUSTE</th><th>CONTR. NEGOC.</th></tr>
+      <tr><td>F26</td><td>10,25</td><td>200</td></tr>
+    </table>
+    """
+
+    bronze = parse_settlements_bytes(
+        html,
+        ref_date=date(2024, 1, 2),
+        commodity="DI1",
+        source_dataset="b3_futures_settlements",
+        download_timestamp_utc=timestamp,
+        raw_path=repo_root / "raw.html",
+        sha256="abc",
+    )
+
+    assert bronze.height == 1
+    assert bronze["maturity_code"].item() == "F26"
+    assert bronze["settlement"].item() == 10.25
+
+
 def test_bronze_parser_and_silver_normalizer(repo_root):
     timestamp = datetime(2024, 1, 2, 12, tzinfo=UTC)
     bronze = parse_settlements_bytes(
@@ -119,7 +195,15 @@ def test_bronze_parser_and_silver_normalizer(repo_root):
     silver = normalize_settlements_to_market_daily(bronze)
 
     assert bronze.height == 2
+    for column in ["source", "source_dataset", "download_timestamp_utc", "raw_path", "sha256"]:
+        assert column in bronze.columns
     assert set(MARKET_DAILY_COLUMNS) == set(silver.columns)
+    assert silver["source_dataset"].to_list() == [
+        "b3_futures_settlements",
+        "b3_futures_settlements",
+    ]
+    assert silver["raw_path"].to_list() == [str(repo_root / "raw.csv"), str(repo_root / "raw.csv")]
+    assert silver["sha256"].to_list() == ["abc", "abc"]
     assert silver["available_date"].to_list() == [date(2024, 1, 3), date(2024, 1, 3)]
     assert silver["contract_id"].to_list() == ["DI1_F26", "DI1_G26"]
     assert silver["settlement"].to_list() == [10.25, 10.4]
@@ -165,11 +249,12 @@ def test_quality_checks_pass_and_fail_on_duplicate_keys():
         )
 
 
-def test_market_daily_rerun_deduplicates(tmp_path):
+def test_source_specific_silver_rerun_deduplicates(tmp_path):
     first = pl.DataFrame(
         [
             {
                 "ref_date": date(2024, 1, 2),
+                "source_dataset": "b3_futures_settlements",
                 "commodity": "DI1",
                 "maturity_code": "F26",
                 "settlement": 10.0,
@@ -180,6 +265,7 @@ def test_market_daily_rerun_deduplicates(tmp_path):
         [
             {
                 "ref_date": date(2024, 1, 2),
+                "source_dataset": "b3_futures_settlements",
                 "commodity": "DI1",
                 "maturity_code": "F26",
                 "settlement": 10.5,
@@ -188,8 +274,9 @@ def test_market_daily_rerun_deduplicates(tmp_path):
     )
     keys = ["ref_date", "commodity", "maturity_code"]
 
-    write_market_daily(first, tmp_path / "market_daily", keys)
-    paths = write_market_daily(second, tmp_path / "market_daily", keys)
+    output_root = tmp_path / "b3_futures_settlements"
+    write_market_daily(first, output_root, keys)
+    paths = write_market_daily(second, output_root, keys)
 
     combined = pl.read_parquet(paths[0])
     assert combined.height == 1
