@@ -30,6 +30,12 @@ def test_daily_long_includes_sgs_ptax_and_focus_rows_and_drops_nulls():
     )
     assert not any(row["value"] is None for row in rows)
     assert "std_dev" not in [row["value_name"] for row in rows]
+    ptax_bid = panel.filter(
+        (pl.col("source_family") == "ptax") & (pl.col("value_name") == "bid_rate")
+    ).row(0, named=True)
+    assert ptax_bid["ref_date"] == date(2024, 1, 3)
+    assert ptax_bid["observation_ref_date"] == date(2024, 1, 2)
+    assert ptax_bid["observation_available_date"] == date(2024, 1, 3)
 
 
 def test_daily_long_uses_long_primary_key_and_does_not_pivot_wide():
@@ -52,7 +58,7 @@ def _sgs_asof() -> pl.DataFrame:
         [
             {
                 "ref_date": date(2024, 1, 2),
-                "available_date": date(2024, 1, 2),
+                "available_date": date(2024, 1, 3),
                 "series_id": 11,
                 "series_slug": "selic_over",
                 "series_name": "Selic",
@@ -78,7 +84,7 @@ def _ptax_selected() -> pl.DataFrame:
         [
             {
                 "ref_date": date(2024, 1, 2),
-                "available_date": date(2024, 1, 2),
+                "available_date": date(2024, 1, 3),
                 "currency_code": "USD",
                 "currency_name": "US Dollar",
                 "selected_bulletin_type": "Fechamento",
@@ -124,7 +130,7 @@ def _focus_asof() -> pl.DataFrame:
                 "is_available": True,
                 "is_observed_on_ref_date": True,
                 "staleness_days": 0,
-                "availability_note": "first_pass_available_date_equals_data",
+                "availability_note": "date_only_next_business_day_until_publication_calendar",
                 "source_dataset": "bcb_focus_expectations",
                 "source_version": "v0",
             }

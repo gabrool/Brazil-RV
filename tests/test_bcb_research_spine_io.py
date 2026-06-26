@@ -23,7 +23,10 @@ def test_bcb_research_config_loads(repo_root):
 
     assert config.calendar.default == "business_days_mon_fri"
     assert config.ptax.currencies[:2] == ["USD", "EUR"]
-    assert config.focus.availability_note == "first_pass_available_date_equals_data"
+    assert (
+        config.focus.availability_note
+        == "date_only_next_business_day_until_publication_calendar"
+    )
 
 
 def test_bcb_gold_output_path_stays_under_data_gold_bcb(repo_root, tmp_path):

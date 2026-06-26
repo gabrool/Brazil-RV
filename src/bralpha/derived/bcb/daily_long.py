@@ -71,6 +71,7 @@ def _ptax_rows(frame: pl.DataFrame) -> list[pl.DataFrame]:
             unit=pl.lit(None, dtype=pl.Utf8),
             observation_ref_date=pl.col("ref_date"),
             observation_available_date=pl.col("available_date"),
+            ref_date=pl.col("available_date"),
             is_available=pl.col("has_quote"),
             staleness_days=pl.lit(0, dtype=pl.Int64),
         ).select(BCB_DAILY_LONG_COLUMNS)

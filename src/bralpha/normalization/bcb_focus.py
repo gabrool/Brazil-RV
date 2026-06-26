@@ -6,6 +6,7 @@ from pathlib import Path
 import polars as pl
 
 from bralpha.parsing.common import parse_decimal, parse_int, write_source_partitioned
+from bralpha.timing.availability import usable_date_from_date_only
 
 BCB_FOCUS_EXPECTATION_COLUMNS = [
     "ref_date",
@@ -86,7 +87,7 @@ def normalize_focus_expectations_to_silver(
         rows.append(
             {
                 "ref_date": ref_date,
-                "available_date": ref_date,
+                "available_date": usable_date_from_date_only(ref_date),
                 "endpoint": row.get("endpoint"),
                 "indicator": _text(row.get("Indicador") or row.get("indicador")),
                 "indicator_detail": _text(row.get("IndicadorDetalhe") or row.get("Suavizada")),

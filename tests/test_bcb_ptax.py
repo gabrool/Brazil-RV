@@ -127,6 +127,7 @@ def test_ptax_normalizer_marks_closing_bulletin_and_keeps_all_rows():
 
     assert silver.height == 4
     assert silver["ref_date"].unique().to_list() == [date(2024, 1, 2)]
+    assert silver["available_date"].unique().to_list() == [date(2024, 1, 2)]
     assert silver["currency_name"].unique().to_list() == ["Euro"]
     selected = silver.filter(pl.col("is_selected_bulletin")).row(0, named=True)
     assert selected["bulletin_type"] == "Fechamento"
@@ -152,6 +153,27 @@ def test_ptax_normalizer_selects_latest_when_no_closing_bulletin():
     selected = silver.filter(pl.col("is_selected_bulletin")).row(0, named=True)
     assert selected["bulletin_type"] == "Intermediario"
     assert selected["quote_datetime"] == datetime(2024, 1, 2, 12)
+
+
+def test_ptax_after_cutoff_quote_is_available_next_business_day():
+    silver = normalize_ptax_to_silver(
+        pl.DataFrame([_ptax_row("Fechamento", "2024-01-02 18:31:00", 5.3)])
+    )
+
+    row = silver.row(0, named=True)
+    assert row["ref_date"] == date(2024, 1, 2)
+    assert row["available_date"] == date(2024, 1, 3)
+
+
+def test_ptax_date_only_quote_uses_next_business_day_policy():
+    silver = normalize_ptax_to_silver(
+        pl.DataFrame([_ptax_row("Fechamento", "2024-01-02", 5.3)])
+    )
+
+    row = silver.row(0, named=True)
+    assert row["ref_date"] == date(2024, 1, 2)
+    assert row["quote_datetime"] is None
+    assert row["available_date"] == date(2024, 1, 3)
 
 
 def _ptax_row(bulletin: str, quote_datetime: str, bid_rate: float):
