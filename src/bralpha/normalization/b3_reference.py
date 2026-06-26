@@ -57,6 +57,8 @@ INDEX_COMPOSITION_COLUMNS = [
 ]
 
 REFERENCE_SECURITY_COLUMNS = [
+    "ref_date",
+    "available_date",
     "security_id",
     "symbol",
     "isin",
@@ -65,6 +67,25 @@ REFERENCE_SECURITY_COLUMNS = [
     "asset_class",
     "issuer",
     "currency",
+    "source",
+    "source_dataset",
+    "download_timestamp_utc",
+    "raw_path",
+    "sha256",
+    "source_version",
+]
+
+TRADING_PARAMETERS_COLUMNS = [
+    "ref_date",
+    "available_date",
+    "symbol",
+    "security_id",
+    "isin",
+    "market_type",
+    "lot_size",
+    "tick_size",
+    "price_limit_lower",
+    "price_limit_upper",
     "source",
     "source_dataset",
     "download_timestamp_utc",
@@ -161,14 +182,19 @@ def normalize_index_composition(
 def normalize_traded_securities(
     bronze: pl.DataFrame,
     *,
+    holidays: set[date] | None = None,
     source_version: str = "v0",
 ) -> pl.DataFrame:
     rows = []
     for row in bronze.to_dicts():
+        ref_date = _optional_date(row.get("ref_date"))
         symbol = _text(row.get("symbol"))
         market_type = _text(row.get("market_type"))
         rows.append(
             {
+                "ref_date": ref_date,
+                "available_date": _optional_date(row.get("available_date"))
+                or (next_business_day(ref_date, holidays) if ref_date else None),
                 "security_id": _text(row.get("security_id")) or f"{symbol}_{market_type}",
                 "symbol": symbol,
                 "isin": _text(row.get("isin")),
@@ -186,6 +212,41 @@ def normalize_traded_securities(
             }
         )
     return _frame(rows, REFERENCE_SECURITY_COLUMNS)
+
+
+def normalize_trading_parameters(
+    bronze: pl.DataFrame,
+    *,
+    holidays: set[date] | None = None,
+    source_version: str = "v0",
+) -> pl.DataFrame:
+    rows = []
+    for row in bronze.to_dicts():
+        ref_date = _required_date(row.get("ref_date"))
+        symbol = _text(row.get("symbol"))
+        market_type = _text(row.get("market_type"))
+        rows.append(
+            {
+                "ref_date": ref_date,
+                "available_date": _optional_date(row.get("available_date"))
+                or next_business_day(ref_date, holidays),
+                "symbol": symbol,
+                "security_id": _text(row.get("security_id")) or f"{symbol}_{market_type}",
+                "isin": _text(row.get("isin")),
+                "market_type": market_type,
+                "lot_size": parse_decimal(row.get("lot_size")),
+                "tick_size": parse_decimal(row.get("tick_size")),
+                "price_limit_lower": parse_decimal(row.get("price_limit_lower")),
+                "price_limit_upper": parse_decimal(row.get("price_limit_upper")),
+                "source": row.get("source", "b3"),
+                "source_dataset": row.get("source_dataset", "b3_trading_parameters"),
+                "download_timestamp_utc": row.get("download_timestamp_utc"),
+                "raw_path": row.get("raw_path"),
+                "sha256": row.get("sha256"),
+                "source_version": source_version,
+            }
+        )
+    return _frame(rows, TRADING_PARAMETERS_COLUMNS)
 
 
 def load_contract_master_yaml(path: Path) -> list[dict[str, object]]:
