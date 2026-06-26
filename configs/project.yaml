@@ -1,0 +1,14 @@
+project:
+  name: brazil-rv
+  package: bralpha
+  timezone: America/Sao_Paulo
+  frequency: daily
+
+engineering:
+  hardware_constrained: true
+  lean_code: true
+  table_format: parquet
+
+point_in_time:
+  required: true
+  availability_field: available_date
