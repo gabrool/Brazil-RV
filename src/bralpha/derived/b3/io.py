@@ -95,6 +95,7 @@ def write_gold_panel(
         output_root,
         ref_date_col=ref_date_col,
         primary_keys=primary_keys,
+        augment_source_dataset_key=False,
     )
 
 
@@ -110,34 +111,33 @@ def _select_parquet_files(
 ) -> list[Path]:
     if not root.exists():
         return []
-    files = sorted(root.glob("**/*.parquet"))
-    if not files or (start is None and end is None):
-        return files
+    if start is None and end is None:
+        return sorted(root.glob("**/*.parquet"))
 
-    partitioned = [(path, _partition_year(path)) for path in files]
-    if not any(year is not None for _, year in partitioned):
-        return files
+    partition_years = _year_partitions(root)
+    if not partition_years:
+        return sorted(root.glob("**/*.parquet"))
 
-    selected = []
-    for path, year in partitioned:
-        if year is None:
-            selected.append(path)
-            continue
-        if start is not None and year < start.year:
-            continue
-        if end is not None and year > end.year:
-            continue
-        selected.append(path)
-    return selected
+    first_year = start.year if start is not None else min(partition_years)
+    last_year = end.year if end is not None else max(partition_years)
+    if first_year > last_year:
+        return []
+
+    files: list[Path] = []
+    for year in range(first_year, last_year + 1):
+        part_dir = root / f"year={year}"
+        if part_dir.exists():
+            files.extend(sorted(part_dir.glob("**/*.parquet")))
+    return files
 
 
-def _partition_year(path: Path) -> int | None:
-    for parent in path.parents:
-        name = parent.name
-        if not name.startswith("year="):
+def _year_partitions(root: Path) -> list[int]:
+    years = []
+    for child in root.iterdir():
+        if not child.is_dir() or not child.name.startswith("year="):
             continue
         try:
-            return int(name.removeprefix("year="))
+            years.append(int(child.name.removeprefix("year=")))
         except ValueError:
-            return None
-    return None
+            continue
+    return sorted(years)

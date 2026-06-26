@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import shutil
 from datetime import date
+from pathlib import Path
 
 import polars as pl
 import pytest
@@ -13,6 +14,7 @@ from bralpha.infra.config import (
     load_paths_config,
     resolve_project_paths,
 )
+from bralpha.parsing.common import write_source_partitioned
 from bralpha.pipelines.b3_research_spine import run_b3_research_spine
 
 
@@ -43,6 +45,97 @@ def test_gold_output_path_stays_under_data_gold_b3(repo_root, tmp_path):
     assert not (tmp_path / "data" / "silver" / "futures_contract_daily").exists()
 
 
+def test_gold_writer_upserts_by_declared_primary_key(repo_root, tmp_path):
+    paths = resolve_project_paths(tmp_path, load_paths_config(repo_root))
+    primary_keys = ["ref_date", "symbol", "market_type"]
+    first = pl.DataFrame(
+        [
+            {
+                "ref_date": date(2024, 1, 2),
+                "symbol": "PETR4",
+                "market_type": "010",
+                "source_dataset": "b3_cotahist_yearly",
+                "close": 10.0,
+            }
+        ]
+    )
+    second = pl.DataFrame(
+        [
+            {
+                "ref_date": date(2024, 1, 2),
+                "symbol": "PETR4",
+                "market_type": "010",
+                "source_dataset": "b3_cotahist_daily",
+                "close": 10.5,
+            }
+        ]
+    )
+
+    write_gold_panel(first, paths, panel="listed_market_daily", primary_keys=primary_keys)
+    write_gold_panel(second, paths, panel="listed_market_daily", primary_keys=primary_keys)
+
+    frame = io_module.read_parquet_root(gold_panel_root(paths, "listed_market_daily"))
+    assert frame.height == 1
+    row = frame.row(0, named=True)
+    assert row["source_dataset"] == "b3_cotahist_daily"
+    assert row["close"] == 10.5
+
+
+def test_source_writer_keeps_source_dataset_key_augmentation_by_default(tmp_path):
+    primary_keys = ["ref_date", "symbol", "market_type"]
+    yearly = pl.DataFrame(
+        [
+            {
+                "ref_date": date(2024, 1, 2),
+                "symbol": "PETR4",
+                "market_type": "010",
+                "source_dataset": "b3_cotahist_yearly",
+                "close": 10.0,
+            }
+        ]
+    )
+    daily = pl.DataFrame(
+        [
+            {
+                "ref_date": date(2024, 1, 2),
+                "symbol": "PETR4",
+                "market_type": "010",
+                "source_dataset": "b3_cotahist_daily",
+                "close": 10.5,
+            }
+        ]
+    )
+    default_root = tmp_path / "default"
+    exact_root = tmp_path / "exact"
+
+    write_source_partitioned(yearly, default_root, primary_keys=primary_keys)
+    write_source_partitioned(daily, default_root, primary_keys=primary_keys)
+    default_frame = io_module.read_parquet_root(default_root)
+    assert default_frame.height == 2
+    assert set(default_frame["source_dataset"].to_list()) == {
+        "b3_cotahist_daily",
+        "b3_cotahist_yearly",
+    }
+
+    write_source_partitioned(
+        yearly,
+        exact_root,
+        primary_keys=primary_keys,
+        augment_source_dataset_key=False,
+    )
+    write_source_partitioned(
+        daily,
+        exact_root,
+        primary_keys=primary_keys,
+        augment_source_dataset_key=False,
+    )
+    exact_frame = io_module.read_parquet_root(exact_root)
+    assert exact_frame.height == 1
+    row = exact_frame.row(0, named=True)
+    assert row["source_dataset"] == "b3_cotahist_daily"
+    assert row["close"] == 10.5
+
+
 def test_missing_inputs_skip_full_pipeline_but_selected_panel_raises(repo_root, tmp_path):
     shutil.copytree(repo_root / "configs", tmp_path / "configs")
 
@@ -64,22 +157,9 @@ def test_missing_inputs_skip_full_pipeline_but_selected_panel_raises(repo_root, 
 
 def test_partitioned_parquet_read_prunes_unrelated_years(tmp_path, monkeypatch):
     root = tmp_path / "silver" / "b3_cotahist_yearly"
-    (root / "year=2023").mkdir(parents=True)
-    (root / "year=2024").mkdir(parents=True)
-    pl.DataFrame([{"ref_date": date(2023, 1, 2), "symbol": "OLD"}]).write_parquet(
-        root / "year=2023" / "data.parquet"
-    )
-    pl.DataFrame([{"ref_date": date(2024, 1, 2), "symbol": "NEW"}]).write_parquet(
-        root / "year=2024" / "data.parquet"
-    )
-    scanned: list[str] = []
-    original_scan_parquet = io_module.pl.scan_parquet
-
-    def tracking_scan(source, *args, **kwargs):
-        scanned.extend(source if isinstance(source, list) else [source])
-        return original_scan_parquet(source, *args, **kwargs)
-
-    monkeypatch.setattr(io_module.pl, "scan_parquet", tracking_scan)
+    _write_partition(root, 2023, "OLD")
+    _write_partition(root, 2024, "NEW")
+    scanned, globbed = _track_scan_and_glob(monkeypatch)
 
     frame = io_module.read_parquet_root(
         root,
@@ -90,6 +170,39 @@ def test_partitioned_parquet_read_prunes_unrelated_years(tmp_path, monkeypatch):
     assert frame["symbol"].to_list() == ["NEW"]
     assert any("year=2024" in path for path in scanned)
     assert not any("year=2023" in path for path in scanned)
+    assert (root, "**/*.parquet") not in globbed
+    assert (root / "year=2023", "**/*.parquet") not in globbed
+    assert (root / "year=2024", "**/*.parquet") in globbed
+
+
+def test_partitioned_parquet_read_prunes_start_open_range(tmp_path, monkeypatch):
+    root = tmp_path / "silver" / "b3_cotahist_yearly"
+    _write_partition(root, 2023, "OLD")
+    _write_partition(root, 2024, "NEW")
+    _write_partition(root, 2025, "FUTURE")
+    scanned, _ = _track_scan_and_glob(monkeypatch)
+
+    frame = io_module.read_parquet_root(root, start=date(2024, 1, 1))
+
+    assert frame.sort("ref_date")["symbol"].to_list() == ["NEW", "FUTURE"]
+    assert not any("year=2023" in path for path in scanned)
+    assert any("year=2024" in path for path in scanned)
+    assert any("year=2025" in path for path in scanned)
+
+
+def test_partitioned_parquet_read_prunes_end_open_range(tmp_path, monkeypatch):
+    root = tmp_path / "silver" / "b3_cotahist_yearly"
+    _write_partition(root, 2023, "OLD")
+    _write_partition(root, 2024, "NEW")
+    _write_partition(root, 2025, "FUTURE")
+    scanned, _ = _track_scan_and_glob(monkeypatch)
+
+    frame = io_module.read_parquet_root(root, end=date(2024, 12, 31))
+
+    assert frame.sort("ref_date")["symbol"].to_list() == ["OLD", "NEW"]
+    assert any("year=2023" in path for path in scanned)
+    assert any("year=2024" in path for path in scanned)
+    assert not any("year=2025" in path for path in scanned)
 
 
 def test_nonpartitioned_parquet_read_still_filters_dates(tmp_path):
@@ -109,3 +222,29 @@ def test_nonpartitioned_parquet_read_still_filters_dates(tmp_path):
     )
 
     assert frame["symbol"].to_list() == ["NEW"]
+
+
+def _write_partition(root: Path, year: int, symbol: str) -> None:
+    (root / f"year={year}").mkdir(parents=True)
+    pl.DataFrame(
+        [{"ref_date": date(year, 1, 2), "symbol": symbol}]
+    ).write_parquet(root / f"year={year}" / "data.parquet")
+
+
+def _track_scan_and_glob(monkeypatch) -> tuple[list[str], list[tuple[Path, str]]]:
+    scanned: list[str] = []
+    globbed: list[tuple[Path, str]] = []
+    original_scan_parquet = io_module.pl.scan_parquet
+    original_glob = Path.glob
+
+    def tracking_scan(source, *args, **kwargs):
+        scanned.extend(source if isinstance(source, list) else [source])
+        return original_scan_parquet(source, *args, **kwargs)
+
+    def tracking_glob(self, pattern):
+        globbed.append((self, pattern))
+        return original_glob(self, pattern)
+
+    monkeypatch.setattr(io_module.pl, "scan_parquet", tracking_scan)
+    monkeypatch.setattr(Path, "glob", tracking_glob)
+    return scanned, globbed

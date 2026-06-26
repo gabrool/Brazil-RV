@@ -154,6 +154,7 @@ def write_source_partitioned(
     primary_keys: list[str] | None = None,
     mode: Literal["upsert", "append_chunks"] = "upsert",
     filename: str = "data.parquet",
+    augment_source_dataset_key: bool = True,
 ) -> list[Path]:
     if frame.is_empty():
         return []
@@ -175,7 +176,11 @@ def write_source_partitioned(
                 part = pl.concat([pl.read_parquet(path), part], how="diagonal_relaxed")
                 if primary_keys:
                     keys = list(primary_keys)
-                    if "source_dataset" in part.columns and "source_dataset" not in keys:
+                    if (
+                        augment_source_dataset_key
+                        and "source_dataset" in part.columns
+                        and "source_dataset" not in keys
+                    ):
                         keys.append("source_dataset")
                     part = part.unique(subset=keys, keep="last", maintain_order=True)
         else:

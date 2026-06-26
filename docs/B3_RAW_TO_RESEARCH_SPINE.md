@@ -87,6 +87,13 @@ momentum windows.
 - Without reliable contract master maturity data, the observed DI contract panel
   may still build while fixed-tenor DI grid values remain sparse or null.
 - Root-specific futures P&L conventions are not finalized here.
+- `listed_market_daily` currently uses a simple row-wise implementation after
+  bounded Parquet reads. This is acceptable for initial correctness and
+  small/date-bounded runs. If full-history COTAHIST builds are slow, the first
+  optimization target is to rewrite the listed-market builder as a Polars-native
+  transformation: concatenate yearly/daily sources with explicit precedence,
+  sort/unique by ref_date/symbol/market_type, and join reference fields
+  vectorially.
 
 ## CLI
 
