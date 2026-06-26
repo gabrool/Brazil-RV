@@ -260,9 +260,16 @@ datasets:
     quality_checks:
       - row_count_not_zero
       - no_duplicate_primary_keys
-    source_urls: []
-    license_note: Public B3 daily quote file; verify current B3 terms before redistribution.
-    notes: Out of scope until P0 is complete.
+      - nonnegative_volume
+      - nonnegative_prices_where_present
+      - required_columns_present
+    source_map_status: live_download
+    source_urls:
+      - name: b3_cotahist_daily
+        url_template: https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_D{ref_date:%d%m%Y}.ZIP
+        filename_template: "COTAHIST_D{ref_date:%d%m%Y}.ZIP"
+    license_note: Public B3 historical quote file; verify current B3 terms before redistribution.
+    notes: Daily incremental listed quote file; same fixed-width layout family as COTAHIST yearly, unadjusted for corporate actions.
 
   - dataset_id: b3_indexes_current_portfolio
     source: b3
@@ -277,9 +284,34 @@ datasets:
     primary_keys: [ref_date, index_id, symbol]
     quality_checks:
       - row_count_not_zero
+      - no_duplicate_primary_keys
+      - nonnegative_weight_where_present
+      - required_columns_present
+    source_map_status: not_implemented_pending_url
+    source_urls: []
+    license_note: Public B3 index portfolio pages; verify current B3 terms before redistribution.
+    notes: B3 exposes index composition pages, but no stable direct free file URL is confirmed yet.
+
+  - dataset_id: b3_indexes_theoretical_portfolio
+    source: b3
+    priority: P1
+    frequency: periodic
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
+    raw_format: csv_or_html
+    canonical_table: index_composition
+    partition_keys: [index_id]
+    primary_keys: [ref_date, index_id, symbol]
+    quality_checks:
+      - row_count_not_zero
+      - no_duplicate_primary_keys
+      - nonnegative_weight_where_present
+      - required_columns_present
+    source_map_status: not_implemented_pending_url
     source_urls: []
     license_note: Public B3 index portfolio data; verify current B3 terms before redistribution.
-    notes: Out of scope until P0 is complete.
+    notes: Keep separate from current portfolio output until a stable public file template is confirmed.
 
   - dataset_id: b3_equities_investor_participation
     source: b3
@@ -294,9 +326,12 @@ datasets:
     primary_keys: [ref_date, investor_type, market_segment]
     quality_checks:
       - row_count_not_zero
+      - no_duplicate_primary_keys
+      - required_columns_present
+    source_map_status: not_implemented_pending_url
     source_urls: []
     license_note: Public B3 report data; verify current B3 terms before redistribution.
-    notes: Out of scope until P0 is complete.
+    notes: Public investor participation reports require a stable direct source URL before live downloads are enabled.
 
   - dataset_id: b3_foreign_investor_movement
     source: b3
@@ -311,9 +346,12 @@ datasets:
     primary_keys: [ref_date, market_segment]
     quality_checks:
       - row_count_not_zero
+      - no_duplicate_primary_keys
+      - required_columns_present
+    source_map_status: not_implemented_pending_url
     source_urls: []
     license_note: Public B3 report data; verify current B3 terms before redistribution.
-    notes: Out of scope until P0 is complete.
+    notes: Kept separate from general investor participation; pending stable public source URL.
 
   - dataset_id: b3_daily_bulletin_chapters
     source: b3
@@ -328,9 +366,19 @@ datasets:
     primary_keys: [ref_date, report_section]
     quality_checks:
       - downloaded_file_present
+      - required_columns_present
+    source_map_status: not_implemented_pending_url
     source_urls: []
     license_note: Public B3 bulletin data; verify current B3 terms before redistribution.
-    notes: Out of scope until P0 is complete.
+    request_defaults:
+      report_sections:
+        - BVBG.087.01 IndexReport
+        - BVBG.086.01 PriceReport
+        - BVBG.186.01 Simplified Price Report - Equities
+        - BVBG.187.01 Simplified Price Report - Derivatives
+        - BVBG.028.02 Instruments File
+        - BVBG.044.01 Fee Daily Unit Cost
+    notes: B3 daily bulletin page lists reports, but a stable direct download URL template is not confirmed.
 
   - dataset_id: b3_isin_database
     source: b3
@@ -345,9 +393,11 @@ datasets:
     primary_keys: [isin]
     quality_checks:
       - no_duplicate_primary_keys
+      - required_columns_present
+    source_map_status: not_implemented_pending_url
     source_urls: []
     license_note: Public B3 reference data; verify current B3 terms before redistribution.
-    notes: Out of scope until P0 is complete.
+    notes: B3 references ISIN search/public hub data, but no stable free bulk URL is confirmed.
 
   - dataset_id: b3_trading_parameters
     source: b3
@@ -359,12 +409,15 @@ datasets:
     raw_format: csv_or_xlsx_or_html
     canonical_table: reference_trading_parameter
     partition_keys: []
-    primary_keys: [symbol]
+    primary_keys: [ref_date, symbol]
     quality_checks:
       - row_count_not_zero
+      - no_duplicate_primary_keys
+      - required_columns_present
+    source_map_status: not_implemented_pending_url
     source_urls: []
     license_note: Public B3 reference data; verify current B3 terms before redistribution.
-    notes: Out of scope until P0 is complete.
+    notes: Daily bulletin lists instrument/group parameter files, but a stable direct URL is not confirmed.
 
   - dataset_id: b3_fee_schedules
     source: b3
@@ -376,12 +429,27 @@ datasets:
     raw_format: pdf_or_html_or_xlsx
     canonical_table: reference_fee
     partition_keys: []
-    primary_keys: [fee_id]
+    primary_keys: [ref_date, fee_id]
     quality_checks:
       - downloaded_file_present
-    source_urls: []
+      - required_columns_present
+    source_map_status: raw_only
+    source_urls:
+      - name: b3_fee_schedule_page
+        url_template: "{page_url}"
+        filename_template: "{dataset_id}_{fee_id}.html"
+    request_defaults:
+      fee_pages:
+        - fee_id: equities_spot
+          page_url: https://www.b3.com.br/en_us/products-and-services/fee-schedules/listed-equities-and-derivatives/equities/equities-and-investment-funds-fees/spot/
+        - fee_id: di_rates
+          page_url: https://www.b3.com.br/en_us/products-and-services/fee-schedules/listed-equities-and-derivatives/interest-rates-and-inflation-indexes/di-rates-fees/di-rates-fees/
+        - fee_id: ddi_dol_wdo
+          page_url: https://www.b3.com.br/pt_br/produtos-e-servicos/tarifas/listados-a-vista-e-derivativos/juros-e-inflacao/tarifas-de-operacao-estruturada-cupom-cambial-ddi-e-futuro-de-dolar-dol-wdo/
+        - fee_id: ibovespa_event_contracts
+          page_url: https://www.b3.com.br/pt_br/produtos-e-servicos/tarifas/listados-a-vista-e-derivativos/contratos-de-eventos/ibovespa/
     license_note: Public B3 fee data; verify current B3 terms before redistribution.
-    notes: Out of scope until P0 is complete.
+    notes: Raw fee pages are stable enough for raw snapshots; parse only simple HTML tables where reliable.
 
   - dataset_id: b3_market_data_public_reports
     source: b3
@@ -396,6 +464,72 @@ datasets:
     primary_keys: [ref_date, report_name]
     quality_checks:
       - downloaded_file_present
+      - required_columns_present
+    source_map_status: not_implemented_pending_url
     source_urls: []
+    request_defaults:
+      subreports:
+        - cash_listed_market_statistics
+        - derivatives_daily_market_statistics
+        - fx_spot_public_reports
+        - etf_fii_bdr_public_market_reports
+        - options_public_summary_reports
+        - securities_lending_public_reports
     license_note: Public B3 report data; verify current B3 terms before redistribution.
-    notes: Out of scope until P0/P1 are complete.
+    notes: Source-map specific subreports first; do not use as an unstructured dumping ground.
+
+  - dataset_id: b3_derivatives_reference_prices
+    source: b3
+    priority: P2
+    frequency: daily
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
+    raw_format: csv_or_html_or_xml
+    canonical_table: market_daily
+    partition_keys: [year]
+    primary_keys: [ref_date, commodity, maturity_code, price_type]
+    quality_checks:
+      - row_count_not_zero
+      - no_duplicate_primary_keys
+      - required_columns_present
+    source_map_status: not_implemented_pending_url
+    source_urls: []
+    license_note: Public B3 reference-price data; verify current B3 terms before redistribution.
+    notes: Daily bulletin lists option/reference-price reports, but no stable direct free URL is confirmed.
+
+  - dataset_id: b3_product_specs_pages
+    source: b3
+    priority: P2
+    frequency: static_or_periodic
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
+    raw_format: html_or_pdf
+    canonical_table: reference_product_spec
+    partition_keys: []
+    primary_keys: [download_date, product_root]
+    quality_checks:
+      - downloaded_file_present
+      - required_columns_present
+    source_map_status: raw_only
+    source_urls:
+      - name: b3_product_spec_page
+        url_template: "{page_url}"
+        filename_template: "{dataset_id}_{product_root}.html"
+    request_defaults:
+      product_pages:
+        - product_root: DI1
+          product_name: One-Day Interbank Deposit Rate Futures
+          page_url: https://www.b3.com.br/en_us/products-and-services/fee-schedules/listed-equities-and-derivatives/interest-rates-and-inflation-indexes/di-rates-fees/di-rates-fees/
+        - product_root: DDI_DOL_WDO
+          product_name: FX coupon and US Dollar futures fee/spec page
+          page_url: https://www.b3.com.br/pt_br/produtos-e-servicos/tarifas/listados-a-vista-e-derivativos/juros-e-inflacao/tarifas-de-operacao-estruturada-cupom-cambial-ddi-e-futuro-de-dolar-dol-wdo/
+        - product_root: IND_WIN
+          product_name: Ibovespa index products overview
+          page_url: https://www.b3.com.br/pt_br/market-data-e-indices/indices/indices-amplos/ibovespa.htm
+        - product_root: COTAHIST
+          product_name: Historical quote data layout
+          page_url: https://www.b3.com.br/en_us/market-data-and-indices/data-services/market-data/historical-data/equities/historical-quote-data/
+    license_note: Public B3 product/specification pages; verify current B3 terms before redistribution.
+    notes: Raw snapshots only; parse simple metadata fields, never OCR.
