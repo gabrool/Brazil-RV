@@ -21,6 +21,8 @@ MARKET_DAILY_COLUMNS = [
     "asset_id",
     "contract_id",
     "symbol",
+    "index_id",
+    "market_type",
     "commodity",
     "maturity_code",
     "asset_class",
@@ -70,6 +72,8 @@ def normalize_settlements_to_market_daily(
                 "asset_id": contract_id,
                 "contract_id": contract_id,
                 "symbol": symbol,
+                "index_id": None,
+                "market_type": None,
                 "commodity": commodity,
                 "maturity_code": maturity_code,
                 "asset_class": asset_class_for_root(commodity) if commodity else None,
@@ -87,6 +91,100 @@ def normalize_settlements_to_market_daily(
                 "open_interest": parse_int(row.get("open_interest")),
                 "currency": "BRL",
                 "unit": None,
+                "source_version": source_version,
+            }
+        )
+    return _market_daily_frame(rows)
+
+
+def normalize_cotahist_to_market_daily(
+    bronze: pl.DataFrame,
+    *,
+    holidays: set[date] | None = None,
+    source_version: str = "v0",
+) -> pl.DataFrame:
+    rows = []
+    for row in bronze.to_dicts():
+        ref_date = _as_date(row["ref_date"])
+        symbol = _text(row.get("symbol"))
+        rows.append(
+            {
+                "ref_date": ref_date,
+                "available_date": next_business_day(ref_date, holidays),
+                "source": row.get("source", "b3"),
+                "source_dataset": row.get("source_dataset", "b3_cotahist_yearly"),
+                "download_timestamp_utc": row.get("download_timestamp_utc"),
+                "raw_path": row.get("raw_path"),
+                "sha256": row.get("sha256"),
+                "asset_id": symbol,
+                "contract_id": None,
+                "symbol": symbol,
+                "index_id": None,
+                "market_type": _text(row.get("market_type")),
+                "commodity": None,
+                "maturity_code": None,
+                "asset_class": _lower_text(row.get("asset_class")) or "equity",
+                "open": parse_decimal(row.get("open")),
+                "high": parse_decimal(row.get("high")),
+                "low": parse_decimal(row.get("low")),
+                "close": parse_decimal(row.get("close")),
+                "settlement": None,
+                "previous_settlement": None,
+                "price_change": None,
+                "settlement_value": None,
+                "volume": parse_int(row.get("volume")),
+                "financial_volume": parse_decimal(row.get("financial_volume")),
+                "number_of_trades": parse_int(row.get("number_of_trades")),
+                "open_interest": None,
+                "currency": _text(row.get("currency")) or "BRL",
+                "unit": None,
+                "source_version": source_version,
+            }
+        )
+    return _market_daily_frame(rows)
+
+
+def normalize_indexes_historical_to_market_daily(
+    bronze: pl.DataFrame,
+    *,
+    holidays: set[date] | None = None,
+    source_version: str = "v0",
+) -> pl.DataFrame:
+    rows = []
+    for row in bronze.to_dicts():
+        ref_date = _as_date(row["ref_date"])
+        index_id = _text(row.get("index_id")) or _text(row.get("symbol"))
+        rows.append(
+            {
+                "ref_date": ref_date,
+                "available_date": next_business_day(ref_date, holidays),
+                "source": row.get("source", "b3"),
+                "source_dataset": row.get("source_dataset", "b3_indexes_historical_data"),
+                "download_timestamp_utc": row.get("download_timestamp_utc"),
+                "raw_path": row.get("raw_path"),
+                "sha256": row.get("sha256"),
+                "asset_id": index_id,
+                "contract_id": None,
+                "symbol": index_id,
+                "index_id": index_id,
+                "market_type": None,
+                "commodity": None,
+                "maturity_code": None,
+                "asset_class": "index",
+                "open": parse_decimal(row.get("open")),
+                "high": parse_decimal(row.get("high")),
+                "low": parse_decimal(row.get("low")),
+                "close": parse_decimal(row.get("close") or row.get("index_value")),
+                "settlement": None,
+                "previous_settlement": None,
+                "price_change": None,
+                "settlement_value": None,
+                "volume": parse_int(row.get("volume")),
+                "financial_volume": parse_decimal(row.get("financial_volume")),
+                "number_of_trades": parse_int(row.get("number_of_trades")),
+                "open_interest": None,
+                "currency": _text(row.get("currency")) or "BRL",
+                "unit": "points",
                 "source_version": source_version,
             }
         )
@@ -167,6 +265,8 @@ def _base_market_row(
         "asset_id": contract_id,
         "contract_id": contract_id,
         "symbol": symbol,
+        "index_id": None,
+        "market_type": None,
         "commodity": commodity,
         "maturity_code": maturity_code,
         "asset_class": asset_class_for_root(commodity) if commodity else None,
@@ -204,4 +304,11 @@ def _text(value: object) -> str | None:
     if value is None:
         return None
     text = str(value).strip().upper()
+    return text or None
+
+
+def _lower_text(value: object) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip().lower()
     return text or None
