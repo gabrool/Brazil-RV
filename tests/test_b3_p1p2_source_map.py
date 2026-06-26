@@ -77,6 +77,67 @@ def test_source_map_covers_required_and_candidate_datasets(repo_root):
         assert row["known_limitations"]
 
 
+def test_product_specs_pages_are_not_fee_pages(repo_root):
+    dataset = load_b3_dataset_registry(repo_root).get("b3_product_specs_pages")
+    pages = dataset.request_defaults["product_pages"]
+
+    roots = {page["product_root"] for page in pages}
+    assert roots >= {
+        "DI1",
+        "DAP",
+        "DDI",
+        "FRC",
+        "DOL",
+        "WDO",
+        "IND",
+        "WIN",
+        "D11_D19",
+        "WDO_OPTIONS",
+        "IBOV_OPTIONS",
+        "COTAHIST",
+    }
+    for page in pages:
+        assert "/tarifas/" not in page["page_url"]
+        assert "/fee-schedules/" not in page["page_url"]
+
+
+def test_cotahist_daily_pending_until_endpoint_evidence_is_documented(repo_root):
+    dataset = load_b3_dataset_registry(repo_root).get("b3_cotahist_daily")
+    source_map = (repo_root / SOURCE_MAP_PATH).read_text(encoding="utf-8")
+
+    assert dataset.model_extra["source_map_status"] == "not_implemented_pending_url"
+    assert dataset.source_urls == []
+    assert "no official stable daily `COTAHIST_D{ddmmyyyy}.ZIP` endpoint evidence" in source_map
+
+
+def test_daily_bulletin_source_map_lists_required_report_families(repo_root):
+    dataset = load_b3_dataset_registry(repo_root).get("b3_daily_bulletin_chapters")
+    report_sections = set(dataset.request_defaults["report_sections"])
+    source_map = (repo_root / SOURCE_MAP_PATH).read_text(encoding="utf-8")
+
+    required_reports = {
+        "Standardized Instrument Groups",
+        "Primitive Risk Factors",
+        "Risk Formulas",
+        "Fee Variables",
+        "Daily Liquidity Limit",
+        "Maximum Theoretical Margin",
+        "Tradable Security List",
+        "Instrument Group Parameters",
+        "FX Market - Volume Settled on a Net Basis",
+        "Derivatives Market - Margin Scenarios",
+        "Derivatives Market - Economic Indicators",
+        "Derivatives Market - Agricultural Indicators",
+        "Derivatives Market - Swap Mark-to-Market",
+        "Derivatives Market - Swap Market Rates",
+        "Securities Market - Government Securities Reference Prices",
+        "Scenario and risk-matrix files",
+    }
+    assert report_sections >= required_reports
+    for report in required_reports:
+        assert report in source_map
+
+
 def _source_map_rows(path: Path) -> list[dict[str, str]]:
     rows = []
     for line in path.read_text(encoding="utf-8").splitlines():

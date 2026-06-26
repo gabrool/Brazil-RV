@@ -263,13 +263,10 @@ datasets:
       - nonnegative_volume
       - nonnegative_prices_where_present
       - required_columns_present
-    source_map_status: live_download
-    source_urls:
-      - name: b3_cotahist_daily
-        url_template: https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_D{ref_date:%d%m%Y}.ZIP
-        filename_template: "COTAHIST_D{ref_date:%d%m%Y}.ZIP"
+    source_map_status: not_implemented_pending_url
+    source_urls: []
     license_note: Public B3 historical quote file; verify current B3 terms before redistribution.
-    notes: Daily incremental listed quote file; same fixed-width layout family as COTAHIST yearly, unadjusted for corporate actions.
+    notes: Daily incremental COTAHIST endpoint is not confirmed in official public docs; parser fixtures follow the COTAHIST layout family.
 
   - dataset_id: b3_indexes_current_portfolio
     source: b3
@@ -377,7 +374,27 @@ datasets:
         - BVBG.186.01 Simplified Price Report - Equities
         - BVBG.187.01 Simplified Price Report - Derivatives
         - BVBG.028.02 Instruments File
+        - BVBG.029.02 Instruments File
         - BVBG.044.01 Fee Daily Unit Cost
+        - BVBG.043.01 Fee Unit Cost
+        - Standardized Instrument Groups
+        - Primitive Risk Factors
+        - Risk Formulas
+        - Fee Variables
+        - Daily Liquidity Limit
+        - Maximum Theoretical Margin
+        - Tradable Security List
+        - Instrument Group Parameters
+        - FX Market - Traded Rates, Opening Parameters and Contracted Transactions
+        - FX Market - Volume Settled on a Net Basis
+        - Derivatives Market - Option Reference Premiums
+        - Derivatives Market - Margin Scenarios
+        - Derivatives Market - Economic Indicators
+        - Derivatives Market - Agricultural Indicators
+        - Derivatives Market - Swap Mark-to-Market
+        - Derivatives Market - Swap Market Rates
+        - Securities Market - Government Securities Reference Prices
+        - Scenario and risk-matrix files
     notes: B3 daily bulletin page lists reports, but a stable direct download URL template is not confirmed.
 
   - dataset_id: b3_isin_database
@@ -472,9 +489,24 @@ datasets:
         - cash_listed_market_statistics
         - derivatives_daily_market_statistics
         - fx_spot_public_reports
+        - fx_volume_settled_net_basis
         - etf_fii_bdr_public_market_reports
         - options_public_summary_reports
         - securities_lending_public_reports
+        - primitive_risk_factors
+        - risk_formulas
+        - fee_variables
+        - daily_liquidity_limit
+        - maximum_theoretical_margin
+        - tradable_security_list
+        - instrument_group_parameters
+        - derivatives_margin_scenarios
+        - derivatives_economic_indicators
+        - derivatives_agricultural_indicators
+        - derivatives_swap_mark_to_market
+        - derivatives_swap_market_rates
+        - government_securities_reference_prices
+        - scenario_risk_matrix_files
     license_note: Public B3 report data; verify current B3 terms before redistribution.
     notes: Source-map specific subreports first; do not use as an unstructured dumping ground.
 
@@ -521,12 +553,39 @@ datasets:
       product_pages:
         - product_root: DI1
           product_name: One-Day Interbank Deposit Rate Futures
-          page_url: https://www.b3.com.br/en_us/products-and-services/fee-schedules/listed-equities-and-derivatives/interest-rates-and-inflation-indexes/di-rates-fees/di-rates-fees/
-        - product_root: DDI_DOL_WDO
-          product_name: FX coupon and US Dollar futures fee/spec page
-          page_url: https://www.b3.com.br/pt_br/produtos-e-servicos/tarifas/listados-a-vista-e-derivativos/juros-e-inflacao/tarifas-de-operacao-estruturada-cupom-cambial-ddi-e-futuro-de-dolar-dol-wdo/
-        - product_root: IND_WIN
-          product_name: Ibovespa index products overview
+          page_url: https://www.b3.com.br/pt_br/produtos-e-servicos/negociacao/juros/futuro-de-taxa-media-de-depositos-interfinanceiros-de-um-dia.htm
+        - product_root: DAP
+          product_name: IPCA Coupon Futures
+          page_url: https://www.b3.com.br/pt_br/produtos-e-servicos/negociacao/juros/futuro-de-cupom-de-ipca.htm
+        - product_root: DDI
+          product_name: DI1 FX Coupon Futures
+          page_url: https://www.b3.com.br/pt_br/produtos-e-servicos/negociacao/juros/futuro-de-cupom-cambial-de-depositos-interfinanceiros-de-um-dia.htm
+        - product_root: FRC
+          product_name: FRC FRA Structured Operation
+          page_url: https://www.b3.com.br/pt_br/produtos-e-servicos/negociacao/juros/operacao-estruturada-de-fra-de-frc-pu-neutro.htm
+        - product_root: DOL
+          product_name: US Dollar Futures
+          page_url: https://www.b3.com.br/pt_br/produtos-e-servicos/negociacao/moedas/futuro-de-taxa-de-cambio-de-reais-por-dolar-comercial.htm
+        - product_root: WDO
+          product_name: Mini US Dollar Futures
+          page_url: https://www.b3.com.br/pt_br/produtos-e-servicos/negociacao/moedas/futuro-de-taxa-de-cambio-de-reais-por-dolar-comercial.htm
+        - product_root: IND
+          product_name: Ibovespa Futures
+          page_url: https://www.b3.com.br/pt_br/produtos-e-servicos/negociacao/renda-variavel/futuro-de-ibovespa.htm
+        - product_root: WIN
+          product_name: Mini Ibovespa Futures
+          page_url: https://www.b3.com.br/pt_br/produtos-e-servicos/negociacao/renda-variavel/futuro-de-ibovespa.htm
+        - product_root: D11_D19
+          product_name: Options on DI Futures
+          page_url: https://www.b3.com.br/pt_br/produtos-e-servicos/negociacao/juros/opcoes-sobre-futuro-de-di.htm
+        - product_root: WDO_OPTIONS
+          product_name: Mini Options on USD/BRL Futures
+          page_url: https://www.b3.com.br/pt_br/produtos-e-servicos/negociacao/moedas/mini-opcoes-sobre-taxa-de-cambio-de-reais-por-dolar-comercial.htm
+        - product_root: IBOV_OPTIONS
+          product_name: Options on Ibovespa
+          page_url: https://www.b3.com.br/pt_br/produtos-e-servicos/negociacao/renda-variavel/opcoes-semanais-sobre-ibovespa.htm
+        - product_root: IBOV_METHOD
+          product_name: Ibovespa index methodology page
           page_url: https://www.b3.com.br/pt_br/market-data-e-indices/indices/indices-amplos/ibovespa.htm
         - product_root: COTAHIST
           product_name: Historical quote data layout
