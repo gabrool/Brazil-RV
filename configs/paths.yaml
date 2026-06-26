@@ -1,0 +1,9 @@
+paths:
+  data_root: data
+  raw: data/raw
+  bronze: data/bronze
+  silver: data/silver
+  gold: data/gold
+  manifests: data/manifests
+  external: data/external
+  reports: reports
