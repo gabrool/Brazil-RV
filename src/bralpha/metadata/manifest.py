@@ -31,6 +31,13 @@ class ManifestRecord(BaseModel):
 
 
 class ManifestWriter:
+    """Append JSONL manifests for v0 single-process ingestion.
+
+    This writer intentionally does not implement cross-process locking. Run
+    independent ingestion jobs with separate manifest files or external
+    serialization until a concurrent ingestion mode is explicitly designed.
+    """
+
     def __init__(self, path: Path) -> None:
         self.path = path
 

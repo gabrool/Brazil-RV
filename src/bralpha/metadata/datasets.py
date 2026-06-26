@@ -64,6 +64,8 @@ class DatasetConfig(BaseModel):
     def non_empty_list(cls, value: list[str]) -> list[str]:
         if not value:
             raise ValueError("field must contain at least one item")
+        if any(not item or not item.strip() for item in value):
+            raise ValueError("field must not contain empty items")
         return value
 
     def first_source_url(self) -> SourceUrlConfig:

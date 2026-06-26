@@ -24,6 +24,16 @@ class HttpClient:
     ) -> None:
         self.timeout_seconds = timeout_seconds
         self.user_agent = user_agent
+        self._client = httpx.Client(timeout=self.timeout_seconds, follow_redirects=True)
+
+    def close(self) -> None:
+        self._client.close()
+
+    def __enter__(self) -> HttpClient:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        self.close()
 
     @retry(
         retry=retry_if_exception_type((httpx.TimeoutException, httpx.TransportError)),
@@ -40,8 +50,7 @@ class HttpClient:
         merged_headers = {"User-Agent": self.user_agent}
         if headers:
             merged_headers.update(headers)
-        with httpx.Client(timeout=self.timeout_seconds, follow_redirects=True) as client:
-            response = client.get(url, params=params, headers=merged_headers)
+        response = self._client.get(url, params=params, headers=merged_headers)
         return HttpResponse(
             url=str(response.url),
             status_code=response.status_code,
