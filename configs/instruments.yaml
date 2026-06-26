@@ -1,0 +1,32 @@
+traded_sleeves:
+  rates:
+    description: Brazilian local rates futures
+    primary_roots:
+      - DI1
+    secondary_roots:
+      - DAP
+      - DDI
+      - FRC
+  fx:
+    description: USD/BRL futures
+    primary_roots:
+      - DOL
+      - WDO
+  equity_index:
+    description: Ibovespa futures
+    primary_roots:
+      - IND
+      - WIN
+
+research_context_roots:
+  b3_equities_and_funds:
+    include_from_cotahist: true
+  b3_options:
+    include_from_cotahist: true
+  b3_indexes:
+    include_all_free_daily_indexes: true
+
+horizons:
+  - 1
+  - 5
+  - 20
