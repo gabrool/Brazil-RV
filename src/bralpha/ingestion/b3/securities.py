@@ -19,6 +19,11 @@ def download_traded_securities_for_date(
 ) -> DownloadResult:
     registry = load_b3_dataset_registry(repo_root)
     dataset = registry.get("b3_traded_securities")
+    if not dataset.source_urls:
+        raise NotImplementedError(
+            "b3_traded_securities has no confirmed free source URL; add a config-owned "
+            "source_urls entry before enabling live downloads"
+        )
     paths = resolve_project_paths(repo_root, load_paths_config(repo_root))
     return download_daily_dataset_for_date(
         dataset=dataset,

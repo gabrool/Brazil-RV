@@ -50,6 +50,9 @@ INDEX_COMPOSITION_COLUMNS = [
     "theoretical_quantity",
     "source",
     "source_dataset",
+    "download_timestamp_utc",
+    "raw_path",
+    "sha256",
     "source_version",
 ]
 
@@ -63,6 +66,10 @@ REFERENCE_SECURITY_COLUMNS = [
     "issuer",
     "currency",
     "source",
+    "source_dataset",
+    "download_timestamp_utc",
+    "raw_path",
+    "sha256",
     "source_version",
 ]
 
@@ -142,6 +149,9 @@ def normalize_index_composition(
                 "theoretical_quantity": parse_decimal(row.get("theoretical_quantity")),
                 "source": row.get("source", "b3"),
                 "source_dataset": row.get("source_dataset", "b3_indexes_composition"),
+                "download_timestamp_utc": row.get("download_timestamp_utc"),
+                "raw_path": row.get("raw_path"),
+                "sha256": row.get("sha256"),
                 "source_version": source_version,
             }
         )
@@ -168,6 +178,10 @@ def normalize_traded_securities(
                 "issuer": row.get("issuer"),
                 "currency": _text(row.get("currency")) or "BRL",
                 "source": row.get("source", "b3"),
+                "source_dataset": row.get("source_dataset", "b3_traded_securities"),
+                "download_timestamp_utc": row.get("download_timestamp_utc"),
+                "raw_path": row.get("raw_path"),
+                "sha256": row.get("sha256"),
                 "source_version": source_version,
             }
         )

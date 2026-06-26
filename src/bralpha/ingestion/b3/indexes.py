@@ -19,6 +19,7 @@ def download_indexes_historical_for_date(
 ) -> DownloadResult:
     registry = load_b3_dataset_registry(repo_root)
     dataset = registry.get("b3_indexes_historical_data")
+    _require_source_urls(dataset.dataset_id, dataset.source_urls)
     paths = resolve_project_paths(repo_root, load_paths_config(repo_root))
     return download_daily_dataset_for_date(
         dataset=dataset,
@@ -39,6 +40,7 @@ def download_indexes_composition_for_date(
 ) -> DownloadResult:
     registry = load_b3_dataset_registry(repo_root)
     dataset = registry.get("b3_indexes_composition")
+    _require_source_urls(dataset.dataset_id, dataset.source_urls)
     paths = resolve_project_paths(repo_root, load_paths_config(repo_root))
     return download_daily_dataset_for_date(
         dataset=dataset,
@@ -48,3 +50,11 @@ def download_indexes_composition_for_date(
         client=client or HttpClient(),
         holidays=holidays,
     )
+
+
+def _require_source_urls(dataset_id: str, source_urls: list[object]) -> None:
+    if not source_urls:
+        raise NotImplementedError(
+            f"{dataset_id} has no confirmed free source URL; add a config-owned "
+            "source_urls entry before enabling live downloads"
+        )

@@ -2,20 +2,32 @@ from __future__ import annotations
 
 import zipfile
 from collections.abc import Iterator
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 import polars as pl
 
-from bralpha.parsing.common import write_partitioned_by_year
+from bralpha.parsing.common import write_source_partitioned
 
 
-def iter_cotahist_chunks(path: Path, *, chunk_size: int = 50_000) -> Iterator[pl.DataFrame]:
+def iter_cotahist_chunks(
+    path: Path,
+    *,
+    chunk_size: int = 50_000,
+    source_dataset: str = "b3_cotahist_yearly",
+    download_timestamp_utc: datetime | None = None,
+    raw_path: Path | str | None = None,
+    sha256: str | None = None,
+) -> Iterator[pl.DataFrame]:
     rows: list[dict[str, object]] = []
     for line in _iter_lines(path):
         parsed = parse_cotahist_line(line)
         if parsed is None:
             continue
+        parsed["source_dataset"] = source_dataset
+        parsed["download_timestamp_utc"] = download_timestamp_utc
+        parsed["raw_path"] = str(raw_path or path)
+        parsed["sha256"] = sha256
         rows.append(parsed)
         if len(rows) >= chunk_size:
             yield pl.DataFrame(rows)
@@ -25,6 +37,7 @@ def iter_cotahist_chunks(path: Path, *, chunk_size: int = 50_000) -> Iterator[pl
 
 
 def parse_cotahist_file(path: Path, *, chunk_size: int = 50_000) -> pl.DataFrame:
+    """Materialize a tiny COTAHIST fixture; production paths should stream chunks."""
     chunks = list(iter_cotahist_chunks(path, chunk_size=chunk_size))
     if not chunks:
         return pl.DataFrame()
@@ -60,12 +73,10 @@ def parse_cotahist_line(line: str) -> dict[str, object] | None:
 def write_cotahist_bronze(
     chunks: Iterator[pl.DataFrame],
     output_root: Path,
-    *,
-    primary_keys: list[str],
 ) -> list[Path]:
     paths: list[Path] = []
     for chunk in chunks:
-        paths.extend(write_partitioned_by_year(chunk, output_root, primary_keys=primary_keys))
+        paths.extend(write_source_partitioned(chunk, output_root, mode="append_chunks"))
     return paths
 
 
