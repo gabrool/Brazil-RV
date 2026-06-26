@@ -71,6 +71,7 @@ def test_cotahist_fixed_width_line_parses():
     assert parsed["ref_date"] == date(2024, 1, 2)
     assert parsed["symbol"] == "PETR4"
     assert parsed["market_type"] == "010"
+    assert parsed["isin"] == "BRPETRACNPR6"
     assert parsed["open"] == 10.0
     assert parsed["close"] == 10.5
     assert parsed["volume"] == 1234
@@ -97,6 +98,7 @@ def test_cotahist_chunked_parser_adds_lineage(tmp_path):
     assert parsed.height == 1
     assert chunks[0]["raw_path"].item() == "raw/COTAHIST_A2024.ZIP"
     assert chunks[0]["sha256"].item() == "abc"
+    assert chunks[0]["isin"].item() == "BRPETRACNPR6"
     assert chunks[0]["financial_volume"].item() == 20000.0
 
 
@@ -267,6 +269,7 @@ def test_cotahist_silver_market_daily_quality_and_source_specific_write(tmp_path
     assert silver.columns == MARKET_DAILY_COLUMNS
     assert silver["asset_class"].item() == "equity"
     assert silver["market_type"].item() == "010"
+    assert silver["isin"].item() == "BRPETRACNPR6"
     assert silver["close"].item() == 10.5
     assert silver["raw_path"].item() == "raw/COTAHIST_A2024.ZIP"
     assert paths[0].parent.parent.name == "b3_cotahist_yearly"
@@ -445,4 +448,5 @@ def _cotahist_line(symbol: str = "PETR4") -> str:
     put_num(148, 152, 12)
     put_num(153, 170, 1234)
     put_num(171, 188, 2000000)
+    put(231, 242, "BRPETRACNPR6")
     return "".join(chars)

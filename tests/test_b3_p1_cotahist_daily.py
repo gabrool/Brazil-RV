@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-import json
-from datetime import UTC, date, datetime
-from types import SimpleNamespace
+from datetime import date, datetime
 
 import polars as pl
 import pytest
 
-import bralpha.ingestion.b3.cotahist as cotahist_module
+import bralpha.ingestion.b3.common as b3_common
 import bralpha.parsing.common as parsing_common
-from bralpha.infra.hashing import sha256_bytes
-from bralpha.infra.http import HttpResponse
 from bralpha.ingestion.b3.cotahist import download_cotahist_daily
 from bralpha.normalization.b3_market_daily import (
     MARKET_DAILY_COLUMNS,
@@ -20,68 +16,16 @@ from bralpha.normalization.b3_market_daily import (
 from bralpha.parsing.b3_cotahist import iter_cotahist_chunks, write_cotahist_bronze
 from bralpha.quality.checks import QualityCheckError, run_quality_checks
 
-DAILY_BYTES = b"small-cotahist-daily-zip"
 
+def test_cotahist_daily_download_requires_confirmed_url_before_http_client(repo_root, monkeypatch):
+    class ExplodingClient:
+        def __init__(self):
+            raise AssertionError("client should not be constructed before URL validation")
 
-class MockDailyClient:
-    def __init__(
-        self,
-        status_code: int = 200,
-        content: bytes = DAILY_BYTES,
-        error: Exception | None = None,
-    ) -> None:
-        self.status_code = status_code
-        self.content = content
-        self.error = error
+    monkeypatch.setattr(b3_common, "HttpClient", ExplodingClient)
 
-    def get_bytes(self, url, params=None, headers=None):
-        if self.error:
-            raise self.error
-        return HttpResponse(
-            url=f"{url}?mock=1",
-            status_code=self.status_code,
-            headers={"content-type": "application/zip"},
-            content=self.content,
-        )
-
-
-def test_cotahist_daily_download_success_writes_manifest(repo_root, tmp_path, monkeypatch):
-    paths = _patch_cotahist_paths(monkeypatch, tmp_path)
-
-    record = download_cotahist_daily(
-        repo_root,
-        ref_date=date(2024, 1, 2),
-        client=MockDailyClient(),
-        downloaded_at=datetime(2024, 1, 2, 12, tzinfo=UTC),
-    )
-    manifest = _read_manifest(paths)
-
-    assert record.dataset_id == "b3_cotahist_daily"
-    assert record.success is True
-    assert manifest["dataset_id"] == "b3_cotahist_daily"
-    assert manifest["request_params"] == {"ref_date": "2024-01-02"}
-    assert manifest["sha256"] == sha256_bytes(DAILY_BYTES)
-    assert manifest["raw_path"]
-
-
-def test_cotahist_daily_http_failure_writes_failure_manifest(repo_root, tmp_path, monkeypatch):
-    paths = _patch_cotahist_paths(monkeypatch, tmp_path)
-
-    record = download_cotahist_daily(
-        repo_root,
-        ref_date=date(2024, 1, 2),
-        client=MockDailyClient(status_code=404, content=b"missing"),
-        downloaded_at=datetime(2024, 1, 2, 12, tzinfo=UTC),
-    )
-    manifest = _read_manifest(paths)
-
-    assert record.success is False
-    assert manifest["dataset_id"] == "b3_cotahist_daily"
-    assert manifest["http_status"] == 404
-    assert manifest["request_params"] == {"ref_date": "2024-01-02"}
-    assert manifest["raw_path"] is None
-    assert manifest["sha256"] is None
-    assert manifest["error_message"] == "HTTP 404"
+    with pytest.raises(NotImplementedError, match="no confirmed free source URL"):
+        download_cotahist_daily(repo_root, ref_date=date(2024, 1, 2))
 
 
 def test_cotahist_daily_chunk_parser_and_bronze_lineage(tmp_path):
@@ -102,6 +46,7 @@ def test_cotahist_daily_chunk_parser_and_bronze_lineage(tmp_path):
     bronze_paths = write_cotahist_bronze(iter(chunks), tmp_path / "bronze" / "b3_cotahist_daily")
 
     assert chunks[0]["source_dataset"].item() == "b3_cotahist_daily"
+    assert chunks[0]["isin"].item() == "BRPETRACNPR6"
     assert chunks[0]["raw_path"].item() == "raw/b3_cotahist_daily/COTAHIST_D02012024.ZIP"
     assert chunks[0]["sha256"].item() == "dailyhash"
     assert bronze_paths[0].parent.parent.name == "b3_cotahist_daily"
@@ -135,6 +80,7 @@ def test_cotahist_daily_silver_write_preserves_source_and_available_date(tmp_pat
     assert silver.columns == MARKET_DAILY_COLUMNS
     assert silver["source_dataset"].item() == "b3_cotahist_daily"
     assert silver["available_date"].item() == date(2024, 1, 3)
+    assert silver["isin"].item() == "BRPETRACNPR6"
     assert silver["raw_path"].item() == "raw/COTAHIST_D02012024.ZIP"
     assert paths[0].parent.parent.name == "b3_cotahist_daily"
     run_quality_checks(
@@ -194,20 +140,6 @@ def test_cotahist_daily_bronze_writer_appends_chunks_without_reread(tmp_path, mo
     assert [path.name for path in paths] == ["chunk-000000.parquet", "chunk-000001.parquet"]
 
 
-def _patch_cotahist_paths(monkeypatch, tmp_path):
-    paths = SimpleNamespace(raw=tmp_path / "raw", manifests=tmp_path / "manifests")
-    monkeypatch.setattr(
-        cotahist_module,
-        "resolve_project_paths",
-        lambda repo_root, paths_config: paths,
-    )
-    return paths
-
-
-def _read_manifest(paths) -> dict[str, object]:
-    return json.loads((paths.manifests / "b3" / "downloads.jsonl").read_text(encoding="utf-8"))
-
-
 def _cotahist_fixture(tmp_path, symbol: str = "PETR4"):
     path = tmp_path / f"COTAHIST_D02012024_{symbol}.TXT"
     path.write_text("00HEADER\n" + _cotahist_line(symbol) + "\n99TRAILER\n", encoding="latin1")
@@ -240,4 +172,5 @@ def _cotahist_line(symbol: str = "PETR4") -> str:
     put_num(148, 152, 12)
     put_num(153, 170, 1234)
     put_num(171, 188, 2000000)
+    put(231, 242, "BRPETRACNPR6")
     return "".join(chars)

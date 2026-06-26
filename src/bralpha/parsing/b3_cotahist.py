@@ -65,6 +65,7 @@ def parse_cotahist_line(line: str) -> dict[str, object] | None:
         "number_of_trades": _integer(line[147:152]),
         "volume": _integer(line[152:170]),
         "financial_volume": _price(line[170:188]),
+        "isin": line[230:242].strip(),
         "source": "b3",
         "source_dataset": "b3_cotahist_yearly",
     }

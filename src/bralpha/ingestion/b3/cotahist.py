@@ -36,6 +36,12 @@ def download_cotahist_daily(
     client: HttpClient | None = None,
     downloaded_at: datetime | None = None,
 ) -> ManifestRecord:
+    dataset = load_b3_dataset_registry(repo_root).get("b3_cotahist_daily")
+    if not dataset.source_urls:
+        raise NotImplementedError(
+            "b3_cotahist_daily has no confirmed free source URL; add a config-owned "
+            "source_urls entry before enabling live downloads"
+        )
     return _download_cotahist_dataset(
         repo_root,
         dataset_id="b3_cotahist_daily",
