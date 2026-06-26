@@ -17,13 +17,22 @@ class StorageConfig(BaseModel):
 class SourceUrlConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    name: str
-    url_template: str
+    name: str | None = None
+    url_template: str | None = None
+    endpoint: str | None = None
     params: dict[str, str] = Field(default_factory=dict)
     headers: dict[str, str] = Field(default_factory=dict)
     filename_template: str | None = None
 
+    @model_validator(mode="after")
+    def validate_locator(self) -> SourceUrlConfig:
+        if self.url_template is None and self.endpoint is None:
+            raise ValueError("source URL entry must define url_template or endpoint")
+        return self
+
     def render(self, **values: Any) -> tuple[str, dict[str, str], dict[str, str], str | None]:
+        if self.url_template is None:
+            raise ValueError("source URL entry has no url_template")
         return (
             _render_template(self.url_template, values),
             {key: _render_template(value, values) for key, value in self.params.items()},
@@ -45,12 +54,16 @@ class DatasetConfig(BaseModel):
     raw_format: str | None = None
     canonical_table: str
     partition_keys: list[str] = Field(default_factory=list)
-    primary_keys: list[str]
-    quality_checks: list[str]
+    primary_keys: list[str] = Field(default_factory=list)
+    quality_checks: list[str] = Field(default_factory=list)
     source_urls: list[SourceUrlConfig] = Field(default_factory=list)
     request_defaults: dict[str, Any] = Field(default_factory=dict)
     license_note: str = ""
     notes: str = ""
+
+    @property
+    def source_map_status(self) -> str | None:
+        return (self.model_extra or {}).get("source_map_status")
 
     @field_validator("dataset_id", "priority", "frequency", "canonical_table")
     @classmethod
@@ -61,12 +74,20 @@ class DatasetConfig(BaseModel):
 
     @field_validator("primary_keys", "quality_checks")
     @classmethod
-    def non_empty_list(cls, value: list[str]) -> list[str]:
-        if not value:
-            raise ValueError("field must contain at least one item")
+    def clean_list(cls, value: list[str]) -> list[str]:
         if any(not item or not item.strip() for item in value):
             raise ValueError("field must not contain empty items")
         return value
+
+    @model_validator(mode="after")
+    def validate_live_dataset_keys(self) -> DatasetConfig:
+        metadata_only_statuses = {"not_implemented_pending_url", "raw_only_or_pending_url"}
+        if self.source_map_status not in metadata_only_statuses:
+            if not self.primary_keys:
+                raise ValueError("implemented datasets must define primary_keys")
+            if not self.quality_checks:
+                raise ValueError("implemented datasets must define quality_checks")
+        return self
 
     def first_source_url(self) -> SourceUrlConfig:
         if not self.source_urls:
@@ -131,6 +152,14 @@ def render_dataset_request(
         suffix = "bin"
         filename = f"{dataset.dataset_id}_{ref_date.isoformat() if ref_date else year}.{suffix}"
     return url, params, headers, filename
+
+
+def dataset_endpoint_names(dataset: DatasetConfig) -> list[str]:
+    return [
+        source.endpoint
+        for source in dataset.source_urls
+        if source.endpoint is not None and source.endpoint.strip()
+    ]
 
 
 def _render_template(template: str, values: dict[str, Any]) -> str:
