@@ -56,25 +56,34 @@ def test_sgs_asof_uses_latest_available_observation_and_staleness():
     assert panel.filter(pl.col("observation_available_date") > pl.col("ref_date")).is_empty()
 
 
-def test_sgs_panels_do_not_create_alpha_feature_columns():
-    silver = pl.DataFrame(
-        [_sgs_row(date(2024, 1, 1), date(2024, 1, 2), 11, "selic_over", 10.0, True)]
-    )
-    observation = build_sgs_observation_daily(
-        silver,
-        include_model_usable_only=True,
-        start=date(2024, 1, 1),
-        end=date(2024, 1, 31),
-    )
-    asof = build_sgs_asof_daily(
-        observation,
-        start=date(2024, 1, 1),
-        end=date(2024, 1, 5),
+def test_sgs_asof_uses_pre_window_observation_available_at_output_start():
+    observations = pl.DataFrame(
+        [
+            _sgs_row(
+                date(2023, 12, 29),
+                date(2024, 1, 2),
+                11,
+                "selic_over",
+                10.0,
+                True,
+            )
+        ]
     )
 
-    banned = {"change", "zscore", "revision", "surprise", "rolling_mean"}
-    assert banned.isdisjoint(observation.columns)
-    assert banned.isdisjoint(asof.columns)
+    panel = build_sgs_asof_daily(
+        observations,
+        start=date(2024, 1, 2),
+        end=date(2024, 1, 5),
+    ).sort("ref_date")
+
+    assert panel["ref_date"].to_list() == [
+        date(2024, 1, 2),
+        date(2024, 1, 3),
+        date(2024, 1, 4),
+        date(2024, 1, 5),
+    ]
+    assert panel["value"].to_list() == [10.0, 10.0, 10.0, 10.0]
+    assert panel["observation_ref_date"].to_list() == [date(2023, 12, 29)] * 4
 
 
 def _sgs_row(

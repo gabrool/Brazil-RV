@@ -121,11 +121,65 @@ def test_bcb_pipeline_writes_gold_outputs_from_silver(repo_root, tmp_path):
     assert (tmp_path / "data" / "gold" / "bcb" / "sgs_asof_daily").exists()
 
 
+def test_bcb_pipeline_sgs_asof_uses_pre_window_silver_history(repo_root, tmp_path):
+    shutil.copytree(repo_root / "configs", tmp_path / "configs")
+    write_source_partitioned(
+        pl.DataFrame(
+            [
+                _sgs_silver_row(
+                    ref_date=date(2023, 12, 29),
+                    available_date=date(2024, 1, 2),
+                    value=10.0,
+                )
+            ]
+        ),
+        tmp_path / "data" / "silver" / "bcb_sgs_series",
+        primary_keys=["series_id", "ref_date"],
+    )
+
+    status = run_bcb_research_spine(
+        repo_root=tmp_path,
+        start=date(2024, 1, 2),
+        end=date(2024, 1, 5),
+        panels=["sgs_asof_daily"],
+    )
+    asof = io_module.read_parquet_root(
+        tmp_path / "data" / "gold" / "bcb" / "sgs_asof_daily"
+    ).sort("ref_date")
+
+    assert status["sgs_asof_daily"] == "written: 4 rows"
+    assert asof["ref_date"].to_list() == [
+        date(2024, 1, 2),
+        date(2024, 1, 3),
+        date(2024, 1, 4),
+        date(2024, 1, 5),
+    ]
+    assert asof["value"].to_list() == [10.0, 10.0, 10.0, 10.0]
+    assert asof["observation_ref_date"].to_list() == [date(2023, 12, 29)] * 4
+
+
 def _write_partition(root: Path, year: int, value: float) -> None:
     (root / f"year={year}").mkdir(parents=True)
     pl.DataFrame(
         [{"ref_date": date(year, 1, 2), "series_id": 11, "value": value}]
     ).write_parquet(root / f"year={year}" / "data.parquet")
+
+
+def _sgs_silver_row(*, ref_date: date, available_date: date, value: float) -> dict[str, object]:
+    return {
+        "ref_date": ref_date,
+        "available_date": available_date,
+        "series_id": 11,
+        "series_slug": "selic_over",
+        "series_name": "Selic",
+        "category": "rates",
+        "frequency": "daily",
+        "value": value,
+        "unit": "percent_annualized",
+        "availability_policy": "next_business_day",
+        "model_usable": True,
+        "source_version": "v0",
+    }
 
 
 def _track_scan_and_glob(monkeypatch) -> tuple[list[str], list[tuple[Path, str]]]:

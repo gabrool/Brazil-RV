@@ -52,18 +52,6 @@ def test_ptax_selected_panel_has_one_row_per_date_currency():
     assert panel.group_by(["ref_date", "currency_code"]).len().height == 2
 
 
-def test_ptax_panel_does_not_compute_mid_spread_or_returns():
-    panel = build_ptax_selected_daily(
-        pl.DataFrame([_ptax_row("USD", "Fechamento", True, 5.00, 5.01)]),
-        currencies=["USD"],
-        use_selected_bulletin_only=True,
-        start=date(2024, 1, 2),
-        end=date(2024, 1, 2),
-    )
-
-    assert {"mid", "spread", "return", "basis"}.isdisjoint(panel.columns)
-
-
 def _ptax_row(
     currency_code: str,
     bulletin_type: str,

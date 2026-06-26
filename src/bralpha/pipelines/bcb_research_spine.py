@@ -103,14 +103,7 @@ def _build_panel(
             end=end,
         )
     if panel == "sgs_asof_daily":
-        observations = _dependency(
-            paths,
-            built,
-            "sgs_observation_daily",
-            start,
-            end,
-            required=required,
-        )
+        observations = _sgs_observation_history(paths, config, end, required=required)
         if observations is None:
             return None
         return build_sgs_asof_daily(observations, start=start, end=end)
@@ -158,14 +151,7 @@ def _build_panel(
             end=end,
         )
     if panel == "focus_expectation_asof_daily":
-        observations = _dependency(
-            paths,
-            built,
-            "focus_expectation_observation_daily",
-            start,
-            end,
-            required=required,
-        )
+        observations = _focus_observation_history(paths, config, end, required=required)
         if observations is None:
             return None
         return build_focus_expectation_asof_daily(
@@ -204,6 +190,54 @@ def _build_panel(
             include_focus=config.daily_long.include_focus,
         )
     raise ValueError(f"Unknown panel: {panel}")
+
+
+def _sgs_observation_history(paths, config, end: date, *, required: bool) -> pl.DataFrame | None:
+    silver = read_silver_dataset(paths, "bcb_sgs_series", start=None, end=end)
+    if silver is not None:
+        return build_sgs_observation_daily(
+            silver,
+            include_model_usable_only=config.sgs.include_model_usable_only,
+            start=None,
+            end=end,
+        )
+    gold = read_gold_panel(paths, "sgs_observation_daily", start=None, end=end)
+    if gold is None and required:
+        raise BCBResearchInputMissingError(
+            "Missing SGS observation history from bcb_sgs_series or sgs_observation_daily"
+        )
+    return gold
+
+
+def _focus_observation_history(paths, config, end: date, *, required: bool) -> pl.DataFrame | None:
+    general = read_silver_dataset(
+        paths,
+        "bcb_focus_expectations",
+        start=None,
+        end=end,
+    )
+    top5 = read_silver_dataset(
+        paths,
+        "bcb_focus_top5_expectations",
+        start=None,
+        end=end,
+    )
+    if general is not None or top5 is not None:
+        return build_focus_expectation_observation_daily(
+            general=general,
+            top5=top5,
+            availability_note=config.focus.availability_note,
+            include_general=config.focus.include_general_expectations,
+            include_top5=config.focus.include_top5_expectations,
+            start=None,
+            end=end,
+        )
+    gold = read_gold_panel(paths, "focus_expectation_observation_daily", start=None, end=end)
+    if gold is None and required:
+        raise BCBResearchInputMissingError(
+            "Missing Focus expectation observation history from silver or gold"
+        )
+    return gold
 
 
 def _dependency(

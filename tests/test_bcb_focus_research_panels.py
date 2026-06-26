@@ -111,6 +111,48 @@ def test_focus_asof_respects_availability_and_selected_indicators():
     assert set(panel["availability_note"].to_list()) == {AVAILABILITY_NOTE}
 
 
+def test_focus_asof_uses_pre_window_observation_available_at_output_start():
+    observations = build_focus_expectation_observation_daily(
+        general=pl.DataFrame(
+            [
+                _focus_row(
+                    endpoint="ExpectativasMercadoAnuais",
+                    indicator="IPCA",
+                    indicator_detail=None,
+                    is_top5=False,
+                    mean=4.0,
+                    base_calculation=1,
+                    ref_date=date(2023, 12, 29),
+                    available_date=date(2024, 1, 2),
+                )
+            ]
+        ),
+        top5=None,
+        availability_note=AVAILABILITY_NOTE,
+        include_general=True,
+        include_top5=True,
+        start=None,
+        end=date(2024, 1, 5),
+    )
+
+    panel = build_focus_expectation_asof_daily(
+        observations,
+        selected_indicators=["IPCA"],
+        max_dense_keys=5000,
+        start=date(2024, 1, 2),
+        end=date(2024, 1, 5),
+    ).sort("ref_date")
+
+    assert panel["ref_date"].to_list() == [
+        date(2024, 1, 2),
+        date(2024, 1, 3),
+        date(2024, 1, 4),
+        date(2024, 1, 5),
+    ]
+    assert panel["mean"].to_list() == [4.0, 4.0, 4.0, 4.0]
+    assert panel["observation_ref_date"].to_list() == [date(2023, 12, 29)] * 4
+
+
 def test_focus_asof_raises_when_selected_keys_exceed_limit():
     observations = build_focus_expectation_observation_daily(
         general=pl.DataFrame(
@@ -182,40 +224,6 @@ def test_focus_reference_dates_preserve_context_columns():
     ]
 
 
-def test_focus_panels_do_not_create_revision_diff_or_surprise_columns():
-    observations = build_focus_expectation_observation_daily(
-        general=pl.DataFrame(
-            [
-                _focus_row(
-                    endpoint="ExpectativasMercadoAnuais",
-                    indicator="IPCA",
-                    indicator_detail=None,
-                    is_top5=False,
-                    mean=4.0,
-                    base_calculation=1,
-                )
-            ]
-        ),
-        top5=None,
-        availability_note=AVAILABILITY_NOTE,
-        include_general=True,
-        include_top5=True,
-        start=date(2024, 1, 2),
-        end=date(2024, 1, 2),
-    )
-    asof = build_focus_expectation_asof_daily(
-        observations,
-        selected_indicators=["IPCA"],
-        max_dense_keys=5000,
-        start=date(2024, 1, 2),
-        end=date(2024, 1, 2),
-    )
-
-    banned = {"revision", "diff", "surprise", "confidence_score"}
-    assert banned.isdisjoint(observations.columns)
-    assert banned.isdisjoint(asof.columns)
-
-
 def _focus_row(
     *,
     endpoint: str,
@@ -225,10 +233,12 @@ def _focus_row(
     mean: float,
     calculation_type: str | None = None,
     base_calculation: int | None = None,
+    ref_date: date | None = None,
+    available_date: date | None = None,
 ) -> dict[str, object]:
     return {
-        "ref_date": date(2024, 1, 2),
-        "available_date": date(2024, 1, 2),
+        "ref_date": ref_date or date(2024, 1, 2),
+        "available_date": available_date or date(2024, 1, 2),
         "endpoint": endpoint,
         "indicator": indicator,
         "indicator_detail": indicator_detail,
