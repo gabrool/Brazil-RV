@@ -8,6 +8,7 @@ import pytest
 
 import bralpha.ingestion.b3.common as b3_common
 import bralpha.ingestion.b3.reports as reports_module
+from bralpha.infra.config import load_b3_dataset_registry
 from bralpha.infra.hashing import sha256_bytes
 from bralpha.infra.http import HttpResponse
 from bralpha.ingestion.b3.reports import (
@@ -92,12 +93,12 @@ def test_fee_schedule_html_table_normalizes_and_writes_source_specific_output(tm
         b"""
     <table>
       <tr>
-        <th>fee_name</th><th>market_segment</th><th>fee_type</th>
-        <th>unit</th><th>value</th><th>currency</th>
+        <th>produto</th><th>tipo_investidor</th><th>tipo</th>
+        <th>unidade</th><th>valor</th><th>mercado</th><th>moeda</th>
       </tr>
       <tr>
-        <td>Trading fee</td><td>Equities</td><td>Trading</td>
-        <td>bps</td><td>0,25</td><td>BRL</td>
+        <td>DOL/WDO</td><td>Day trade</td><td>Trading fee</td>
+        <td>bps</td><td>0,25</td><td>Derivatives</td><td>BRL</td>
       </tr>
     </table>
     """
@@ -109,19 +110,23 @@ def test_fee_schedule_html_table_normalizes_and_writes_source_specific_output(tm
         download_timestamp_utc=datetime(2024, 1, 2, 12),
         raw_path="raw/b3_fee_schedules/equities.html",
         sha256="fee-hash",
-        required_all=["fee_name", "value"],
+        required_all=["produto", "valor"],
     )
     fees = normalize_fee_schedule_table(bronze)
     paths = write_fee_schedule(
         fees,
         tmp_path / "silver" / "b3_fee_schedules",
-        primary_keys=["ref_date", "fee_id"],
+        primary_keys=["ref_date", "fee_id", "product", "investor_type", "fee_type"],
     )
 
     assert fees.columns == FEE_SCHEDULE_COLUMNS
     assert fees["available_date"].item() == date(2024, 1, 2)
-    assert fees["fee_name"].item() == "Trading fee"
-    assert fees["value"].item() == 0.25
+    assert fees["product"].item() == "DOL/WDO"
+    assert fees["investor_type"].item() == "DAY TRADE"
+    assert fees["fee_type"].item() == "TRADING FEE"
+    assert fees["fee_value"].item() == 0.25
+    assert fees["fee_unit"].item() == "BPS"
+    assert fees["market_segment"].item() == "DERIVATIVES"
     assert fees["raw_path"].item() == "raw/b3_fee_schedules/equities.html"
     assert paths == [tmp_path / "silver" / "b3_fee_schedules" / "data.parquet"]
 
@@ -132,20 +137,21 @@ def test_product_spec_raw_metadata_uses_manifest_fields_and_download_date(
     monkeypatch,
 ):
     _patch_report_paths(monkeypatch, tmp_path)
+    di1_page = _product_page(repo_root, "DI1")
     record = download_product_specs_page(
         repo_root,
-        product_root="DI1",
-        product_name="One-Day Interbank Deposit Rate Futures",
-        page_url="https://www.b3.com.br/products/di1",
+        product_root=di1_page["product_root"],
+        product_name=di1_page["product_name"],
+        page_url=di1_page["page_url"],
         client=MockReportClient(content=b"<html>DI1</html>"),
         downloaded_at=datetime(2024, 1, 2, 12),
     )
 
     metadata = normalize_product_spec_metadata(
         record,
-        product_root="DI1",
-        product_name="One-Day Interbank Deposit Rate Futures",
-        page_url="https://www.b3.com.br/products/di1",
+        product_root=di1_page["product_root"],
+        product_name=di1_page["product_name"],
+        page_url=di1_page["page_url"],
     )
     paths = write_product_spec_metadata(
         metadata,
@@ -156,6 +162,8 @@ def test_product_spec_raw_metadata_uses_manifest_fields_and_download_date(
     assert metadata.columns == PRODUCT_SPEC_METADATA_COLUMNS
     assert metadata["download_date"].item() == date(2024, 1, 2)
     assert metadata["available_date"].item() == date(2024, 1, 2)
+    assert "/tarifas/" not in metadata["page_url"].item()
+    assert "/fee-schedules/" not in metadata["page_url"].item()
     assert metadata["content_type"].item() == "text/html; charset=utf-8"
     assert metadata["raw_path"].item()
     assert metadata["sha256"].item() == sha256_bytes(b"<html>DI1</html>")
@@ -236,3 +244,13 @@ def _read_manifest_rows(paths) -> list[dict[str, object]]:
         .read_text(encoding="utf-8")
         .splitlines()
     ]
+
+
+def _product_page(repo_root, product_root: str) -> dict[str, str]:
+    pages = load_b3_dataset_registry(repo_root).get("b3_product_specs_pages").request_defaults[
+        "product_pages"
+    ]
+    for page in pages:
+        if page["product_root"] == product_root:
+            return page
+    raise AssertionError(f"missing product page fixture: {product_root}")

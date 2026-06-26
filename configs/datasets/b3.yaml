@@ -446,7 +446,7 @@ datasets:
     raw_format: pdf_or_html_or_xlsx
     canonical_table: reference_fee
     partition_keys: []
-    primary_keys: [ref_date, fee_id]
+    primary_keys: [ref_date, fee_id, product, investor_type, fee_type]
     quality_checks:
       - downloaded_file_present
       - required_columns_present

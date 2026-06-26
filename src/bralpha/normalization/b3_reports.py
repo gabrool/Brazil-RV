@@ -6,17 +6,18 @@ from pathlib import Path
 import polars as pl
 
 from bralpha.metadata.manifest import ManifestRecord
-from bralpha.parsing.common import parse_decimal, write_source_partitioned
+from bralpha.parsing.common import normalize_column_name, parse_decimal, write_source_partitioned
 
 FEE_SCHEDULE_COLUMNS = [
     "ref_date",
     "available_date",
     "fee_id",
-    "fee_name",
-    "market_segment",
+    "product",
+    "investor_type",
     "fee_type",
-    "unit",
-    "value",
+    "fee_value",
+    "fee_unit",
+    "market_segment",
     "currency",
     "source",
     "source_dataset",
@@ -72,17 +73,14 @@ def normalize_fee_schedule_table(
                 "ref_date": _optional_date(row.get("ref_date")) or download_date,
                 "available_date": _optional_date(row.get("available_date")) or download_date,
                 "fee_id": _text(row.get("fee_id")),
-                "fee_name": _first_text(row, "fee_name", "fee", "tarifa", "description"),
-                "market_segment": _first_upper(
-                    row,
-                    "market_segment",
-                    "segment",
-                    "mercado",
-                    "produto",
+                "product": _first_text(row, "product", "produto", "contract", "contrato"),
+                "investor_type": _first_upper(row, "investor_type", "tipo_investidor"),
+                "fee_type": _first_upper(row, "fee_type", "type", "tipo", "tarifa"),
+                "fee_value": parse_decimal(
+                    _first_value(row, "fee_value", "value", "valor", "price")
                 ),
-                "fee_type": _first_upper(row, "fee_type", "type", "tipo"),
-                "unit": _first_upper(row, "unit", "unidade"),
-                "value": parse_decimal(_first_value(row, "value", "fee_value", "price", "valor")),
+                "fee_unit": _first_upper(row, "fee_unit", "unit", "unidade"),
+                "market_segment": _first_upper(row, "market_segment", "segment", "mercado"),
                 "currency": _first_upper(row, "currency", "moeda") or "BRL",
                 "source": row.get("source", "b3"),
                 "source_dataset": row.get("source_dataset", "b3_fee_schedules"),
@@ -235,7 +233,7 @@ def _optional_date(value: object) -> date | None:
 
 def _first_text(row: dict[str, object], *keys: str) -> str | None:
     for key in keys:
-        text = _stripped(row.get(key))
+        text = _stripped(row.get(normalize_column_name(key)))
         if text:
             return text
     return None
@@ -248,7 +246,7 @@ def _first_upper(row: dict[str, object], *keys: str) -> str | None:
 
 def _first_value(row: dict[str, object], *keys: str) -> object:
     for key in keys:
-        value = row.get(key)
+        value = row.get(normalize_column_name(key))
         if value is not None and str(value).strip():
             return value
     return None
