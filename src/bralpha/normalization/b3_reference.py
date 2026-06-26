@@ -7,7 +7,7 @@ import polars as pl
 import yaml
 
 from bralpha.domain.b3_calendar import next_business_day
-from bralpha.parsing.common import parse_decimal, write_source_partitioned
+from bralpha.parsing.common import normalize_column_name, parse_decimal, write_source_partitioned
 
 REFERENCE_CONTRACT_COLUMNS = [
     "contract_id",
@@ -57,6 +57,23 @@ INDEX_COMPOSITION_COLUMNS = [
 ]
 
 REFERENCE_SECURITY_COLUMNS = [
+    "security_id",
+    "symbol",
+    "isin",
+    "name",
+    "market_type",
+    "asset_class",
+    "issuer",
+    "currency",
+    "source",
+    "source_dataset",
+    "download_timestamp_utc",
+    "raw_path",
+    "sha256",
+    "source_version",
+]
+
+ISIN_DATABASE_COLUMNS = [
     "ref_date",
     "available_date",
     "security_id",
@@ -79,11 +96,15 @@ TRADING_PARAMETERS_COLUMNS = [
     "ref_date",
     "available_date",
     "symbol",
+    "market_segment",
+    "asset_class",
+    "round_lot",
+    "tick_size",
+    "price_limits",
+    "trading_status",
     "security_id",
     "isin",
     "market_type",
-    "lot_size",
-    "tick_size",
     "price_limit_lower",
     "price_limit_upper",
     "source",
@@ -161,13 +182,16 @@ def normalize_index_composition(
                 "ref_date": ref_date,
                 "available_date": _optional_date(row.get("available_date"))
                 or next_business_day(ref_date, holidays),
-                "index_id": _text(row.get("index_id")),
-                "symbol": _text(row.get("symbol")),
-                "security_id": _text(row.get("security_id")) or _text(row.get("symbol")),
-                "isin": _text(row.get("isin")),
-                "name": row.get("name"),
-                "weight": parse_decimal(row.get("weight")),
-                "theoretical_quantity": parse_decimal(row.get("theoretical_quantity")),
+                "index_id": _text(_value(row, "index_id", "indice")),
+                "symbol": _text(_value(row, "symbol", "codigo", "codneg", "ticker")),
+                "security_id": _text(row.get("security_id"))
+                or _text(_value(row, "symbol", "codigo", "codneg", "ticker")),
+                "isin": _text(_value(row, "isin", "codisi")),
+                "name": _first_text(row, "name", "nome", "empresa"),
+                "weight": parse_decimal(_value(row, "weight", "participacao", "part")),
+                "theoretical_quantity": parse_decimal(
+                    _value(row, "theoretical_quantity", "quantidade_teorica", "qtd_teorica")
+                ),
                 "source": row.get("source", "b3"),
                 "source_dataset": row.get("source_dataset", "b3_indexes_composition"),
                 "download_timestamp_utc": row.get("download_timestamp_utc"),
@@ -182,26 +206,21 @@ def normalize_index_composition(
 def normalize_traded_securities(
     bronze: pl.DataFrame,
     *,
-    holidays: set[date] | None = None,
     source_version: str = "v0",
 ) -> pl.DataFrame:
     rows = []
     for row in bronze.to_dicts():
-        ref_date = _optional_date(row.get("ref_date"))
-        symbol = _text(row.get("symbol"))
-        market_type = _text(row.get("market_type"))
+        symbol = _text(_value(row, "symbol", "codigo", "codneg", "ticker"))
+        market_type = _text(_value(row, "market_type", "tipo_mercado", "mercado"))
         rows.append(
             {
-                "ref_date": ref_date,
-                "available_date": _optional_date(row.get("available_date"))
-                or (next_business_day(ref_date, holidays) if ref_date else None),
                 "security_id": _text(row.get("security_id")) or f"{symbol}_{market_type}",
                 "symbol": symbol,
-                "isin": _text(row.get("isin")),
-                "name": row.get("name"),
+                "isin": _text(_value(row, "isin", "codisi")),
+                "name": _first_text(row, "name", "nome"),
                 "market_type": market_type,
-                "asset_class": _text(row.get("asset_class")) or "listed_security",
-                "issuer": row.get("issuer"),
+                "asset_class": _text(_value(row, "asset_class")) or "listed_security",
+                "issuer": _first_text(row, "issuer", "emissor"),
                 "currency": _text(row.get("currency")) or "BRL",
                 "source": row.get("source", "b3"),
                 "source_dataset": row.get("source_dataset", "b3_traded_securities"),
@@ -214,6 +233,41 @@ def normalize_traded_securities(
     return _frame(rows, REFERENCE_SECURITY_COLUMNS)
 
 
+def normalize_isin_database(
+    bronze: pl.DataFrame,
+    *,
+    holidays: set[date] | None = None,
+    source_version: str = "v0",
+) -> pl.DataFrame:
+    rows = []
+    for row in bronze.to_dicts():
+        ref_date = _required_date(row.get("ref_date"))
+        symbol = _text(_value(row, "symbol", "codigo", "codneg", "ticker"))
+        market_type = _text(_value(row, "market_type", "tipo_mercado", "mercado"))
+        rows.append(
+            {
+                "ref_date": ref_date,
+                "available_date": _optional_date(row.get("available_date"))
+                or next_business_day(ref_date, holidays),
+                "security_id": _text(row.get("security_id")) or f"{symbol}_{market_type}",
+                "symbol": symbol,
+                "isin": _text(_value(row, "isin", "codisi")),
+                "name": _first_text(row, "name", "nome"),
+                "market_type": market_type,
+                "asset_class": _text(_value(row, "asset_class")) or "listed_security",
+                "issuer": _first_text(row, "issuer", "emissor"),
+                "currency": _text(row.get("currency")) or "BRL",
+                "source": row.get("source", "b3"),
+                "source_dataset": row.get("source_dataset", "b3_isin_database"),
+                "download_timestamp_utc": row.get("download_timestamp_utc"),
+                "raw_path": row.get("raw_path"),
+                "sha256": row.get("sha256"),
+                "source_version": source_version,
+            }
+        )
+    return _frame(rows, ISIN_DATABASE_COLUMNS)
+
+
 def normalize_trading_parameters(
     bronze: pl.DataFrame,
     *,
@@ -223,21 +277,29 @@ def normalize_trading_parameters(
     rows = []
     for row in bronze.to_dicts():
         ref_date = _required_date(row.get("ref_date"))
-        symbol = _text(row.get("symbol"))
-        market_type = _text(row.get("market_type"))
+        symbol = _text(_value(row, "symbol", "codigo", "codneg", "ticker"))
+        market_type = _text(_value(row, "market_type", "tipo_mercado", "mercado"))
+        price_limit_lower = parse_decimal(_value(row, "price_limit_lower"))
+        price_limit_upper = parse_decimal(_value(row, "price_limit_upper"))
         rows.append(
             {
                 "ref_date": ref_date,
                 "available_date": _optional_date(row.get("available_date"))
                 or next_business_day(ref_date, holidays),
                 "symbol": symbol,
+                "market_segment": _text(_value(row, "market_segment", "segmento", "mercado")),
+                "asset_class": _text(_value(row, "asset_class", "classe_ativo")),
+                "round_lot": parse_decimal(
+                    _value(row, "round_lot", "lot_size", "lote_padrao", "lote")
+                ),
+                "tick_size": parse_decimal(_value(row, "tick_size", "tick", "variacao_minima")),
+                "price_limits": _price_limits(row, price_limit_lower, price_limit_upper),
+                "trading_status": _text(_value(row, "trading_status", "status")),
                 "security_id": _text(row.get("security_id")) or f"{symbol}_{market_type}",
-                "isin": _text(row.get("isin")),
+                "isin": _text(_value(row, "isin", "codisi")),
                 "market_type": market_type,
-                "lot_size": parse_decimal(row.get("lot_size")),
-                "tick_size": parse_decimal(row.get("tick_size")),
-                "price_limit_lower": parse_decimal(row.get("price_limit_lower")),
-                "price_limit_upper": parse_decimal(row.get("price_limit_upper")),
+                "price_limit_lower": price_limit_lower,
+                "price_limit_upper": price_limit_upper,
                 "source": row.get("source", "b3"),
                 "source_dataset": row.get("source_dataset", "b3_trading_parameters"),
                 "download_timestamp_utc": row.get("download_timestamp_utc"),
@@ -321,6 +383,35 @@ def _optional_date(value: object) -> date | None:
     if not text:
         return None
     return date.fromisoformat(text[:10])
+
+
+def _value(row: dict[str, object], *aliases: str) -> object:
+    for alias in aliases:
+        normalized = normalize_column_name(alias)
+        if normalized in row:
+            return row[normalized]
+    return None
+
+
+def _first_text(row: dict[str, object], *aliases: str) -> str | None:
+    for alias in aliases:
+        value = _value(row, alias)
+        if value is not None and str(value).strip():
+            return str(value).strip()
+    return None
+
+
+def _price_limits(
+    row: dict[str, object],
+    price_limit_lower: float | None,
+    price_limit_upper: float | None,
+) -> str | None:
+    explicit = _first_text(row, "price_limits")
+    if explicit:
+        return explicit
+    if price_limit_lower is not None or price_limit_upper is not None:
+        return f"{price_limit_lower or ''}/{price_limit_upper or ''}"
+    return None
 
 
 def _text(value: object) -> str | None:

@@ -58,7 +58,8 @@ def normalize_derivatives_reference_prices(
                 "symbol": symbol,
                 "commodity": commodity,
                 "maturity_code": maturity_code,
-                "asset_class": asset_class_for_root(commodity) if commodity else None,
+                "asset_class": _text(row.get("asset_class"))
+                or (asset_class_for_root(commodity) if commodity else None),
                 "price_type": _text(row.get("price_type")) or "REFERENCE_PRICE",
                 "reference_price": parse_decimal(row.get("reference_price")),
                 "currency": _text(row.get("currency")) or "BRL",

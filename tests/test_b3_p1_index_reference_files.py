@@ -25,17 +25,19 @@ from bralpha.normalization.b3_derivatives_reference import (
     write_derivatives_reference_prices,
 )
 from bralpha.normalization.b3_flows import (
-    FLOW_OBSERVATION_COLUMNS,
+    EQUITIES_INVESTOR_PARTICIPATION_COLUMNS,
+    FOREIGN_INVESTOR_MOVEMENT_COLUMNS,
     normalize_equities_investor_participation,
     normalize_foreign_investor_movement,
     write_flow_observations,
 )
 from bralpha.normalization.b3_reference import (
     INDEX_COMPOSITION_COLUMNS,
+    ISIN_DATABASE_COLUMNS,
     REFERENCE_SECURITY_COLUMNS,
     TRADING_PARAMETERS_COLUMNS,
     normalize_index_composition,
-    normalize_traded_securities,
+    normalize_isin_database,
     normalize_trading_parameters,
     write_reference_table,
 )
@@ -102,23 +104,25 @@ def test_current_and_theoretical_index_portfolio_fixtures_write_source_specific_
 
 def test_isin_security_reference_preserves_lineage_and_available_date(tmp_path):
     bronze = parse_tabular_reference_file(
-        b"symbol;isin;name;market_type;asset_class;issuer\n"
+        b"codigo;codisi;nome;tipo_mercado;asset_class;emissor\n"
         b"PETR4;BRPETRACNPR6;PETROBRAS PN;010;equity;PETROBRAS\n",
         source_dataset="b3_isin_database",
         ref_date=date(2024, 1, 2),
         download_timestamp_utc=datetime(2024, 1, 2, 18),
         raw_path="raw/isin.csv",
         sha256="isin-hash",
-        required_all=["isin", "symbol"],
+        required_all=["codisi", "codigo"],
     )
-    securities = normalize_traded_securities(bronze)
+    securities = normalize_isin_database(bronze)
     paths = write_reference_table(
         securities,
         tmp_path / "silver" / "b3_isin_database",
         primary_keys=["isin"],
     )
 
-    assert securities.columns == REFERENCE_SECURITY_COLUMNS
+    assert "ref_date" not in REFERENCE_SECURITY_COLUMNS
+    assert "available_date" not in REFERENCE_SECURITY_COLUMNS
+    assert securities.columns == ISIN_DATABASE_COLUMNS
     assert securities["available_date"].item() == date(2024, 1, 3)
     assert securities["source_dataset"].item() == "b3_isin_database"
     assert securities["raw_path"].item() == "raw/isin.csv"
@@ -127,14 +131,15 @@ def test_isin_security_reference_preserves_lineage_and_available_date(tmp_path):
 
 def test_trading_parameters_fixture_normalizes_and_writes_by_source(tmp_path):
     bronze = parse_tabular_reference_file(
-        b"symbol;isin;market_type;lot_size;tick_size;price_limit_lower;price_limit_upper\n"
-        b"PETR4;BRPETRACNPR6;010;100;0,01;8,50;12,00\n",
+        b"codigo;codisi;tipo_mercado;segmento;asset_class;lote_padrao;"
+        b"variacao_minima;price_limit_lower;price_limit_upper;status\n"
+        b"PETR4;BRPETRACNPR6;010;A Vista;equity;100;0,01;8,50;12,00;AUTHORIZED\n",
         source_dataset="b3_trading_parameters",
         ref_date=date(2024, 1, 2),
         download_timestamp_utc=datetime(2024, 1, 2, 18),
         raw_path="raw/trading_parameters.csv",
         sha256="params-hash",
-        required_all=["symbol", "lot_size"],
+        required_all=["codigo", "lote_padrao"],
     )
     parameters = normalize_trading_parameters(bronze)
     paths = write_reference_table(
@@ -146,7 +151,12 @@ def test_trading_parameters_fixture_normalizes_and_writes_by_source(tmp_path):
 
     assert parameters.columns == TRADING_PARAMETERS_COLUMNS
     assert parameters["available_date"].item() == date(2024, 1, 3)
+    assert parameters["market_segment"].item() == "A VISTA"
+    assert parameters["asset_class"].item() == "EQUITY"
+    assert parameters["round_lot"].item() == 100.0
     assert parameters["tick_size"].item() == 0.01
+    assert parameters["price_limits"].item() == "8.5/12.0"
+    assert parameters["trading_status"].item() == "AUTHORIZED"
     assert parameters["source_dataset"].item() == "b3_trading_parameters"
     assert paths[0].parent.parent.name == "b3_trading_parameters"
 
@@ -166,13 +176,13 @@ def test_flow_fixtures_preserve_lineage_available_date_and_source_outputs(tmp_pa
     )
     foreign = normalize_foreign_investor_movement(
         parse_tabular_reference_file(
-            b"market_segment;buy_value;sell_value;net_value\nA Vista;700;600;100\n",
+            b"mercado;buy_value;sell_value;net_value;saldo\nA Vista;700;600;100;2500\n",
             source_dataset="b3_foreign_investor_movement",
             ref_date=date(2024, 1, 2),
             download_timestamp_utc=datetime(2024, 1, 2, 18),
             raw_path="raw/foreign_flows.html",
             sha256="foreign-hash",
-            required_all=["market_segment", "net_value"],
+            required_all=["mercado", "net_value"],
         )
     )
 
@@ -187,11 +197,15 @@ def test_flow_fixtures_preserve_lineage_available_date_and_source_outputs(tmp_pa
         primary_keys=["ref_date", "market_segment"],
     )
 
-    assert equities.columns == FLOW_OBSERVATION_COLUMNS
+    assert equities.columns == EQUITIES_INVESTOR_PARTICIPATION_COLUMNS
     assert equities["available_date"].item() == date(2024, 1, 3)
     assert equities["source_dataset"].item() == "b3_equities_investor_participation"
     assert equities_paths[0].parent.parent.name == "b3_equities_investor_participation"
-    assert foreign["investor_type"].item() == "FOREIGN"
+    assert foreign.columns == FOREIGN_INVESTOR_MOVEMENT_COLUMNS
+    assert foreign["foreign_buy_value"].item() == 700.0
+    assert foreign["foreign_sell_value"].item() == 600.0
+    assert foreign["foreign_net_value"].item() == 100.0
+    assert foreign["foreign_balance_or_position"].item() == 2500.0
     assert foreign["source_dataset"].item() == "b3_foreign_investor_movement"
     assert foreign_paths[0].parent.parent.name == "b3_foreign_investor_movement"
 
@@ -229,6 +243,27 @@ def test_derivatives_reference_prices_fixture_normalizes_and_checks_duplicates(t
         )
 
 
+def test_derivatives_reference_prices_accept_contract_id_without_root_derivation():
+    bronze = parse_tabular_reference_file(
+        b"contract_id;symbol;price_type;reference_price;asset_class\n"
+        b"SCENARIO_001;SCEN001;SCENARIO;99,5;risk_scenario\n",
+        source_dataset="b3_derivatives_reference_prices",
+        ref_date=date(2024, 1, 2),
+        download_timestamp_utc=datetime(2024, 1, 2, 18),
+        raw_path="raw/scenario_prices.csv",
+        sha256="scenario-hash",
+        required_all=["contract_id", "reference_price"],
+    )
+    prices = normalize_derivatives_reference_prices(bronze)
+
+    assert prices["contract_id"].item() == "SCENARIO_001"
+    assert prices["symbol"].item() == "SCEN001"
+    assert prices["commodity"].item() is None
+    assert prices["maturity_code"].item() is None
+    assert prices["asset_class"].item() == "RISK_SCENARIO"
+    assert prices["reference_price"].item() == 99.5
+
+
 def test_index_composition_quality_fails_on_negative_p1_weight():
     bad = _index_composition_from_fixture("b3_indexes_current_portfolio").with_columns(
         pl.lit(-1.0).alias("weight")
@@ -248,8 +283,8 @@ def _index_composition_from_fixture(source_dataset: str) -> pl.DataFrame:
         b"""
     <table>
       <tr>
-        <th>ref_date</th><th>index_id</th><th>symbol</th><th>isin</th>
-        <th>name</th><th>weight</th><th>theoretical_quantity</th>
+        <th>ref_date</th><th>indice</th><th>codigo</th><th>codisi</th>
+        <th>nome</th><th>participacao</th><th>qtd_teorica</th>
       </tr>
       <tr>
         <td>2024-01-02</td><td>IBOV</td><td>PETR4</td><td>BRPETRACNPR6</td>
@@ -264,6 +299,6 @@ def _index_composition_from_fixture(source_dataset: str) -> pl.DataFrame:
         download_timestamp_utc=datetime(2024, 1, 2, 18),
         raw_path=f"raw/{source_dataset}.html",
         sha256=f"{source_dataset}-hash",
-        required_all=["index_id", "symbol", "weight"],
+        required_all=["indice", "codigo", "participacao"],
     )
     return normalize_index_composition(bronze)
