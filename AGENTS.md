@@ -20,7 +20,7 @@ The immediate engineering target is `docs/B3_INGESTION_SETUP.md`: create a robus
 
 ## Non-negotiable rules
 
-1. **Point-in-time correctness is mandatory.** Every model input must have an `available_date`; no feature can use observations with `available_date > asof_date`.
+1. **Point-in-time correctness is mandatory.** Every model input must have an `available_date`; no feature can use observations with `available_date > asof_date`. `available_date` is the model-usable daily decision date, not merely a source release date.
 2. **Raw data is immutable.** Files in `data/raw/` are append-only and are identified by source, dataset id, download timestamp, and content hash.
 3. **Do not commit downloaded market data.** Commit code, configs, schemas, docs, small fixtures, and tests only.
 4. **Keep layers separate.** Downloaders download, parsers parse, normalizers canonicalize, feature builders create features, target builders create labels, models forecast, portfolios size positions, and backtests evaluate P&L.
@@ -58,11 +58,13 @@ Use these consistently:
 - `ref_date`: market date or observation date.
 - `ref_period_start` / `ref_period_end`: economic period being measured.
 - `release_date`: date the source first published the observation.
-- `available_date`: date the row is allowed to enter a model.
+- `available_date`: daily decision date on which the row is allowed to enter a model.
 - `download_timestamp_utc`: when this copy was downloaded.
 - `vintage_id`: source version when data can be revised.
 
-For first-pass B3 market data, if exact publication time is not modeled, use a conservative daily rule: data for `ref_date = t` becomes usable for decisions after the daily file is available and for execution on the next trading day.
+The default daily decision profile is EOD daily in `America/Sao_Paulo`: exact timestamps at or before the configured cutoff are usable that decision date, exact timestamps after the cutoff are usable the next business day, and date-only releases default to next business day. See `docs/TIMING_AND_AVAILABILITY_POLICY.md`.
+
+For first-pass B3 market data, if exact publication time is not modeled, use a conservative daily rule: data for `ref_date = t` becomes usable on the next business day for next-session execution.
 
 ## B3 ingestion principles
 

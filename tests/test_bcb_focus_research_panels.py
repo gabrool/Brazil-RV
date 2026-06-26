@@ -11,7 +11,7 @@ from bralpha.derived.bcb.focus import (
     build_focus_reference_dates,
 )
 
-AVAILABILITY_NOTE = "first_pass_available_date_equals_data"
+AVAILABILITY_NOTE = "date_only_next_business_day_until_publication_calendar"
 
 
 def test_focus_observation_panel_builds_stable_key_and_keeps_top5_coexistence():
@@ -151,6 +151,42 @@ def test_focus_asof_uses_pre_window_observation_available_at_output_start():
     ]
     assert panel["mean"].to_list() == [4.0, 4.0, 4.0, 4.0]
     assert panel["observation_ref_date"].to_list() == [date(2023, 12, 29)] * 4
+
+
+def test_focus_asof_waits_for_date_only_next_business_day_availability():
+    observations = build_focus_expectation_observation_daily(
+        general=pl.DataFrame(
+            [
+                _focus_row(
+                    endpoint="ExpectativasMercadoAnuais",
+                    indicator="IPCA",
+                    indicator_detail=None,
+                    is_top5=False,
+                    mean=4.0,
+                    base_calculation=1,
+                    ref_date=date(2024, 1, 2),
+                    available_date=date(2024, 1, 3),
+                )
+            ]
+        ),
+        top5=None,
+        availability_note=AVAILABILITY_NOTE,
+        include_general=True,
+        include_top5=True,
+        start=date(2024, 1, 2),
+        end=date(2024, 1, 2),
+    )
+
+    panel = build_focus_expectation_asof_daily(
+        observations,
+        selected_indicators=["IPCA"],
+        max_dense_keys=5000,
+        start=date(2024, 1, 2),
+        end=date(2024, 1, 3),
+    )
+
+    assert panel["ref_date"].to_list() == [date(2024, 1, 3)]
+    assert panel["observation_ref_date"].to_list() == [date(2024, 1, 2)]
 
 
 def test_focus_asof_raises_when_selected_keys_exceed_limit():
