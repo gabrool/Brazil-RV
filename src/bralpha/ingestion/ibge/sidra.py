@@ -20,6 +20,8 @@ from .common import (
     ibge_raw_store,
 )
 
+DEFAULT_MAX_PERIODS_PER_REQUEST = 120
+
 
 @dataclass(frozen=True)
 class SidraSeriesConfig:
@@ -36,7 +38,9 @@ class SidraSeriesConfig:
     view: str
     model_usable: bool
     release_calendar_product_id: int | None
+    release_calendar_product_id_status: str
     availability_policy: str
+    max_periods_per_request: int | None = None
 
 
 def load_sidra_series_config(repo_root: Path) -> list[SidraSeriesConfig]:
@@ -69,26 +73,26 @@ def download_sidra_series(
     results: list[IbgeDownloadResult] = []
     with client_context(client) as owned_client:
         for series in selected:
-            periods = resolve_sidra_periods(series, start=start, end=end)
-            url, params, filename = build_sidra_request(dataset, series=series, periods=periods)
-            results.append(
-                download_ibge_request(
-                    dataset=dataset,
-                    raw_store=ibge_raw_store(paths),
-                    manifest_writer=ibge_manifest_writer(paths),
-                    url=url,
-                    params=params,
-                    filename=filename,
-                    client=owned_client,
-                    downloaded_at=downloaded_at,
-                    manifest_params={
-                        "dataset_slug": series.dataset_slug,
-                        "aggregate_id": series.aggregate_id,
-                        "periods": periods,
-                        **params,
-                    },
+            for periods in resolve_sidra_period_chunks(series, start=start, end=end):
+                url, params, filename = build_sidra_request(dataset, series=series, periods=periods)
+                results.append(
+                    download_ibge_request(
+                        dataset=dataset,
+                        raw_store=ibge_raw_store(paths),
+                        manifest_writer=ibge_manifest_writer(paths),
+                        url=url,
+                        params=params,
+                        filename=filename,
+                        client=owned_client,
+                        downloaded_at=downloaded_at,
+                        manifest_params={
+                            "dataset_slug": series.dataset_slug,
+                            "aggregate_id": series.aggregate_id,
+                            "periods": periods,
+                            **params,
+                        },
+                    )
                 )
-            )
     return results
 
 
@@ -144,15 +148,41 @@ def build_sidra_request(
 
 
 def resolve_sidra_periods(series: SidraSeriesConfig, *, start: date, end: date) -> str:
+    return "|".join(resolve_sidra_period_chunks(series, start=start, end=end))
+
+
+def resolve_sidra_period_chunks(
+    series: SidraSeriesConfig,
+    *,
+    start: date,
+    end: date,
+) -> list[str]:
     selector = series.period_selector
+    max_periods = series.max_periods_per_request or DEFAULT_MAX_PERIODS_PER_REQUEST
     if isinstance(selector, list):
-        return "|".join(str(item) for item in selector)
+        return _period_chunks([str(item) for item in selector], max_periods=max_periods)
     text = str(selector).strip()
     if text in {"all"} or text.startswith("-"):
-        return text
+        return [text]
     if text == "date_range":
-        return "|".join(_periods_for_range(start, end, frequency=series.frequency))
-    return text
+        return _period_chunks(
+            _periods_for_range(start, end, frequency=series.frequency),
+            max_periods=max_periods,
+        )
+    if "|" in text:
+        return _period_chunks(text.split("|"), max_periods=max_periods)
+    return [text]
+
+
+def _period_chunks(periods: list[str], *, max_periods: int) -> list[str]:
+    if max_periods <= 0:
+        raise ValueError("max_periods_per_request must be positive")
+    if not periods:
+        return []
+    return [
+        "|".join(periods[index : index + max_periods])
+        for index in range(0, len(periods), max_periods)
+    ]
 
 
 def _periods_for_range(start: date, end: date, *, frequency: str) -> list[str]:

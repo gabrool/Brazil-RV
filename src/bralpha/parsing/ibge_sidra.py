@@ -16,6 +16,7 @@ IBGE_SIDRA_BRONZE_COLUMNS = [
     "variable_name",
     "unit",
     "period_code",
+    "year",
     "period_label",
     "geography_level",
     "geography_id",
@@ -64,6 +65,7 @@ def parse_sidra_bytes(
                 geography_name = locality.get("nome")
                 observations = series.get("serie") if isinstance(series.get("serie"), dict) else {}
                 for period_code, raw_value in observations.items():
+                    period_text = str(period_code)
                     rows.append(
                         {
                             "dataset_slug": dataset_slug,
@@ -71,7 +73,8 @@ def parse_sidra_bytes(
                             "variable_id": variable_id,
                             "variable_name": variable_name,
                             "unit": unit,
-                            "period_code": str(period_code),
+                            "period_code": period_text,
+                            "year": _period_year(period_text),
                             "period_label": None,
                             "geography_level": geography_level,
                             "geography_id": str(geography_id) if geography_id is not None else None,
@@ -121,7 +124,7 @@ def write_sidra_bronze(frame: pl.DataFrame, output_root: Path) -> list[Path]:
             "geography_id",
             "classification_key",
         ],
-        partition_cols=["dataset_slug"],
+        partition_cols=["dataset_slug", "year"],
     )
 
 
@@ -194,6 +197,11 @@ def _nested(row: dict[str, Any], *keys: str) -> object | None:
 
 def _as_text(value: object) -> str | None:
     return None if value is None else str(value)
+
+
+def _period_year(value: str) -> int | None:
+    prefix = value[:4]
+    return int(prefix) if len(prefix) == 4 and prefix.isdigit() else None
 
 
 def _frame(rows: list[dict[str, object]]) -> pl.DataFrame:

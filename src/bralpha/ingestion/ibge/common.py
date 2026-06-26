@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
@@ -102,6 +103,15 @@ def download_ibge_request(
         )
     manifest_writer.append(record)
     return IbgeDownloadResult(record=record, raw_path=raw_path)
+
+
+def ibge_items_count(content: bytes) -> int:
+    payload = json.loads(content.decode("utf-8-sig"))
+    if isinstance(payload, dict) and isinstance(payload.get("items"), list):
+        return len(payload["items"])
+    if isinstance(payload, list):
+        return len(payload)
+    return 0
 
 
 def write_bronze_frame(

@@ -12,6 +12,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9256
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: ipca15
@@ -27,6 +28,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9260
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: inpc
@@ -42,6 +44,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9258
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: gdp_volume_change
@@ -57,6 +60,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9300
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: gdp_volume_index
@@ -72,6 +76,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9300
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: gdp_current_values
@@ -87,6 +92,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9300
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: pim_industrial_production
@@ -102,6 +108,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9294
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: pmc_retail_index
@@ -117,6 +124,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9227
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: pmc_broad_retail_index
@@ -132,6 +140,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9227
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: pmc_retail_by_activity
@@ -147,6 +156,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9227
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: pmc_broad_retail_by_activity
@@ -162,6 +172,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9227
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: pms_services_index
@@ -177,6 +188,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9229
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: pms_services_segments
@@ -192,6 +204,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9229
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: pms_services_activities
@@ -207,6 +220,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9229
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: pnad_unemployment_rate
@@ -222,6 +236,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9171
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: pnad_participation_rate
@@ -237,6 +252,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9171
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: pnad_occupation_level
@@ -252,6 +268,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9171
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: pnad_underutilization_rate
@@ -267,6 +284,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9171
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: pnad_underutilization_level
@@ -282,6 +300,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9171
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: pnad_real_income
@@ -297,6 +316,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9171
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: pnad_real_income_usual
@@ -312,6 +332,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9171
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: pnad_real_income_mass
@@ -327,6 +348,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9171
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: pnad_real_income_mass_usual
@@ -342,6 +364,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9171
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: sinapi_cost_m2
@@ -357,6 +380,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9270
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: pms_services_regional
@@ -372,6 +396,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9229
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: pms_services_activity_regional
@@ -387,6 +412,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9229
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: pms_services_special_regional
@@ -402,6 +428,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9229
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: sinapi_cost_m2_no_payroll_exemption
@@ -417,6 +444,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9270
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: sinapi_project_cost
@@ -432,6 +460,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9270
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: ipp_producer_prices
@@ -447,6 +476,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9282
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: ipp_producer_prices_index
@@ -462,6 +492,7 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9282
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day
 
   - dataset_slug: ipp_producer_prices_by_activity
@@ -477,4 +508,5 @@ series:
     view: ""
     model_usable: true
     release_calendar_product_id: 9282
+    release_calendar_product_id_status: verified
     availability_policy: calendar_or_date_only_next_business_day

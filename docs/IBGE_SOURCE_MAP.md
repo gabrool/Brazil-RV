@@ -28,6 +28,11 @@ Official IBGE documentation used for this map:
 
 ## Curated SIDRA aggregates
 
+The corresponding `configs/series/ibge_sidra.yaml` rows include
+`release_calendar_product_id_status`. Current non-null product ids are marked
+`verified`; any future `needs_verification` row must stay non-model-usable until
+the calendar product mapping is confirmed.
+
 | dataset_slug | priority | aggregate_id | theme | release_calendar_product_id |
 |---|---:|---:|---|---:|
 | `ipca` | P0 | 7060 | inflation | 9256 |

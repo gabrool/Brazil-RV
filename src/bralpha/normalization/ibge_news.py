@@ -60,7 +60,8 @@ def normalize_news_to_silver(
         rows.append(
             {
                 "news_id": _int_or_none(row.get("id")),
-                "product_id": _int_or_none(row.get("produto_id")),
+                "product_id": _int_or_none(row.get("produto_id"))
+                or _product_id_from_produtos(row.get("produtos")),
                 "product_name": _product_name(row.get("produtos")),
                 "title": _clean_text(row.get("titulo")),
                 "type": _clean_text(row.get("tipo")),
@@ -115,6 +116,19 @@ def _product_name(value: object) -> str | None:
     if len(parts) < 2:
         return None
     return parts[1].split("#", maxsplit=1)[0].strip() or None
+
+
+def _product_id_from_produtos(value: object) -> int | None:
+    text = _clean_text(value)
+    if text is None or "|" not in text:
+        return None
+    leading = text.split("|", maxsplit=1)[0].strip()
+    if not leading:
+        return None
+    try:
+        return int(leading)
+    except ValueError:
+        return None
 
 
 def _int_or_none(value: object) -> int | None:

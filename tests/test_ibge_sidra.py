@@ -6,17 +6,19 @@ from datetime import UTC, date, datetime
 
 import polars as pl
 
+import bralpha.ingestion.ibge.sidra as sidra_module
 from bralpha.infra.config import load_ibge_dataset_registry
 from bralpha.infra.http import HttpResponse
 from bralpha.ingestion.ibge.sidra import (
     SidraSeriesConfig,
     build_sidra_request,
     load_sidra_series_config,
+    resolve_sidra_period_chunks,
     resolve_sidra_periods,
 )
 from bralpha.normalization.ibge_calendar import write_calendar_silver
 from bralpha.normalization.ibge_sidra import normalize_sidra_to_silver
-from bralpha.parsing.ibge_sidra import parse_sidra_bytes
+from bralpha.parsing.ibge_sidra import parse_sidra_bytes, write_sidra_bronze
 from bralpha.pipelines.ibge_ingest import run_ibge_ingest
 
 
@@ -64,6 +66,41 @@ def test_sidra_period_resolver_builds_monthly_and_quarterly_ranges():
     ) == "202401|202402|202403"
 
 
+def test_sidra_period_chunks_honor_max_periods_per_request():
+    series = _series(frequency="monthly", max_periods_per_request=2)
+
+    assert resolve_sidra_period_chunks(
+        series,
+        start=date(2024, 1, 1),
+        end=date(2024, 5, 31),
+    ) == ["202401|202402", "202403|202404", "202405"]
+
+
+def test_sidra_downloader_chunks_date_range_requests(repo_root, tmp_path, monkeypatch):
+    shutil.copytree(repo_root / "configs", tmp_path / "configs")
+    monkeypatch.setattr(
+        sidra_module,
+        "load_sidra_series_config",
+        lambda repo_root: [_series(frequency="monthly", max_periods_per_request=2)],
+    )
+    client = MockClient(_sidra_payload({"202401": "0.42"}))
+
+    results = sidra_module.download_sidra_series(
+        tmp_path,
+        start=date(2024, 1, 1),
+        end=date(2024, 5, 31),
+        client=client,
+    )
+
+    assert [result.record.request_params["periods"] for result in results] == [
+        "202401|202402",
+        "202403|202404",
+        "202405",
+    ]
+    assert len(client.requests) == 3
+    assert len({result.raw_path.name for result in results if result.raw_path}) == 3
+
+
 def test_sidra_parser_handles_nested_shape_and_classifications(repo_root):
     bronze = parse_sidra_bytes(
         _sidra_payload({"202401": "0.42"}),
@@ -78,10 +115,34 @@ def test_sidra_parser_handles_nested_shape_and_classifications(repo_root):
     row = bronze.row(0, named=True)
     assert row["variable_id"] == "63"
     assert row["unit"] == "%"
+    assert row["year"] == 2024
     assert row["geography_level"] == "N1"
     assert row["classification_key"] == "315=7169"
     assert json.loads(row["classifications_json"])[0]["category_name"] == "Indice geral"
     assert row["raw_value"] == "0.42"
+
+
+def test_sidra_bronze_writes_dataset_and_year_partitions(repo_root, tmp_path):
+    bronze = parse_sidra_bytes(
+        _sidra_payload({"202301": "0.30", "202401": "0.42"}),
+        dataset_slug="ipca",
+        aggregate_id=7060,
+        source_dataset="ibge_sidra_series",
+        download_timestamp_utc=datetime(2024, 2, 9, 12, tzinfo=UTC),
+        raw_path=repo_root / "raw.json",
+        sha256="abc",
+    )
+    output_root = tmp_path / "bronze" / "ibge_sidra_series"
+
+    paths = write_sidra_bronze(bronze, output_root)
+    write_sidra_bronze(bronze, output_root)
+
+    year_2023 = output_root / "dataset_slug=ipca" / "year=2023" / "data.parquet"
+    year_2024 = output_root / "dataset_slug=ipca" / "year=2024" / "data.parquet"
+    assert year_2023 in paths
+    assert year_2024 in paths
+    assert pl.read_parquet(year_2023).height == 1
+    assert pl.read_parquet(year_2024).height == 1
 
 
 def test_sidra_normalizer_preserves_missing_symbols_and_calendar_availability(repo_root):
@@ -129,6 +190,50 @@ def test_sidra_normalizer_preserves_missing_symbols_and_calendar_availability(re
         "unmatched_release_calendar",
         "unmatched_release_calendar",
     ]
+
+
+def test_sidra_unverified_release_product_id_is_not_model_usable(repo_root):
+    bronze = parse_sidra_bytes(
+        _sidra_payload({"202401": "0.42"}),
+        dataset_slug="test",
+        aggregate_id=1,
+        source_dataset="ibge_sidra_series",
+        download_timestamp_utc=datetime(2024, 2, 9, 12, tzinfo=UTC),
+        raw_path=repo_root / "raw.json",
+        sha256="abc",
+    )
+    calendar = pl.DataFrame(
+        [
+            {
+                "event_id": 1,
+                "product_id": 9256,
+                "reference_period_start": date(2024, 1, 1),
+                "reference_period_end": date(2024, 1, 31),
+                "release_date": date(2024, 2, 9),
+                "available_datetime_local": datetime(2024, 2, 9, 9),
+                "available_datetime_utc": datetime(2024, 2, 9, 12),
+                "available_date": date(2024, 2, 9),
+                "availability_policy": "exact_timestamp_cutoff",
+            }
+        ]
+    )
+
+    silver = normalize_sidra_to_silver(
+        bronze,
+        series_config=[
+            _series(
+                frequency="monthly",
+                release_calendar_product_id=9256,
+                release_calendar_product_id_status="needs_verification",
+            )
+        ],
+        release_calendar=calendar,
+    )
+
+    row = silver.row(0, named=True)
+    assert row["available_date"] == date(2024, 2, 9)
+    assert row["model_usable"] is False
+    assert row["availability_note"] == "release calendar product id is not verified"
 
 
 def test_sidra_normalizer_parses_quarterly_and_moving_quarter_periods(repo_root):
@@ -228,7 +333,13 @@ def test_ibge_sidra_pipeline_uses_calendar_and_upserts_silver(repo_root, tmp_pat
     assert (tmp_path / "data" / "manifests" / "ibge" / "downloads.jsonl").exists()
 
 
-def _series(frequency: str) -> SidraSeriesConfig:
+def _series(
+    frequency: str,
+    *,
+    release_calendar_product_id: int | None = None,
+    release_calendar_product_id_status: str = "not_applicable",
+    max_periods_per_request: int | None = None,
+) -> SidraSeriesConfig:
     return SidraSeriesConfig(
         dataset_slug="test",
         priority="P0",
@@ -242,8 +353,10 @@ def _series(frequency: str) -> SidraSeriesConfig:
         classifications="",
         view="",
         model_usable=True,
-        release_calendar_product_id=None,
+        release_calendar_product_id=release_calendar_product_id,
+        release_calendar_product_id_status=release_calendar_product_id_status,
         availability_policy="calendar_or_date_only_next_business_day",
+        max_periods_per_request=max_periods_per_request,
     )
 
 

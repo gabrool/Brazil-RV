@@ -11,6 +11,7 @@ from .common import (
     client_context,
     download_ibge_request,
     ibge_dataset,
+    ibge_items_count,
     ibge_manifest_writer,
     ibge_paths,
     ibge_raw_store,
@@ -31,18 +32,20 @@ def download_news_metadata(
 ) -> list[IbgeDownloadResult]:
     dataset = ibge_dataset(repo_root, "ibge_news_releases_metadata")
     paths = ibge_paths(repo_root)
-    url, params, filename = build_news_request(
-        dataset,
-        start=start,
-        end=end,
-        tipo=tipo,
-        product_id=product_id,
-        page=page,
-        page_size=page_size,
-    )
+    results: list[IbgeDownloadResult] = []
     with client_context(client) as owned_client:
-        return [
-            download_ibge_request(
+        current_page = page
+        while True:
+            url, params, filename = build_news_request(
+                dataset,
+                start=start,
+                end=end,
+                tipo=tipo,
+                product_id=product_id,
+                page=current_page,
+                page_size=page_size,
+            )
+            result = download_ibge_request(
                 dataset=dataset,
                 raw_store=ibge_raw_store(paths),
                 manifest_writer=ibge_manifest_writer(paths),
@@ -56,11 +59,17 @@ def download_news_metadata(
                     "product_id": product_id,
                     "start": start.isoformat(),
                     "end": end.isoformat(),
-                    "page": page,
+                    "page": current_page,
                     **params,
                 },
             )
-        ]
+            results.append(result)
+            if result.raw_path is None or not result.record.success:
+                break
+            if ibge_items_count(result.raw_path.read_bytes()) < page_size:
+                break
+            current_page += 1
+    return results
 
 
 def build_news_request(

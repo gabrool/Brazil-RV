@@ -69,7 +69,10 @@ def normalize_sidra_to_silver(
             availability_note = "period_code could not be mapped to dates"
         elif release is not None and release.get("available_date") is not None:
             availability_policy = str(release.get("availability_policy"))
-            model_usable = bool(config and config.model_usable)
+            if config and config.model_usable and _release_calendar_product_is_verified(config):
+                model_usable = True
+            elif config and config.model_usable:
+                availability_note = "release calendar product id is not verified"
         rows.append(
             {
                 "dataset_slug": row.get("dataset_slug"),
@@ -167,6 +170,13 @@ def _release_match(
     ):
         return None
     return calendar.get((config.release_calendar_product_id, period_start, period_end))
+
+
+def _release_calendar_product_is_verified(config: SidraSeriesConfig) -> bool:
+    return (
+        config.release_calendar_product_id is not None
+        and config.release_calendar_product_id_status == "verified"
+    )
 
 
 def _period_bounds(

@@ -55,3 +55,8 @@ def test_ibge_series_yaml_is_explicit(repo_root):
         assert row["aggregate_id"]
         assert row["locations"] == "N1[all]"
         assert row["period_selector"] == "date_range"
+        assert row["release_calendar_product_id_status"]
+        if row["release_calendar_product_id"] is not None and row["model_usable"]:
+            assert row["release_calendar_product_id_status"] == "verified"
+        if row["release_calendar_product_id_status"] == "needs_verification":
+            assert row["model_usable"] is False
