@@ -60,7 +60,6 @@ datasets:
     primary_keys: [contract_id]
     quality_checks:
       - no_duplicate_primary_keys
-      - maturity_date_present_where_required
       - required_columns_present
     source_urls: []
     license_note: Derived from public B3 product specifications and project-maintained manual inputs.
@@ -362,7 +361,6 @@ datasets:
     partition_keys: [year]
     primary_keys: [ref_date, report_section]
     quality_checks:
-      - downloaded_file_present
       - required_columns_present
     source_map_status: not_implemented_pending_url
     source_urls: []
@@ -448,7 +446,6 @@ datasets:
     partition_keys: []
     primary_keys: [ref_date, fee_id, product, investor_type, fee_type]
     quality_checks:
-      - downloaded_file_present
       - required_columns_present
     source_map_status: raw_only
     source_urls:
@@ -480,7 +477,6 @@ datasets:
     partition_keys: [dataset_id, year]
     primary_keys: [ref_date, report_name]
     quality_checks:
-      - downloaded_file_present
       - required_columns_present
     source_map_status: not_implemented_pending_url
     source_urls: []
@@ -542,7 +538,6 @@ datasets:
     partition_keys: []
     primary_keys: [download_date, product_root]
     quality_checks:
-      - downloaded_file_present
       - required_columns_present
     source_map_status: raw_only
     source_urls:

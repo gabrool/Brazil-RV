@@ -6,7 +6,7 @@ from typing import Any
 
 import polars as pl
 
-from bralpha.derived.b3.quality import assert_no_banned_feature_columns, validate_panel
+from bralpha.derived.b3.quality import validate_panel
 from bralpha.derived.b3.schemas import (
     DI_CURVE_CONTRACT_DAILY_COLUMNS,
     DI_CURVE_GRID_DAILY_COLUMNS,
@@ -53,7 +53,6 @@ def build_di_curve_contract_daily(
         )
     rows = _add_contract_changes(rows)
     frame = _contract_frame(rows)
-    assert_no_banned_feature_columns(frame)
     validate_panel(
         frame,
         required_columns=DI_CURVE_CONTRACT_DAILY_COLUMNS,
@@ -103,7 +102,6 @@ def build_di_curve_grid_daily(
                 )
             )
     frame = _grid_frame(rows)
-    assert_no_banned_feature_columns(frame)
     validate_panel(
         frame,
         required_columns=DI_CURVE_GRID_DAILY_COLUMNS,

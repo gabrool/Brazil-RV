@@ -98,7 +98,5 @@ def run_quality_checks(
             check_nonnegative_where_present(frame, "weight")
         elif check_name == "rate_within_plausible_bounds":
             check_rate_within_plausible_bounds(frame)
-        elif check_name in {"downloaded_file_present", "maturity_date_present_where_required"}:
-            continue
         else:
             raise QualityCheckError(f"Unknown quality check: {check_name}")
