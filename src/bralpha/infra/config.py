@@ -165,6 +165,10 @@ def load_b3_dataset_registry(repo_root: Path) -> DatasetRegistry:
     return DatasetRegistry.model_validate(_load_yaml(repo_root, "configs/datasets/b3.yaml"))
 
 
+def load_bcb_dataset_registry(repo_root: Path) -> DatasetRegistry:
+    return DatasetRegistry.model_validate(_load_yaml(repo_root, "configs/datasets/bcb.yaml"))
+
+
 def load_b3_research_config(repo_root: Path) -> B3ResearchConfig:
     return B3ResearchConfig.model_validate(_load_yaml(repo_root, "configs/derived/b3.yaml"))
 
@@ -185,6 +189,7 @@ __all__ = [
     "ResolvedPaths",
     "SleeveConfig",
     "load_b3_dataset_registry",
+    "load_bcb_dataset_registry",
     "load_instruments_config",
     "load_paths_config",
     "load_project_config",

@@ -1,0 +1,178 @@
+source: bcb
+free_access_default: true
+requires_auth_default: false
+point_in_time_required: true
+
+raw_storage:
+  path_template: data/raw/bcb/{dataset_id}/{download_date}/
+  manifest_path: data/manifests/bcb/downloads.jsonl
+
+bronze_storage:
+  path_template: data/bronze/bcb/{dataset_id}/
+  format: parquet
+
+silver_storage:
+  path_template: data/silver/{dataset_id}/
+  format: parquet
+
+datasets:
+  - dataset_id: bcb_sgs_series
+    source: bcb
+    priority: P0
+    frequency: mixed
+    raw_format: json
+    canonical_table: bcb_sgs_observation
+    partition_keys: [series_id, year]
+    primary_keys: [series_id, ref_date]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+    source_map_status: live_download
+    source_urls:
+      - name: sgs_json
+        url_template: "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{series_id}/dados"
+        params:
+          formato: json
+          dataInicial: "{start:%d/%m/%Y}"
+          dataFinal: "{end:%d/%m/%Y}"
+        filename_template: "bcb_sgs_{series_id}_{start:%Y%m%d}_{end:%Y%m%d}.json"
+    license_note: BCB Open Data / ODbL. Verify before redistribution.
+
+  - dataset_id: bcb_ptax_exchange_rates
+    source: bcb
+    priority: P0
+    frequency: daily
+    raw_format: odata_json
+    canonical_table: bcb_ptax_exchange_rate
+    partition_keys: [year, currency_code]
+    primary_keys: [ref_date, currency_code, bulletin_type]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+    source_map_status: live_download
+    request_defaults:
+      currencies: [EUR, GBP, JPY, CAD, AUD, CHF]
+      include_currencies: true
+      page_size: 10000
+    source_urls:
+      - name: ptax_currencies
+        endpoint: Currencies
+      - name: ptax_dollar_rate_period
+        endpoint: DollarRatePeriod
+      - name: ptax_exchange_rate_period
+        endpoint: ExchangeRatePeriod
+    license_note: BCB Open Data / ODbL. Verify before redistribution.
+
+  - dataset_id: bcb_focus_expectations
+    source: bcb
+    priority: P0
+    frequency: daily_or_weekly_publication
+    raw_format: odata_json
+    canonical_table: bcb_focus_expectation
+    partition_keys: [endpoint, year]
+    primary_keys: [endpoint, ref_date, indicator, reference_period, statistic_scope]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+    source_map_status: live_download
+    request_defaults:
+      page_size: 10000
+    source_urls:
+      - endpoint: ExpectativaMercadoMensais
+      - endpoint: ExpectativasMercadoSelic
+      - endpoint: ExpectativasMercadoTrimestrais
+      - endpoint: ExpectativasMercadoAnuais
+      - endpoint: ExpectativasMercadoInflacao12Meses
+      - endpoint: ExpectativasMercadoInflacao24Meses
+    license_note: BCB Open Data / ODbL. Verify before redistribution.
+
+  - dataset_id: bcb_focus_top5_expectations
+    source: bcb
+    priority: P0
+    frequency: daily_or_weekly_publication
+    raw_format: odata_json
+    canonical_table: bcb_focus_expectation
+    partition_keys: [endpoint, year]
+    primary_keys: [endpoint, ref_date, indicator, reference_period, calculation_type]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+    source_map_status: live_download
+    request_defaults:
+      page_size: 10000
+    source_urls:
+      - endpoint: ExpectativasMercadoTop5Mensais
+      - endpoint: ExpectativasMercadoTop5Selic
+      - endpoint: ExpectativaMercadoTop5Trimestral
+      - endpoint: ExpectativasMercadoTop5Anuais
+      - endpoint: ExpectativasMercadoTop5Inflacao12Meses
+      - endpoint: ExpectativasMercadoTop5Inflacao24Meses
+    license_note: BCB Open Data / ODbL. Verify before redistribution.
+
+  - dataset_id: bcb_focus_top5_reference_dates
+    source: bcb
+    priority: P0
+    frequency: periodic
+    raw_format: odata_json
+    canonical_table: bcb_focus_top5_reference_date
+    partition_keys: [year]
+    primary_keys: [reference_date]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+    source_map_status: live_download
+    request_defaults:
+      page_size: 10000
+    source_urls:
+      - endpoint: DatasReferencia
+    license_note: BCB Open Data / ODbL. Verify before redistribution.
+
+  - dataset_id: bcb_copom_calendar
+    source: bcb
+    priority: P1
+    frequency: event
+    raw_format: html_or_json_pending
+    canonical_table: bcb_policy_event
+    source_map_status: not_implemented_pending_url
+    source_urls: []
+    notes: Source-map only until a stable non-JS endpoint is confirmed.
+
+  - dataset_id: bcb_copom_decisions
+    source: bcb
+    priority: P1
+    frequency: event
+    raw_format: html_or_json_pending
+    canonical_table: bcb_policy_event
+    source_map_status: not_implemented_pending_url
+    source_urls: []
+    notes: Source-map only until stable endpoint is confirmed.
+
+  - dataset_id: bcb_copom_documents
+    source: bcb
+    priority: P2
+    frequency: event
+    raw_format: html_or_pdf
+    canonical_table: bcb_policy_document_metadata
+    source_map_status: raw_only_or_pending_url
+    source_urls: []
+    notes: No NLP, no PDF parsing in this PR.
+
+  - dataset_id: bcb_monetary_policy_reports
+    source: bcb
+    priority: P2
+    frequency: quarterly
+    raw_format: pdf_or_html
+    canonical_table: bcb_policy_document_metadata
+    source_map_status: raw_only_or_pending_url
+    source_urls: []
+    notes: No NLP, no PDF parsing in this PR.
+
+  - dataset_id: bcb_speeches_press_releases
+    source: bcb
+    priority: P2
+    frequency: event
+    raw_format: html
+    canonical_table: bcb_policy_document_metadata
+    source_map_status: not_implemented_pending_url
+    source_urls: []
+    notes: Metadata/source-map only for now.

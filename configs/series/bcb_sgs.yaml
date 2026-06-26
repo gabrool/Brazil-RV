@@ -1,0 +1,52 @@
+series:
+  - series_id: 11
+    slug: selic_over
+    name: Selic overnight / Selic daily
+    category: rates
+    frequency: daily
+    unit: percent_annualized
+    availability_policy: next_business_day
+    model_usable: true
+
+  - series_id: 432
+    slug: selic_target
+    name: Selic target / meta Selic
+    category: rates
+    frequency: daily
+    unit: percent_annualized
+    availability_policy: next_business_day
+    model_usable: true
+
+  - series_id: 433
+    slug: ipca
+    name: IPCA monthly
+    category: inflation
+    frequency: monthly
+    unit: percent_monthly
+    availability_policy: configured_lag_days
+    availability_lag_days: 15
+    model_usable: true
+
+candidate_categories:
+  inflation:
+    - IPCA-15
+    - INPC
+    - IGP-M
+  credit:
+    - credit_stock
+    - lending_rates
+    - credit_spreads
+    - delinquency
+  fiscal:
+    - public_debt
+    - primary_balance
+    - nominal_balance
+  external:
+    - current_account
+    - trade_balance
+    - FDI
+    - portfolio_flows
+    - international_reserves
+  activity:
+    - IBC-Br
+    - industrial_production_proxy
