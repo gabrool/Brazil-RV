@@ -1,0 +1,220 @@
+source: b3
+free_access_default: true
+requires_auth_default: false
+point_in_time_required: true
+
+raw_storage:
+  path_template: data/raw/b3/{dataset_id}/{download_date}/
+  manifest_path: data/manifests/b3/downloads.jsonl
+
+bronze_storage:
+  path_template: data/bronze/b3/{dataset_id}/
+  format: parquet
+
+silver_storage:
+  path_template: data/silver/{canonical_table}/
+  format: parquet
+
+datasets:
+  - dataset_id: b3_futures_settlements
+    priority: P0
+    frequency: daily
+    raw_format: html_or_csv
+    canonical_table: market_daily
+    partition_keys: [year]
+    primary_keys: [ref_date, commodity, maturity_code]
+    quality_checks:
+      - row_count_not_zero
+      - no_duplicate_primary_keys
+      - positive_settlement_where_present
+
+  - dataset_id: b3_futures_contract_master
+    priority: P0
+    frequency: static_or_periodic
+    raw_format: html_or_manual_yaml
+    canonical_table: reference_contract
+    partition_keys: []
+    primary_keys: [contract_id]
+    quality_checks:
+      - no_duplicate_primary_keys
+      - maturity_date_present_where_required
+
+  - dataset_id: b3_holiday_calendar
+    priority: P0
+    frequency: annual
+    raw_format: csv_or_manual_yaml
+    canonical_table: reference_calendar
+    partition_keys: [year]
+    primary_keys: [calendar_id, ref_date]
+    quality_checks:
+      - no_duplicate_primary_keys
+
+  - dataset_id: b3_derivatives_open_interest
+    priority: P0
+    frequency: daily
+    raw_format: html_or_csv_or_xlsx
+    canonical_table: market_daily
+    partition_keys: [year]
+    primary_keys: [ref_date, commodity, maturity_code]
+    quality_checks:
+      - row_count_not_zero
+      - nonnegative_open_interest
+
+  - dataset_id: b3_derivatives_trade_summary
+    priority: P0
+    frequency: daily
+    raw_format: html_or_csv_or_xlsx
+    canonical_table: market_daily
+    partition_keys: [year]
+    primary_keys: [ref_date, commodity]
+    quality_checks:
+      - row_count_not_zero
+      - nonnegative_volume
+
+  - dataset_id: b3_reference_rates
+    priority: P0
+    frequency: daily
+    raw_format: html_or_csv
+    canonical_table: curve_daily
+    partition_keys: [year, curve_id]
+    primary_keys: [ref_date, curve_id, tenor_days]
+    quality_checks:
+      - row_count_not_zero
+      - no_duplicate_primary_keys
+      - rate_within_plausible_bounds
+
+  - dataset_id: b3_cotahist_yearly
+    priority: P0
+    frequency: annual
+    raw_format: fixed_width_zip
+    canonical_table: market_daily
+    partition_keys: [year]
+    primary_keys: [ref_date, symbol, market_type]
+    quality_checks:
+      - row_count_not_zero
+      - no_duplicate_primary_keys
+      - nonnegative_volume
+
+  - dataset_id: b3_indexes_historical_data
+    priority: P0
+    frequency: daily
+    raw_format: csv_or_html
+    canonical_table: market_daily
+    partition_keys: [year, index_id]
+    primary_keys: [ref_date, index_id]
+    quality_checks:
+      - row_count_not_zero
+      - no_duplicate_primary_keys
+
+  - dataset_id: b3_indexes_composition
+    priority: P0
+    frequency: periodic
+    raw_format: csv_or_html
+    canonical_table: index_composition
+    partition_keys: [index_id]
+    primary_keys: [ref_date, index_id, symbol]
+    quality_checks:
+      - row_count_not_zero
+      - no_duplicate_primary_keys
+
+  - dataset_id: b3_traded_securities
+    priority: P0
+    frequency: daily_or_periodic
+    raw_format: csv_or_html
+    canonical_table: reference_security
+    partition_keys: []
+    primary_keys: [symbol, market_type]
+    quality_checks:
+      - row_count_not_zero
+      - no_duplicate_primary_keys
+
+  - dataset_id: b3_cotahist_daily
+    priority: P1
+    frequency: daily
+    raw_format: fixed_width_zip
+    canonical_table: market_daily
+    partition_keys: [year]
+    primary_keys: [ref_date, symbol, market_type]
+    quality_checks:
+      - row_count_not_zero
+      - no_duplicate_primary_keys
+
+  - dataset_id: b3_indexes_current_portfolio
+    priority: P1
+    frequency: periodic
+    raw_format: csv_or_html
+    canonical_table: index_composition
+    partition_keys: [index_id]
+    primary_keys: [ref_date, index_id, symbol]
+    quality_checks:
+      - row_count_not_zero
+
+  - dataset_id: b3_equities_investor_participation
+    priority: P1
+    frequency: daily_or_monthly
+    raw_format: csv_or_xlsx_or_html
+    canonical_table: flow_observation
+    partition_keys: [year]
+    primary_keys: [ref_date, investor_type, market_segment]
+    quality_checks:
+      - row_count_not_zero
+
+  - dataset_id: b3_foreign_investor_movement
+    priority: P1
+    frequency: daily_or_monthly
+    raw_format: csv_or_xlsx_or_html
+    canonical_table: flow_observation
+    partition_keys: [year]
+    primary_keys: [ref_date, market_segment]
+    quality_checks:
+      - row_count_not_zero
+
+  - dataset_id: b3_daily_bulletin_chapters
+    priority: P1
+    frequency: daily
+    raw_format: pdf_or_html_or_xlsx
+    canonical_table: market_report_daily
+    partition_keys: [year]
+    primary_keys: [ref_date, report_section]
+    quality_checks:
+      - downloaded_file_present
+
+  - dataset_id: b3_isin_database
+    priority: P1
+    frequency: periodic
+    raw_format: csv_or_xlsx_or_html
+    canonical_table: reference_security
+    partition_keys: []
+    primary_keys: [isin]
+    quality_checks:
+      - no_duplicate_primary_keys
+
+  - dataset_id: b3_trading_parameters
+    priority: P1
+    frequency: periodic
+    raw_format: csv_or_xlsx_or_html
+    canonical_table: reference_trading_parameter
+    partition_keys: []
+    primary_keys: [symbol]
+    quality_checks:
+      - row_count_not_zero
+
+  - dataset_id: b3_fee_schedules
+    priority: P1
+    frequency: periodic
+    raw_format: pdf_or_html_or_xlsx
+    canonical_table: reference_fee
+    partition_keys: []
+    primary_keys: [fee_id]
+    quality_checks:
+      - downloaded_file_present
+
+  - dataset_id: b3_market_data_public_reports
+    priority: P2
+    frequency: mixed
+    raw_format: mixed
+    canonical_table: market_report_daily
+    partition_keys: [dataset_id, year]
+    primary_keys: [ref_date, report_name]
+    quality_checks:
+      - downloaded_file_present
