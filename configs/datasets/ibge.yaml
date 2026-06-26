@@ -64,16 +64,14 @@ datasets:
           de: "{start:%Y-%m-%d}"
           ate: "{end:%Y-%m-%d}"
           qtd: "{page_size}"
-          page: "{page}"
-        filename_template: "ibge_calendar_{start:%Y%m%d}_{end:%Y%m%d}_page{page}.json"
+        filename_template: "ibge_calendar_{start:%Y%m%d}_{end:%Y%m%d}.json"
       - name: calendar_by_product
         url_template: "https://servicodados.ibge.gov.br/api/v3/calendario/{product_id}"
         params:
           de: "{start:%Y-%m-%d}"
           ate: "{end:%Y-%m-%d}"
           qtd: "{page_size}"
-          page: "{page}"
-        filename_template: "ibge_calendar_{product_id}_{start:%Y%m%d}_{end:%Y%m%d}_page{page}.json"
+        filename_template: "ibge_calendar_{product_id}_{start:%Y%m%d}_{end:%Y%m%d}.json"
     license_note: IBGE public API data. Verify redistribution terms before publication.
 
   - dataset_id: ibge_products_metadata

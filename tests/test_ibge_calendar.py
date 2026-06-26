@@ -1,29 +1,11 @@
 from __future__ import annotations
 
-import shutil
 from datetime import UTC, date, datetime, time
 
 from bralpha.infra.config import load_ibge_dataset_registry
-from bralpha.infra.http import HttpResponse
-from bralpha.ingestion.ibge.calendar import build_calendar_request, download_release_calendar
+from bralpha.ingestion.ibge.calendar import build_calendar_request
 from bralpha.normalization.ibge_calendar import normalize_calendar_to_silver
 from bralpha.parsing.ibge_calendar import parse_calendar_bytes
-
-
-class PagedMockClient:
-    def __init__(self, *contents: bytes) -> None:
-        self.contents = list(contents)
-        self.requests = []
-
-    def get_bytes(self, url, params=None, headers=None):
-        self.requests.append({"url": url, "params": params or {}})
-        content = self.contents.pop(0) if self.contents else b'{"items":[]}'
-        return HttpResponse(
-            url=f"{url}?mock={len(self.requests)}",
-            status_code=200,
-            headers={"content-type": "application/json"},
-            content=content,
-        )
 
 
 def test_ibge_calendar_request_uses_product_endpoint_and_configured_params(repo_root):
@@ -34,7 +16,6 @@ def test_ibge_calendar_request_uses_product_endpoint_and_configured_params(repo_
         start=date(2024, 1, 1),
         end=date(2024, 1, 31),
         product_id=9256,
-        page=2,
         page_size=50,
     )
 
@@ -42,26 +23,8 @@ def test_ibge_calendar_request_uses_product_endpoint_and_configured_params(repo_
     assert params["de"] == "2024-01-01"
     assert params["ate"] == "2024-01-31"
     assert params["qtd"] == "50"
-    assert params["page"] == "2"
-    assert filename == "ibge_calendar_9256_20240101_20240131_page2.json"
-
-
-def test_ibge_calendar_downloader_paginates_until_empty_page(repo_root, tmp_path):
-    shutil.copytree(repo_root / "configs", tmp_path / "configs")
-    client = PagedMockClient(_calendar_payload("09/02/2024 09:00:00"), b'{"items":[]}')
-
-    results = download_release_calendar(
-        tmp_path,
-        start=date(2024, 1, 1),
-        end=date(2024, 1, 31),
-        product_id=9256,
-        page_size=1,
-        client=client,
-    )
-
-    assert [result.record.request_params["page"] for result in results] == ["1", "2"]
-    assert [request["params"]["page"] for request in client.requests] == ["1", "2"]
-    assert all(result.record.success for result in results)
+    assert "page" not in params
+    assert filename == "ibge_calendar_9256_20240101_20240131.json"
 
 
 def test_ibge_calendar_parser_preserves_official_fields(repo_root):
