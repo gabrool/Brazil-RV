@@ -1,11 +1,18 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+import json
+from datetime import UTC, date, datetime
+from types import SimpleNamespace
 
 import polars as pl
 import pytest
 
+import bralpha.ingestion.b3.common as b3_common
+import bralpha.ingestion.b3.cotahist as cotahist_module
 import bralpha.parsing.common as parsing_common
+from bralpha.infra.hashing import sha256_bytes
+from bralpha.infra.http import HttpResponse
+from bralpha.ingestion.b3.cotahist import download_cotahist_year
 from bralpha.ingestion.b3.indexes import (
     download_indexes_composition_for_date,
     download_indexes_historical_for_date,
@@ -31,6 +38,30 @@ from bralpha.parsing.b3_cotahist import (
     write_cotahist_bronze,
 )
 from bralpha.quality.checks import QualityCheckError, run_quality_checks
+
+COTAHIST_ZIP_BYTES = b"small-cotahist-zip"
+
+
+class MockCotahistClient:
+    def __init__(
+        self,
+        status_code: int = 200,
+        content: bytes = COTAHIST_ZIP_BYTES,
+        error: Exception | None = None,
+    ) -> None:
+        self.status_code = status_code
+        self.content = content
+        self.error = error
+
+    def get_bytes(self, url, params=None, headers=None):
+        if self.error:
+            raise self.error
+        return HttpResponse(
+            url=f"{url}?mock=1",
+            status_code=self.status_code,
+            headers={"content-type": "application/zip"},
+            content=self.content,
+        )
 
 
 def test_cotahist_fixed_width_line_parses():
@@ -81,6 +112,138 @@ def test_cotahist_bronze_writer_appends_chunk_files_without_reread(tmp_path, mon
 
     assert [path.name for path in paths] == ["chunk-000000.parquet", "chunk-000001.parquet"]
     assert {path.parent.name for path in paths} == {"year=2024"}
+
+
+def test_cotahist_download_success_writes_manifest_and_closes_owned_client(
+    repo_root,
+    tmp_path,
+    monkeypatch,
+):
+    events: list[str] = []
+
+    class OwnedClient:
+        def __enter__(self):
+            events.append("enter")
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            events.append("exit")
+            return None
+
+        def get_bytes(self, url, params=None, headers=None):
+            events.append("get")
+            return HttpResponse(
+                url=f"{url}?mock=1",
+                status_code=200,
+                headers={"content-type": "application/zip"},
+                content=COTAHIST_ZIP_BYTES,
+            )
+
+    paths = _patch_cotahist_paths(monkeypatch, tmp_path)
+    monkeypatch.setattr(b3_common, "HttpClient", OwnedClient)
+
+    record = download_cotahist_year(
+        repo_root,
+        year=2024,
+        downloaded_at=datetime(2024, 1, 2, 12, tzinfo=UTC),
+    )
+    manifest = _read_cotahist_manifest(paths)
+
+    assert events == ["enter", "get", "exit"]
+    assert record.success is True
+    assert manifest["success"] is True
+    assert manifest["sha256"] == sha256_bytes(COTAHIST_ZIP_BYTES)
+    assert manifest["raw_path"]
+
+
+def test_cotahist_render_failure_writes_failure_manifest(repo_root, tmp_path, monkeypatch):
+    paths = _patch_cotahist_paths(monkeypatch, tmp_path)
+
+    def fail_render(*args, **kwargs):
+        raise ValueError("bad template")
+
+    monkeypatch.setattr(cotahist_module, "render_dataset_request", fail_render)
+
+    record = download_cotahist_year(
+        repo_root,
+        year=2024,
+        client=MockCotahistClient(),
+        downloaded_at=datetime(2024, 1, 2, 12, tzinfo=UTC),
+    )
+    manifest = _read_cotahist_manifest(paths)
+
+    assert record.success is False
+    assert manifest["source_url"] == ""
+    assert manifest["request_params"] == {"year": 2024}
+    assert manifest["raw_path"] is None
+    assert manifest["sha256"] is None
+    assert manifest["error_message"] == "bad template"
+
+
+def test_cotahist_http_non_2xx_writes_failure_manifest(repo_root, tmp_path, monkeypatch):
+    paths = _patch_cotahist_paths(monkeypatch, tmp_path)
+
+    record = download_cotahist_year(
+        repo_root,
+        year=2024,
+        client=MockCotahistClient(status_code=503, content=b"unavailable"),
+        downloaded_at=datetime(2024, 1, 2, 12, tzinfo=UTC),
+    )
+    manifest = _read_cotahist_manifest(paths)
+
+    assert record.success is False
+    assert manifest["http_status"] == 503
+    assert manifest["file_size_bytes"] == len(b"unavailable")
+    assert manifest["raw_path"] is None
+    assert manifest["sha256"] is None
+    assert manifest["error_message"] == "HTTP 503"
+
+
+def test_cotahist_http_exception_writes_failure_manifest(repo_root, tmp_path, monkeypatch):
+    paths = _patch_cotahist_paths(monkeypatch, tmp_path)
+
+    record = download_cotahist_year(
+        repo_root,
+        year=2024,
+        client=MockCotahistClient(error=OSError("network down")),
+        downloaded_at=datetime(2024, 1, 2, 12, tzinfo=UTC),
+    )
+    manifest = _read_cotahist_manifest(paths)
+
+    assert record.success is False
+    assert manifest["source_url"].startswith("https://")
+    assert manifest["request_params"] == {"year": 2024}
+    assert manifest["raw_path"] is None
+    assert manifest["sha256"] is None
+    assert manifest["error_message"] == "network down"
+
+
+def test_cotahist_raw_store_failure_writes_failure_manifest(repo_root, tmp_path, monkeypatch):
+    paths = _patch_cotahist_paths(monkeypatch, tmp_path)
+
+    class FailingRawStore:
+        def __init__(self, root):
+            self.root = root
+
+        def write_bytes(self, *args, **kwargs):
+            raise OSError("raw store unavailable")
+
+    monkeypatch.setattr(cotahist_module, "RawStore", FailingRawStore)
+
+    record = download_cotahist_year(
+        repo_root,
+        year=2024,
+        client=MockCotahistClient(),
+        downloaded_at=datetime(2024, 1, 2, 12, tzinfo=UTC),
+    )
+    manifest = _read_cotahist_manifest(paths)
+
+    assert record.success is False
+    assert manifest["http_status"] == 200
+    assert manifest["file_size_bytes"] == len(COTAHIST_ZIP_BYTES)
+    assert manifest["raw_path"] is None
+    assert manifest["sha256"] == sha256_bytes(COTAHIST_ZIP_BYTES)
+    assert manifest["error_message"] == "raw store unavailable"
 
 
 def test_cotahist_silver_market_daily_quality_and_source_specific_write(tmp_path):
@@ -213,7 +376,13 @@ def test_index_composition_and_security_reference_outputs(tmp_path):
     assert security_paths == [tmp_path / "b3_traded_securities" / "data.parquet"]
 
 
-def test_index_and_security_downloads_require_confirmed_source_urls(repo_root):
+def test_index_and_security_downloads_require_confirmed_source_urls(repo_root, monkeypatch):
+    class ExplodingClient:
+        def __init__(self):
+            raise AssertionError("client should not be created before URL validation")
+
+    monkeypatch.setattr(b3_common, "HttpClient", ExplodingClient)
+
     expected = "no confirmed free source URL"
     with pytest.raises(NotImplementedError, match=expected):
         download_indexes_historical_for_date(repo_root, ref_date=date(2024, 1, 2))
@@ -234,6 +403,20 @@ def test_index_composition_weight_check_fails_on_negative():
             primary_keys=["ref_date", "index_id", "symbol"],
             required_columns=["ref_date", "index_id", "symbol", "weight"],
         )
+
+
+def _patch_cotahist_paths(monkeypatch, tmp_path):
+    paths = SimpleNamespace(raw=tmp_path / "raw", manifests=tmp_path / "manifests")
+    monkeypatch.setattr(
+        cotahist_module,
+        "resolve_project_paths",
+        lambda repo_root, paths_config: paths,
+    )
+    return paths
+
+
+def _read_cotahist_manifest(paths) -> dict[str, object]:
+    return json.loads((paths.manifests / "b3" / "downloads.jsonl").read_text(encoding="utf-8"))
 
 
 def _cotahist_line(symbol: str = "PETR4") -> str:
