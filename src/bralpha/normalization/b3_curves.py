@@ -6,13 +6,16 @@ from pathlib import Path
 import polars as pl
 
 from bralpha.domain.b3_calendar import next_business_day
-from bralpha.parsing.common import parse_decimal, parse_int, write_partitioned_by_year
+from bralpha.parsing.common import parse_decimal, parse_int, write_source_partitioned
 
 CURVE_DAILY_COLUMNS = [
     "ref_date",
     "available_date",
     "source",
     "source_dataset",
+    "download_timestamp_utc",
+    "raw_path",
+    "sha256",
     "curve_id",
     "tenor_days",
     "forward_date",
@@ -41,6 +44,9 @@ def normalize_reference_rates_to_curve_daily(
                 or next_business_day(ref_date, holidays),
                 "source": row.get("source", "b3"),
                 "source_dataset": row.get("source_dataset", "b3_reference_rates"),
+                "download_timestamp_utc": row.get("download_timestamp_utc"),
+                "raw_path": row.get("raw_path"),
+                "sha256": row.get("sha256"),
                 "curve_id": _text(row.get("curve_id")) or _text(row.get("curve")) or "B3_REFERENCE",
                 "tenor_days": parse_int(row.get("tenor_days")),
                 "forward_date": _optional_date(row.get("forward_date")),
@@ -62,7 +68,7 @@ def write_curve_daily(
     output_root: Path,
     primary_keys: list[str],
 ) -> list[Path]:
-    return write_partitioned_by_year(frame, output_root, primary_keys=primary_keys)
+    return write_source_partitioned(frame, output_root, primary_keys=primary_keys)
 
 
 def _rate(value: object) -> float | None:

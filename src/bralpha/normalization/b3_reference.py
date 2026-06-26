@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 
 import polars as pl
+import yaml
 
 from bralpha.domain.b3_calendar import next_business_day
-from bralpha.parsing.common import parse_decimal
+from bralpha.parsing.common import parse_decimal, write_source_partitioned
 
 REFERENCE_CONTRACT_COLUMNS = [
     "contract_id",
@@ -172,10 +174,60 @@ def normalize_traded_securities(
     return _frame(rows, REFERENCE_SECURITY_COLUMNS)
 
 
+def load_contract_master_yaml(path: Path) -> list[dict[str, object]]:
+    data = _load_manual_yaml(path)
+    rows = data.get("contracts")
+    if not isinstance(rows, list):
+        raise ValueError("manual contract master YAML must contain a contracts list")
+    return rows
+
+
+def load_holiday_calendar_yaml(path: Path) -> list[dict[str, object]]:
+    data = _load_manual_yaml(path)
+    rows = data.get("holidays")
+    if not isinstance(rows, list):
+        raise ValueError("manual holiday calendar YAML must contain a holidays list")
+    return rows
+
+
+def write_reference_table(
+    frame: pl.DataFrame,
+    output_root: Path,
+    *,
+    primary_keys: list[str],
+    ref_date_col: str | None = None,
+) -> list[Path]:
+    if frame.is_empty():
+        return []
+    if ref_date_col and ref_date_col in frame.columns:
+        return write_source_partitioned(
+            frame,
+            output_root,
+            ref_date_col=ref_date_col,
+            primary_keys=primary_keys,
+        )
+
+    output_root.mkdir(parents=True, exist_ok=True)
+    path = output_root / "data.parquet"
+    part = frame
+    if path.exists():
+        part = pl.concat([pl.read_parquet(path), frame], how="diagonal_relaxed")
+    part = part.unique(subset=primary_keys, keep="last", maintain_order=True)
+    part.write_parquet(path)
+    return [path]
+
+
 def _frame(rows: list[dict[str, object]], columns: list[str]) -> pl.DataFrame:
     if not rows:
         return pl.DataFrame(schema={column: pl.Null for column in columns})
     return pl.DataFrame(rows).select(columns)
+
+
+def _load_manual_yaml(path: Path) -> dict[str, object]:
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if not isinstance(data, dict):
+        raise ValueError("manual YAML input must be a mapping")
+    return data
 
 
 def _required_date(value: object) -> date:

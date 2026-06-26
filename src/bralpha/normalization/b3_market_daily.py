@@ -93,12 +93,99 @@ def normalize_settlements_to_market_daily(
     return _market_daily_frame(rows)
 
 
+def normalize_open_interest_to_market_daily(
+    bronze: pl.DataFrame,
+    *,
+    holidays: set[date] | None = None,
+    source_version: str = "v0",
+) -> pl.DataFrame:
+    rows = []
+    for row in bronze.to_dicts():
+        base = _base_market_row(
+            row,
+            holidays=holidays,
+            source_dataset="b3_derivatives_open_interest",
+            source_version=source_version,
+        )
+        base["open_interest"] = parse_int(row.get("open_interest"))
+        rows.append(base)
+    return _market_daily_frame(rows)
+
+
+def normalize_trade_summary_to_market_daily(
+    bronze: pl.DataFrame,
+    *,
+    holidays: set[date] | None = None,
+    source_version: str = "v0",
+) -> pl.DataFrame:
+    rows = []
+    for row in bronze.to_dicts():
+        base = _base_market_row(
+            row,
+            holidays=holidays,
+            source_dataset="b3_derivatives_trade_summary",
+            source_version=source_version,
+        )
+        base["volume"] = parse_int(row.get("volume"))
+        base["financial_volume"] = parse_decimal(row.get("financial_volume"))
+        base["number_of_trades"] = parse_int(row.get("number_of_trades"))
+        rows.append(base)
+    return _market_daily_frame(rows)
+
+
 def write_market_daily(
     frame: pl.DataFrame,
     output_root: Path,
     primary_keys: list[str],
 ) -> list[Path]:
     return write_source_partitioned(frame, output_root, primary_keys=primary_keys)
+
+
+def _base_market_row(
+    row: dict[str, object],
+    *,
+    holidays: set[date] | None,
+    source_dataset: str,
+    source_version: str,
+) -> dict[str, object]:
+    ref_date = _as_date(row["ref_date"])
+    commodity = _text(row.get("commodity"))
+    maturity_code = _text(row.get("maturity_code"))
+    contract_id = None
+    symbol = None
+    if commodity and maturity_code:
+        contract_id = build_b3_contract_id(commodity, maturity_code)
+        symbol = f"{commodity}{maturity_code}"
+    return {
+        "ref_date": ref_date,
+        "available_date": next_business_day(ref_date, holidays),
+        "source": row.get("source", "b3"),
+        "source_dataset": row.get("source_dataset", source_dataset),
+        "download_timestamp_utc": row.get("download_timestamp_utc"),
+        "raw_path": row.get("raw_path"),
+        "sha256": row.get("sha256"),
+        "asset_id": contract_id,
+        "contract_id": contract_id,
+        "symbol": symbol,
+        "commodity": commodity,
+        "maturity_code": maturity_code,
+        "asset_class": asset_class_for_root(commodity) if commodity else None,
+        "open": None,
+        "high": None,
+        "low": None,
+        "close": None,
+        "settlement": None,
+        "previous_settlement": None,
+        "price_change": None,
+        "settlement_value": None,
+        "volume": None,
+        "financial_volume": None,
+        "number_of_trades": None,
+        "open_interest": None,
+        "currency": "BRL",
+        "unit": None,
+        "source_version": source_version,
+    }
 
 
 def _market_daily_frame(rows: list[dict[str, object]]) -> pl.DataFrame:
