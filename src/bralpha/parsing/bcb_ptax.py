@@ -98,11 +98,34 @@ def parse_ptax_file(
 
 
 def write_ptax_bronze(frame: pl.DataFrame, output_root: Path) -> list[Path]:
-    return write_bronze_frame(
-        frame,
-        output_root,
-        primary_keys=["endpoint", "currency_code", "dataHoraCotacao", "tipoBoletim"],
-    )
+    if frame.is_empty():
+        return []
+    paths: list[Path] = []
+    if "dataHoraCotacao" in frame.columns:
+        dated = frame.filter(pl.col("dataHoraCotacao").is_not_null())
+        if not dated.is_empty():
+            paths.extend(
+                write_bronze_frame(
+                    dated,
+                    output_root,
+                    primary_keys=["endpoint", "currency_code", "dataHoraCotacao", "tipoBoletim"],
+                    ref_date_col="dataHoraCotacao",
+                    partition_cols=["year", "currency_code"],
+                )
+            )
+        undated = frame.filter(pl.col("dataHoraCotacao").is_null())
+    else:
+        undated = frame
+    if not undated.is_empty():
+        paths.extend(
+            write_bronze_frame(
+                undated,
+                output_root,
+                primary_keys=["endpoint", "currency_code"],
+                partition_cols=["endpoint"],
+            )
+        )
+    return paths
 
 
 def _odata_rows(content: bytes) -> list[dict[str, object]]:

@@ -12,10 +12,11 @@ from bralpha.ingestion.bcb.focus import build_focus_request, download_focus_data
 from bralpha.metadata.datasets import dataset_endpoint_names
 from bralpha.normalization.bcb_focus import (
     FOCUS_EXPECTATION_PRIMARY_KEYS,
+    FOCUS_REFERENCE_DATE_PRIMARY_KEYS,
     normalize_focus_expectations_to_silver,
     normalize_focus_reference_dates_to_silver,
 )
-from bralpha.parsing.bcb_focus import parse_focus_bytes
+from bralpha.parsing.bcb_focus import parse_focus_bytes, write_focus_bronze
 
 
 class MockClient:
@@ -95,6 +96,68 @@ def test_focus_parser_preserves_official_odata_fields(repo_root):
     assert bronze["baseCalculo"].item() == 1
 
 
+def test_focus_bronze_writer_preserves_indicator_detail_rows(repo_root, tmp_path):
+    bronze = parse_focus_bytes(
+        b'{"value":[{"Indicador":"IPCA","IndicadorDetalhe":"Livres",'
+        b'"Data":"2024-01-02","DataReferencia":"2025","Media":4.0,'
+        b'"baseCalculo":1},{"Indicador":"IPCA","IndicadorDetalhe":"Administrados",'
+        b'"Data":"2024-01-02","DataReferencia":"2025","Media":5.0,'
+        b'"baseCalculo":1}]}',
+        endpoint="ExpectativasMercadoAnuais",
+        source_dataset="bcb_focus_expectations",
+        download_timestamp_utc=datetime(2024, 1, 2, 12, tzinfo=UTC),
+        raw_path=repo_root / "raw_focus.json",
+        sha256="abc",
+    )
+
+    paths = write_focus_bronze(bronze, tmp_path)
+    write_focus_bronze(bronze, tmp_path)
+    written = pl.read_parquet(paths[0])
+
+    assert paths[0].parent == tmp_path / "endpoint=ExpectativasMercadoAnuais" / "year=2024"
+    assert written.height == 2
+    assert set(written["IndicadorDetalhe"].to_list()) == {"Administrados", "Livres"}
+
+
+def test_focus_bronze_writer_preserves_lowercase_top5_rows(repo_root, tmp_path):
+    bronze = parse_focus_bytes(
+        b'{"value":[{"indicador":"Selic","Data":"2024-01-02","reuniao":"R1",'
+        b'"tipoCalculo":"C","media":9.8},{"indicador":"Selic",'
+        b'"Data":"2024-01-02","reuniao":"R2","tipoCalculo":"C",'
+        b'"media":9.7}]}',
+        endpoint="ExpectativasMercadoTop5Selic",
+        source_dataset="bcb_focus_top5_expectations",
+        download_timestamp_utc=datetime(2024, 1, 2, 12, tzinfo=UTC),
+        raw_path=repo_root / "raw_top5.json",
+        sha256="def",
+    )
+
+    paths = write_focus_bronze(bronze, tmp_path)
+    written = pl.read_parquet(paths[0])
+
+    assert written.height == 2
+    assert written["Indicador"].null_count() == 2
+    assert set(written["reuniao"].to_list()) == {"R1", "R2"}
+
+
+def test_focus_bronze_writer_handles_datasreferencia_without_data(repo_root, tmp_path):
+    bronze = parse_focus_bytes(
+        b'{"value":[{"Indicador":"IGP-M","periodo":"11/2001",'
+        b'"DataReferencia1":"2001-11-07","DataReferencia2":"2001-11-08"}]}',
+        endpoint="DatasReferencia",
+        source_dataset="bcb_focus_top5_reference_dates",
+        download_timestamp_utc=datetime(2024, 1, 2, 12, tzinfo=UTC),
+        raw_path=repo_root / "raw_ref.json",
+        sha256="ghi",
+    )
+
+    paths = write_focus_bronze(bronze, tmp_path)
+    written = pl.read_parquet(paths[0])
+
+    assert paths[0].parent == tmp_path / "endpoint=DatasReferencia"
+    assert written.height == 1
+
+
 def test_focus_normalizer_handles_generic_selic_top5_and_reference_dates():
     generic = parse_focus_bytes(
         b'{"value":[{"Indicador":"IPCA","IndicadorDetalhe":"Livres",'
@@ -151,7 +214,41 @@ def test_focus_normalizer_handles_generic_selic_top5_and_reference_dates():
     top5_row = expectations.filter(pl.col("is_top5")).row(0, named=True)
     assert top5_row["calculation_type"] == "C"
     assert top5_row["mean"] == 9.8
-    assert refs["reference_date"].to_list() == [date(2001, 11, 7), date(2001, 11, 8)]
+    reference_rows = refs.select(
+        ["indicator", "period", "reference_date_type", "reference_date"]
+    ).to_dicts()
+    assert reference_rows == [
+        {
+            "indicator": "IGP-M",
+            "period": "11/2001",
+            "reference_date_type": "DataReferencia1",
+            "reference_date": date(2001, 11, 7),
+        },
+        {
+            "indicator": "IGP-M",
+            "period": "11/2001",
+            "reference_date_type": "DataReferencia2",
+            "reference_date": date(2001, 11, 8),
+        },
+    ]
+
+
+def test_focus_reference_dates_keep_context_for_shared_dates():
+    bronze = parse_focus_bytes(
+        b'{"value":[{"Indicador":"IGP-M","periodo":"11/2001",'
+        b'"DataReferencia1":"2001-11-07"},{"Indicador":"IPCA",'
+        b'"periodo":"11/2001","DataReferencia1":"2001-11-07"}]}',
+        endpoint="DatasReferencia",
+        source_dataset="bcb_focus_top5_reference_dates",
+        download_timestamp_utc=datetime(2024, 1, 2, 12, tzinfo=UTC),
+        raw_path=__file__,
+        sha256="abc",
+    )
+
+    refs = normalize_focus_reference_dates_to_silver(bronze)
+
+    assert refs.height == 2
+    assert refs.group_by(FOCUS_REFERENCE_DATE_PRIMARY_KEYS).len().height == 2
 
 
 def test_focus_primary_key_keeps_indicator_detail_from_colliding():

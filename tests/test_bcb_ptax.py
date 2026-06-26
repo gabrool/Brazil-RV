@@ -8,7 +8,7 @@ import polars as pl
 from bralpha.infra.http import HttpResponse
 from bralpha.ingestion.bcb.ptax import build_ptax_request, download_ptax_exchange_rates
 from bralpha.normalization.bcb_ptax import normalize_ptax_to_silver
-from bralpha.parsing.bcb_ptax import parse_ptax_bytes
+from bralpha.parsing.bcb_ptax import parse_ptax_bytes, write_ptax_bronze
 
 
 class MockClient:
@@ -82,6 +82,32 @@ def test_ptax_parser_accepts_portuguese_and_english_aliases(repo_root):
     assert bronze["cotacaoVenda"].item() == 5.1
     assert bronze["dataHoraCotacao"].item() == "2024-01-02 13:10:00"
     assert bronze["tipoBoletim"].item() == "Fechamento"
+
+
+def test_ptax_bronze_writer_partitions_rates_and_currencies(repo_root, tmp_path):
+    rates = parse_ptax_bytes(
+        b'{"value":[{"cotacaoCompra":5.0,"cotacaoVenda":5.1,'
+        b'"dataHoraCotacao":"2024-01-02 13:10:00","tipoBoletim":"Fechamento"}]}',
+        endpoint="ExchangeRatePeriod",
+        source_dataset="bcb_ptax_exchange_rates",
+        download_timestamp_utc=datetime(2024, 1, 2, 12, tzinfo=UTC),
+        raw_path=repo_root / "rates.json",
+        sha256="abc",
+        currency_code="EUR",
+    )
+    currencies = parse_ptax_bytes(
+        b'{"value":[{"simbolo":"EUR","nomeFormatado":"Euro","tipoMoeda":"A"}]}',
+        endpoint="Currencies",
+        source_dataset="bcb_ptax_exchange_rates",
+        download_timestamp_utc=datetime(2024, 1, 2, 12, tzinfo=UTC),
+        raw_path=repo_root / "currencies.json",
+        sha256="def",
+    )
+
+    paths = write_ptax_bronze(pl.concat([rates, currencies], how="diagonal_relaxed"), tmp_path)
+
+    assert tmp_path / "year=2024" / "currency_code=EUR" / "data.parquet" in paths
+    assert tmp_path / "endpoint=Currencies" / "data.parquet" in paths
 
 
 def test_ptax_normalizer_marks_closing_bulletin_and_keeps_all_rows():

@@ -37,6 +37,9 @@ BCB_FOCUS_EXPECTATION_COLUMNS = [
 ]
 
 BCB_FOCUS_REFERENCE_DATE_COLUMNS = [
+    "indicator",
+    "period",
+    "reference_date_type",
     "reference_date",
     "available_date",
     "raw_reference_date",
@@ -46,6 +49,13 @@ BCB_FOCUS_REFERENCE_DATE_COLUMNS = [
     "raw_path",
     "sha256",
     "source_version",
+]
+
+FOCUS_REFERENCE_DATE_PRIMARY_KEYS = [
+    "indicator",
+    "period",
+    "reference_date_type",
+    "reference_date",
 ]
 
 FOCUS_EXPECTATION_PRIMARY_KEYS = [
@@ -122,6 +132,9 @@ def normalize_focus_reference_dates_to_silver(
                 continue
             rows.append(
                 {
+                    "indicator": _text(row.get("Indicador")),
+                    "period": _text(row.get("periodo")),
+                    "reference_date_type": field,
                     "reference_date": reference_date,
                     "available_date": reference_date,
                     "raw_reference_date": row.get(field),
@@ -136,7 +149,11 @@ def normalize_focus_reference_dates_to_silver(
     frame = _reference_frame(rows)
     if frame.is_empty():
         return frame
-    return frame.unique(subset=["reference_date"], keep="last", maintain_order=True)
+    return frame.unique(
+        subset=FOCUS_REFERENCE_DATE_PRIMARY_KEYS,
+        keep="last",
+        maintain_order=True,
+    )
 
 
 def write_focus_expectations_silver(frame: pl.DataFrame, output_root: Path) -> list[Path]:
@@ -152,7 +169,7 @@ def write_focus_reference_dates_silver(frame: pl.DataFrame, output_root: Path) -
         frame,
         output_root,
         ref_date_col="reference_date",
-        primary_keys=["reference_date"],
+        primary_keys=FOCUS_REFERENCE_DATE_PRIMARY_KEYS,
     )
 
 

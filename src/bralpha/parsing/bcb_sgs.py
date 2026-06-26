@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import polars as pl
@@ -10,6 +10,7 @@ from bralpha.ingestion.bcb.common import write_bronze_frame
 
 BCB_SGS_BRONZE_COLUMNS = [
     "series_id",
+    "ref_date",
     "data",
     "valor",
     "source",
@@ -36,6 +37,7 @@ def parse_sgs_bytes(
     rows = [
         {
             "series_id": series_id,
+            "ref_date": _parse_bcb_date(row.get("data")),
             "data": row.get("data"),
             "valor": row.get("valor"),
             "source": "bcb",
@@ -72,7 +74,9 @@ def write_sgs_bronze(frame: pl.DataFrame, output_root: Path) -> list[Path]:
     return write_bronze_frame(
         frame,
         output_root,
-        primary_keys=["series_id", "data", "source_dataset"],
+        primary_keys=["series_id", "ref_date", "source_dataset"],
+        ref_date_col="ref_date",
+        partition_cols=["series_id", "year"],
     )
 
 
@@ -86,3 +90,17 @@ def _naive_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value
     return value.astimezone(UTC).replace(tzinfo=None)
+
+
+def _parse_bcb_date(value: object) -> date | None:
+    if value is None:
+        return None
+    if isinstance(value, date):
+        return value
+    text = str(value).strip()
+    if not text:
+        return None
+    if "/" in text:
+        day, month, year = text.split("/")
+        return date(int(year), int(month), int(day))
+    return date.fromisoformat(text[:10])

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -115,10 +115,61 @@ def write_bronze_frame(
     output_root: Path,
     *,
     primary_keys: list[str],
+    ref_date_col: str | None = None,
+    partition_cols: list[str] | None = None,
     filename: str = "data.parquet",
 ) -> list[Path]:
     if frame.is_empty():
         return []
+    if not partition_cols:
+        return _write_bronze_part(
+            frame,
+            output_root,
+            filename=filename,
+            primary_keys=primary_keys,
+        )
+
+    output_root.mkdir(parents=True, exist_ok=True)
+    work = frame
+    derived_year = False
+    if "year" in partition_cols and "year" not in work.columns:
+        if ref_date_col is None or ref_date_col not in work.columns:
+            raise ValueError("year partition requires ref_date_col")
+        work = work.with_columns(
+            pl.col(ref_date_col).map_elements(_year_from_value, return_dtype=pl.Int64).alias("year")
+        )
+        derived_year = True
+
+    missing = [column for column in partition_cols if column not in work.columns]
+    if missing:
+        raise ValueError(f"Missing partition columns: {missing}")
+
+    paths: list[Path] = []
+    for values in work.select(partition_cols).unique(maintain_order=True).to_dicts():
+        part = work.filter(_partition_filter(values))
+        if derived_year:
+            part = part.drop("year")
+        part_dir = output_root
+        for column in partition_cols:
+            part_dir = part_dir / f"{column}={_partition_value(values[column])}"
+        paths.extend(
+            _write_bronze_part(
+                part,
+                part_dir,
+                filename=filename,
+                primary_keys=primary_keys,
+            )
+        )
+    return paths
+
+
+def _write_bronze_part(
+    frame: pl.DataFrame,
+    output_root: Path,
+    *,
+    filename: str,
+    primary_keys: list[str],
+) -> list[Path]:
     output_root.mkdir(parents=True, exist_ok=True)
     path = output_root / filename
     if path.exists():
@@ -128,6 +179,43 @@ def write_bronze_frame(
             frame = frame.unique(subset=available_keys, keep="last", maintain_order=True)
     frame.write_parquet(path)
     return [path]
+
+
+def _partition_filter(values: dict[str, object]) -> pl.Expr:
+    expr: pl.Expr | None = None
+    for column, value in values.items():
+        condition = pl.col(column).is_null() if value is None else pl.col(column) == value
+        expr = condition if expr is None else expr & condition
+    if expr is None:
+        raise ValueError("partition values must not be empty")
+    return expr
+
+
+def _partition_value(value: object) -> str:
+    if value is None:
+        return "__null__"
+    return str(value).replace("\\", "_").replace("/", "_")
+
+
+def _year_from_value(value: object) -> int | None:
+    parsed = _date_from_value(value)
+    return parsed.year if parsed is not None else None
+
+
+def _date_from_value(value: object) -> date | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    text = str(value).strip()
+    if not text:
+        return None
+    if "/" in text:
+        day, month, year = text[:10].split("/")
+        return date(int(year), int(month), int(day))
+    return date.fromisoformat(text[:10])
 
 
 def _manifest_from_response(

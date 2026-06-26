@@ -4,6 +4,8 @@ import json
 import shutil
 from datetime import UTC, date, datetime
 
+import polars as pl
+
 from bralpha.infra.config import load_bcb_dataset_registry
 from bralpha.infra.http import HttpResponse
 from bralpha.ingestion.bcb.sgs import (
@@ -13,7 +15,7 @@ from bralpha.ingestion.bcb.sgs import (
     sgs_date_windows,
 )
 from bralpha.normalization.bcb_sgs import normalize_sgs_to_silver
-from bralpha.parsing.bcb_sgs import parse_sgs_bytes
+from bralpha.parsing.bcb_sgs import parse_sgs_bytes, write_sgs_bronze
 
 
 class MockClient:
@@ -96,6 +98,25 @@ def test_sgs_parser_reads_official_data_valor_keys(repo_root):
 
     assert bronze["data"].item() == "02/01/2024"
     assert bronze["valor"].item() == "11.65"
+    assert bronze["ref_date"].item() == date(2024, 1, 2)
+
+
+def test_sgs_bronze_writer_partitions_by_series_and_year(repo_root, tmp_path):
+    bronze = parse_sgs_bytes(
+        b'[{"data":"02/01/2024","valor":"11.65"}]',
+        series_id=11,
+        source_dataset="bcb_sgs_series",
+        download_timestamp_utc=datetime(2024, 1, 2, 12, tzinfo=UTC),
+        raw_path=repo_root / "raw.json",
+        sha256="abc",
+    )
+
+    paths = write_sgs_bronze(bronze, tmp_path)
+    write_sgs_bronze(bronze, tmp_path)
+    written = pl.read_parquet(paths[0])
+
+    assert paths[0].parent == tmp_path / "series_id=11" / "year=2024"
+    assert written.height == 1
 
 
 def test_sgs_normalizer_applies_availability_policy(repo_root):

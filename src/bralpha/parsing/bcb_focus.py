@@ -10,6 +10,7 @@ from bralpha.ingestion.bcb.common import write_bronze_frame
 
 BCB_FOCUS_BRONZE_COLUMNS = [
     "endpoint",
+    "row_index",
     "Indicador",
     "indicador",
     "IndicadorDetalhe",
@@ -55,7 +56,7 @@ def parse_focus_bytes(
     rows = _odata_rows(content)
     timestamp = _naive_utc(download_timestamp_utc)
     parsed = []
-    for row in rows:
+    for row_index, row in enumerate(rows):
         parsed.append(
             {
                 **{
@@ -64,6 +65,7 @@ def parse_focus_bytes(
                     if column
                     not in {
                         "endpoint",
+                        "row_index",
                         "source",
                         "source_dataset",
                         "download_timestamp_utc",
@@ -72,6 +74,7 @@ def parse_focus_bytes(
                     }
                 },
                 "endpoint": endpoint,
+                "row_index": row_index,
                 "source": "bcb",
                 "source_dataset": source_dataset,
                 "download_timestamp_utc": timestamp,
@@ -101,11 +104,40 @@ def parse_focus_file(
 
 
 def write_focus_bronze(frame: pl.DataFrame, output_root: Path) -> list[Path]:
-    return write_bronze_frame(
-        frame,
-        output_root,
-        primary_keys=["endpoint", "Data", "Indicador", "DataReferencia", "Reuniao", "tipoCalculo"],
-    )
+    if frame.is_empty():
+        return []
+    primary_keys = ["endpoint", "raw_path", "sha256", "row_index"]
+    if "Data" not in frame.columns:
+        return write_bronze_frame(
+            frame,
+            output_root,
+            primary_keys=primary_keys,
+            partition_cols=["endpoint"],
+        )
+
+    paths: list[Path] = []
+    dated = frame.filter(pl.col("Data").is_not_null())
+    if not dated.is_empty():
+        paths.extend(
+            write_bronze_frame(
+                dated,
+                output_root,
+                primary_keys=primary_keys,
+                ref_date_col="Data",
+                partition_cols=["endpoint", "year"],
+            )
+        )
+    undated = frame.filter(pl.col("Data").is_null())
+    if not undated.is_empty():
+        paths.extend(
+            write_bronze_frame(
+                undated,
+                output_root,
+                primary_keys=primary_keys,
+                partition_cols=["endpoint"],
+            )
+        )
+    return paths
 
 
 def _odata_rows(content: bytes) -> list[dict[str, object]]:
