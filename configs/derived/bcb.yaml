@@ -1,0 +1,40 @@
+bcb_research:
+  calendar:
+    default: business_days_mon_fri
+    timezone: America/Sao_Paulo
+
+  sgs:
+    include_model_usable_only: true
+    asof_panel: true
+
+  ptax:
+    currencies:
+      - USD
+      - EUR
+      - GBP
+      - JPY
+      - CAD
+      - AUD
+      - CHF
+    use_selected_bulletin_only: true
+
+  focus:
+    asof_panel: true
+    include_general_expectations: true
+    include_top5_expectations: true
+    max_dense_keys: 5000
+    availability_note: first_pass_available_date_equals_data
+    selected_indicators:
+      - IPCA
+      - Selic
+      - Câmbio
+      - PIB Total
+      - Conta corrente
+      - Balança comercial
+      - Resultado primário
+      - Dívida líquida do setor público
+
+  daily_long:
+    include_sgs: true
+    include_ptax: true
+    include_focus: true

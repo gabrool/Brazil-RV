@@ -138,6 +138,67 @@ class B3ResearchConfig(BaseModel):
     b3_research: B3ResearchSection
 
 
+class BCBCalendarConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    default: str
+    timezone: str
+
+
+class BCBSGSResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_model_usable_only: bool
+    asof_panel: bool
+
+
+class BCBPTAXResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    currencies: list[str]
+    use_selected_bulletin_only: bool
+
+    @field_validator("currencies")
+    @classmethod
+    def normalize_currencies(cls, currencies: list[str]) -> list[str]:
+        return [currency.strip().upper() for currency in currencies]
+
+
+class BCBFocusResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    asof_panel: bool
+    include_general_expectations: bool
+    include_top5_expectations: bool
+    max_dense_keys: int
+    availability_note: str
+    selected_indicators: list[str]
+
+
+class BCBDailyLongConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_sgs: bool
+    include_ptax: bool
+    include_focus: bool
+
+
+class BCBResearchSection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    calendar: BCBCalendarConfig
+    sgs: BCBSGSResearchConfig
+    ptax: BCBPTAXResearchConfig
+    focus: BCBFocusResearchConfig
+    daily_long: BCBDailyLongConfig
+
+
+class BCBResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    bcb_research: BCBResearchSection
+
+
 def _load_yaml(repo_root: Path, relative_path: str) -> dict[str, Any]:
     path = repo_root / relative_path
     if not path.exists():
@@ -173,7 +234,18 @@ def load_b3_research_config(repo_root: Path) -> B3ResearchConfig:
     return B3ResearchConfig.model_validate(_load_yaml(repo_root, "configs/derived/b3.yaml"))
 
 
+def load_bcb_research_config(repo_root: Path) -> BCBResearchConfig:
+    return BCBResearchConfig.model_validate(_load_yaml(repo_root, "configs/derived/bcb.yaml"))
+
+
 __all__ = [
+    "BCBCalendarConfig",
+    "BCBDailyLongConfig",
+    "BCBFocusResearchConfig",
+    "BCBPTAXResearchConfig",
+    "BCBResearchConfig",
+    "BCBResearchSection",
+    "BCBSGSResearchConfig",
     "B3ContinuousFuturesConfig",
     "B3DICurveConfig",
     "B3ResearchConfig",
@@ -190,6 +262,7 @@ __all__ = [
     "SleeveConfig",
     "load_b3_dataset_registry",
     "load_bcb_dataset_registry",
+    "load_bcb_research_config",
     "load_instruments_config",
     "load_paths_config",
     "load_project_config",
