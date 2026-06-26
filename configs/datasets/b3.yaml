@@ -17,8 +17,12 @@ silver_storage:
 
 datasets:
   - dataset_id: b3_futures_settlements
+    source: b3
     priority: P0
     frequency: daily
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
     raw_format: html_or_csv
     canonical_table: market_daily
     partition_keys: [year]
@@ -27,53 +31,123 @@ datasets:
       - row_count_not_zero
       - no_duplicate_primary_keys
       - positive_settlement_where_present
+      - ref_date_not_null
+      - available_date_not_null
+      - available_date_on_or_after_ref_date
+      - required_columns_present
+    source_urls:
+      - name: b3_sistema_pregao
+        url_template: https://www2.bmf.com.br/pages/portal/bmfbovespa/lumis/lum-sistema-pregao-ptBR.asp
+        params:
+          Data: "{ref_date:%d/%m/%Y}"
+          Mercadoria: "{commodity}"
+        filename_template: "{dataset_id}_{commodity}_{ref_date:%Y%m%d}.html"
+    request_defaults:
+      commodity_roots: [DI1, DOL, WDO, IND, WIN, DAP, DDI, FRC]
+    license_note: Public B3 website data; verify current B3 terms before redistribution.
+    notes: Daily futures settlement/session table, downloaded per commodity root.
 
   - dataset_id: b3_futures_contract_master
+    source: b3
     priority: P0
     frequency: static_or_periodic
-    raw_format: html_or_manual_yaml
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
+    raw_format: manual_yaml
     canonical_table: reference_contract
     partition_keys: []
     primary_keys: [contract_id]
     quality_checks:
       - no_duplicate_primary_keys
       - maturity_date_present_where_required
+      - required_columns_present
+    source_urls: []
+    license_note: Derived from public B3 product specifications and project-maintained manual inputs.
+    notes: Manual/source-map driven until a stable free machine-readable B3 contract master is confirmed.
 
   - dataset_id: b3_holiday_calendar
+    source: b3
     priority: P0
     frequency: annual
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
     raw_format: csv_or_manual_yaml
     canonical_table: reference_calendar
     partition_keys: [year]
     primary_keys: [calendar_id, ref_date]
     quality_checks:
       - no_duplicate_primary_keys
+      - required_columns_present
+    source_urls: []
+    license_note: Public B3 calendar data or project-maintained manual holiday file.
+    notes: Used for point-in-time availability and trading-day alignment.
 
   - dataset_id: b3_derivatives_open_interest
+    source: b3
     priority: P0
     frequency: daily
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
     raw_format: html_or_csv_or_xlsx
     canonical_table: market_daily
     partition_keys: [year]
     primary_keys: [ref_date, commodity, maturity_code]
     quality_checks:
       - row_count_not_zero
+      - no_duplicate_primary_keys
       - nonnegative_open_interest
+      - required_columns_present
+    source_urls:
+      - name: b3_sistema_pregao
+        url_template: https://www2.bmf.com.br/pages/portal/bmfbovespa/lumis/lum-sistema-pregao-ptBR.asp
+        params:
+          Data: "{ref_date:%d/%m/%Y}"
+          Mercadoria: "{commodity}"
+        filename_template: "{dataset_id}_{commodity}_{ref_date:%Y%m%d}.html"
+    request_defaults:
+      commodity_roots: [DI1, DOL, WDO, IND, WIN, DAP, DDI, FRC]
+    license_note: Public B3 website data; verify current B3 terms before redistribution.
+    notes: Open-interest fields parsed from daily derivatives session tables where available.
 
   - dataset_id: b3_derivatives_trade_summary
+    source: b3
     priority: P0
     frequency: daily
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
     raw_format: html_or_csv_or_xlsx
     canonical_table: market_daily
     partition_keys: [year]
-    primary_keys: [ref_date, commodity]
+    primary_keys: [ref_date, commodity, maturity_code]
     quality_checks:
       - row_count_not_zero
+      - no_duplicate_primary_keys
       - nonnegative_volume
+      - nonnegative_financial_volume_where_present
+      - required_columns_present
+    source_urls:
+      - name: b3_sistema_pregao
+        url_template: https://www2.bmf.com.br/pages/portal/bmfbovespa/lumis/lum-sistema-pregao-ptBR.asp
+        params:
+          Data: "{ref_date:%d/%m/%Y}"
+          Mercadoria: "{commodity}"
+        filename_template: "{dataset_id}_{commodity}_{ref_date:%Y%m%d}.html"
+    request_defaults:
+      commodity_roots: [DI1, DOL, WDO, IND, WIN, DAP, DDI, FRC]
+    license_note: Public B3 website data; verify current B3 terms before redistribution.
+    notes: Trade-count, contract-volume, and financial-volume fields from derivatives session tables.
 
   - dataset_id: b3_reference_rates
+    source: b3
     priority: P0
     frequency: daily
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
     raw_format: html_or_csv
     canonical_table: curve_daily
     partition_keys: [year, curve_id]
@@ -82,10 +156,19 @@ datasets:
       - row_count_not_zero
       - no_duplicate_primary_keys
       - rate_within_plausible_bounds
+      - available_date_on_or_after_ref_date
+      - required_columns_present
+    source_urls: []
+    license_note: Public B3 reference-rate pages; verify current B3 terms before redistribution.
+    notes: Parser accepts CSV/HTML fixtures and config-owned endpoint templates once confirmed.
 
   - dataset_id: b3_cotahist_yearly
+    source: b3
     priority: P0
     frequency: annual
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
     raw_format: fixed_width_zip
     canonical_table: market_daily
     partition_keys: [year]
@@ -94,10 +177,22 @@ datasets:
       - row_count_not_zero
       - no_duplicate_primary_keys
       - nonnegative_volume
+      - nonnegative_prices_where_present
+      - required_columns_present
+    source_urls:
+      - name: b3_cotahist_yearly
+        url_template: https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A{year}.ZIP
+        filename_template: "COTAHIST_A{year}.ZIP"
+    license_note: Public B3 historical quote file; verify current B3 terms before redistribution.
+    notes: Largest P0 source; parse one year at a time with chunked fixed-width reads.
 
   - dataset_id: b3_indexes_historical_data
+    source: b3
     priority: P0
     frequency: daily
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
     raw_format: csv_or_html
     canonical_table: market_daily
     partition_keys: [year, index_id]
@@ -105,10 +200,19 @@ datasets:
     quality_checks:
       - row_count_not_zero
       - no_duplicate_primary_keys
+      - positive_index_value
+      - required_columns_present
+    source_urls: []
+    license_note: Public B3 index data; verify current B3 terms before redistribution.
+    notes: Config-owned endpoint templates can be added when the stable public download URL is confirmed.
 
   - dataset_id: b3_indexes_composition
+    source: b3
     priority: P0
     frequency: periodic
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
     raw_format: csv_or_html
     canonical_table: index_composition
     partition_keys: [index_id]
@@ -116,10 +220,19 @@ datasets:
     quality_checks:
       - row_count_not_zero
       - no_duplicate_primary_keys
+      - nonnegative_weight_where_present
+      - required_columns_present
+    source_urls: []
+    license_note: Public B3 index portfolio data; verify current B3 terms before redistribution.
+    notes: Handles current and historical composition-style files.
 
   - dataset_id: b3_traded_securities
+    source: b3
     priority: P0
     frequency: daily_or_periodic
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
     raw_format: csv_or_html
     canonical_table: reference_security
     partition_keys: []
@@ -127,10 +240,19 @@ datasets:
     quality_checks:
       - row_count_not_zero
       - no_duplicate_primary_keys
+      - symbol_not_null
+      - required_columns_present
+    source_urls: []
+    license_note: Public B3 security-reference data; verify current B3 terms before redistribution.
+    notes: Security master for listed equities, funds, BDRs, options, and related instruments.
 
   - dataset_id: b3_cotahist_daily
+    source: b3
     priority: P1
     frequency: daily
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
     raw_format: fixed_width_zip
     canonical_table: market_daily
     partition_keys: [year]
@@ -138,83 +260,142 @@ datasets:
     quality_checks:
       - row_count_not_zero
       - no_duplicate_primary_keys
+    source_urls: []
+    license_note: Public B3 daily quote file; verify current B3 terms before redistribution.
+    notes: Out of scope until P0 is complete.
 
   - dataset_id: b3_indexes_current_portfolio
+    source: b3
     priority: P1
     frequency: periodic
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
     raw_format: csv_or_html
     canonical_table: index_composition
     partition_keys: [index_id]
     primary_keys: [ref_date, index_id, symbol]
     quality_checks:
       - row_count_not_zero
+    source_urls: []
+    license_note: Public B3 index portfolio data; verify current B3 terms before redistribution.
+    notes: Out of scope until P0 is complete.
 
   - dataset_id: b3_equities_investor_participation
+    source: b3
     priority: P1
     frequency: daily_or_monthly
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
     raw_format: csv_or_xlsx_or_html
     canonical_table: flow_observation
     partition_keys: [year]
     primary_keys: [ref_date, investor_type, market_segment]
     quality_checks:
       - row_count_not_zero
+    source_urls: []
+    license_note: Public B3 report data; verify current B3 terms before redistribution.
+    notes: Out of scope until P0 is complete.
 
   - dataset_id: b3_foreign_investor_movement
+    source: b3
     priority: P1
     frequency: daily_or_monthly
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
     raw_format: csv_or_xlsx_or_html
     canonical_table: flow_observation
     partition_keys: [year]
     primary_keys: [ref_date, market_segment]
     quality_checks:
       - row_count_not_zero
+    source_urls: []
+    license_note: Public B3 report data; verify current B3 terms before redistribution.
+    notes: Out of scope until P0 is complete.
 
   - dataset_id: b3_daily_bulletin_chapters
+    source: b3
     priority: P1
     frequency: daily
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
     raw_format: pdf_or_html_or_xlsx
     canonical_table: market_report_daily
     partition_keys: [year]
     primary_keys: [ref_date, report_section]
     quality_checks:
       - downloaded_file_present
+    source_urls: []
+    license_note: Public B3 bulletin data; verify current B3 terms before redistribution.
+    notes: Out of scope until P0 is complete.
 
   - dataset_id: b3_isin_database
+    source: b3
     priority: P1
     frequency: periodic
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
     raw_format: csv_or_xlsx_or_html
     canonical_table: reference_security
     partition_keys: []
     primary_keys: [isin]
     quality_checks:
       - no_duplicate_primary_keys
+    source_urls: []
+    license_note: Public B3 reference data; verify current B3 terms before redistribution.
+    notes: Out of scope until P0 is complete.
 
   - dataset_id: b3_trading_parameters
+    source: b3
     priority: P1
     frequency: periodic
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
     raw_format: csv_or_xlsx_or_html
     canonical_table: reference_trading_parameter
     partition_keys: []
     primary_keys: [symbol]
     quality_checks:
       - row_count_not_zero
+    source_urls: []
+    license_note: Public B3 reference data; verify current B3 terms before redistribution.
+    notes: Out of scope until P0 is complete.
 
   - dataset_id: b3_fee_schedules
+    source: b3
     priority: P1
     frequency: periodic
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
     raw_format: pdf_or_html_or_xlsx
     canonical_table: reference_fee
     partition_keys: []
     primary_keys: [fee_id]
     quality_checks:
       - downloaded_file_present
+    source_urls: []
+    license_note: Public B3 fee data; verify current B3 terms before redistribution.
+    notes: Out of scope until P0 is complete.
 
   - dataset_id: b3_market_data_public_reports
+    source: b3
     priority: P2
     frequency: mixed
+    free_access: true
+    requires_auth: false
+    point_in_time_required: true
     raw_format: mixed
     canonical_table: market_report_daily
     partition_keys: [dataset_id, year]
     primary_keys: [ref_date, report_name]
     quality_checks:
       - downloaded_file_present
+    source_urls: []
+    license_note: Public B3 report data; verify current B3 terms before redistribution.
+    notes: Out of scope until P0/P1 are complete.
