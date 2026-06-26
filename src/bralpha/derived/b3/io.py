@@ -81,23 +81,6 @@ def read_parquet_root(
     return scan.collect()
 
 
-def filter_date_range(
-    frame: pl.DataFrame | None,
-    *,
-    start: date | None,
-    end: date | None,
-    date_col: str = "ref_date",
-) -> pl.DataFrame | None:
-    if frame is None or date_col not in frame.columns:
-        return frame
-    filtered = frame
-    if start is not None:
-        filtered = filtered.filter(pl.col(date_col) >= start)
-    if end is not None:
-        filtered = filtered.filter(pl.col(date_col) <= end)
-    return filtered
-
-
 def write_gold_panel(
     frame: pl.DataFrame,
     paths: ResolvedPaths,

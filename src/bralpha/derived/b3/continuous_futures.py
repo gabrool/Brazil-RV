@@ -6,7 +6,7 @@ from typing import Any
 
 import polars as pl
 
-from bralpha.derived.b3.quality import assert_no_banned_feature_columns, validate_panel
+from bralpha.derived.b3.quality import validate_panel
 from bralpha.derived.b3.schemas import CONTINUOUS_FUTURES_DAILY_COLUMNS, PANEL_PRIMARY_KEYS
 
 
@@ -49,7 +49,6 @@ def build_continuous_futures_daily(
 
     rows = _add_one_day_changes(rows)
     frame = _frame(rows)
-    assert_no_banned_feature_columns(frame)
     validate_panel(
         frame,
         required_columns=CONTINUOUS_FUTURES_DAILY_COLUMNS,

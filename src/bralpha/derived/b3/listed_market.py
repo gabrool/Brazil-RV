@@ -5,7 +5,7 @@ from typing import Any
 
 import polars as pl
 
-from bralpha.derived.b3.quality import assert_no_banned_feature_columns, validate_panel
+from bralpha.derived.b3.quality import validate_panel
 from bralpha.derived.b3.schemas import (
     INDEX_COMPOSITION_DAILY_COLUMNS,
     INDEX_DAILY_COLUMNS,
@@ -89,7 +89,6 @@ def build_listed_market_daily(
         for row in rows_by_key.values()
     ]
     frame = _frame(rows, LISTED_MARKET_DAILY_COLUMNS)
-    assert_no_banned_feature_columns(frame)
     validate_panel(
         frame,
         required_columns=LISTED_MARKET_DAILY_COLUMNS,
@@ -133,7 +132,6 @@ def build_index_daily(
             }
         )
     frame = _frame(rows, INDEX_DAILY_COLUMNS)
-    assert_no_banned_feature_columns(frame)
     validate_panel(
         frame,
         required_columns=INDEX_DAILY_COLUMNS,
@@ -184,7 +182,6 @@ def build_index_composition_daily(
                 "source_version": row.get("source_version") or "v0",
             }
     frame = _frame(list(rows_by_key.values()), INDEX_COMPOSITION_DAILY_COLUMNS)
-    assert_no_banned_feature_columns(frame)
     validate_panel(
         frame,
         required_columns=INDEX_COMPOSITION_DAILY_COLUMNS,

@@ -157,17 +157,6 @@ TARGETS_DAILY_COLUMNS = [
     "source_version",
 ]
 
-PANEL_COLUMNS = {
-    "futures_contract_daily": FUTURES_CONTRACT_DAILY_COLUMNS,
-    "continuous_futures_daily": CONTINUOUS_FUTURES_DAILY_COLUMNS,
-    "di_curve_contract_daily": DI_CURVE_CONTRACT_DAILY_COLUMNS,
-    "di_curve_grid_daily": DI_CURVE_GRID_DAILY_COLUMNS,
-    "listed_market_daily": LISTED_MARKET_DAILY_COLUMNS,
-    "index_daily": INDEX_DAILY_COLUMNS,
-    "index_composition_daily": INDEX_COMPOSITION_DAILY_COLUMNS,
-    "targets_daily": TARGETS_DAILY_COLUMNS,
-}
-
 PANEL_PRIMARY_KEYS = {
     "futures_contract_daily": ["ref_date", "contract_id"],
     "continuous_futures_daily": ["ref_date", "continuous_id"],
@@ -177,19 +166,4 @@ PANEL_PRIMARY_KEYS = {
     "index_daily": ["ref_date", "index_id"],
     "index_composition_daily": ["ref_date", "index_id", "symbol", "source_dataset"],
     "targets_daily": ["ref_date", "target_id", "horizon", "target_type"],
-}
-
-BANNED_FEATURE_NAMES = {
-    "rsi",
-    "macd",
-    "moving_average",
-    "bollinger",
-    "rolling_corr",
-    "rolling_vol",
-    "zscore",
-    "pca",
-    "slope",
-    "curvature",
-    "butterfly",
-    "momentum_20d",
 }

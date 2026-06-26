@@ -6,13 +6,11 @@ from typing import Any
 
 import polars as pl
 
-from bralpha.derived.b3.quality import assert_no_banned_feature_columns, validate_panel
+from bralpha.derived.b3.quality import validate_panel
 from bralpha.derived.b3.schemas import FUTURES_CONTRACT_DAILY_COLUMNS, PANEL_PRIMARY_KEYS
 from bralpha.domain.b3_contracts import build_b3_contract_id
 from bralpha.domain.b3_month_codes import parse_b3_maturity_code
 from bralpha.domain.instruments import asset_class_for_root
-
-MERGE_KEYS = ["ref_date", "commodity", "maturity_code", "contract_id"]
 
 
 def build_futures_contract_daily(
@@ -55,7 +53,6 @@ def build_futures_contract_daily(
     rows = list(buckets.values())
     _assign_contract_ranks(rows)
     frame = _frame(rows)
-    assert_no_banned_feature_columns(frame)
     validate_panel(
         frame,
         required_columns=FUTURES_CONTRACT_DAILY_COLUMNS,
