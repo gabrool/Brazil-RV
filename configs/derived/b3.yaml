@@ -1,0 +1,42 @@
+b3_research:
+  roots:
+    primary:
+      - DI1
+      - DOL
+      - WDO
+      - IND
+      - WIN
+    secondary:
+      - DAP
+      - DDI
+      - FRC
+
+  continuous_futures:
+    roll_policy: maturity_rank
+    max_front_rank: 3
+    min_days_to_maturity: 2
+    prefer_liquidity_when_available: true
+
+  di_curve:
+    source_roots:
+      - DI1
+    tenor_days:
+      - 21
+      - 42
+      - 63
+      - 126
+      - 252
+      - 504
+      - 756
+      - 1008
+      - 1260
+    interpolation: linear_by_days_to_maturity
+
+  targets:
+    horizons:
+      - 1
+      - 5
+      - 20
+    target_types:
+      - quote_diff
+      - quote_pct_change

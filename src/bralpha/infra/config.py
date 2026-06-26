@@ -82,6 +82,62 @@ class InstrumentsConfig(BaseModel):
     horizons: list[int]
 
 
+class B3ResearchRoots(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    primary: list[str]
+    secondary: list[str] = Field(default_factory=list)
+
+    @field_validator("primary", "secondary")
+    @classmethod
+    def normalize_roots(cls, roots: list[str]) -> list[str]:
+        return [root.strip().upper() for root in roots]
+
+
+class B3ContinuousFuturesConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    roll_policy: str
+    max_front_rank: int
+    min_days_to_maturity: int
+    prefer_liquidity_when_available: bool
+
+
+class B3DICurveConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source_roots: list[str]
+    tenor_days: list[int]
+    interpolation: str
+
+    @field_validator("source_roots")
+    @classmethod
+    def normalize_roots(cls, roots: list[str]) -> list[str]:
+        return [root.strip().upper() for root in roots]
+
+
+class B3TargetsConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    horizons: list[int]
+    target_types: list[str]
+
+
+class B3ResearchSection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    roots: B3ResearchRoots
+    continuous_futures: B3ContinuousFuturesConfig
+    di_curve: B3DICurveConfig
+    targets: B3TargetsConfig
+
+
+class B3ResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    b3_research: B3ResearchSection
+
+
 def _load_yaml(repo_root: Path, relative_path: str) -> dict[str, Any]:
     path = repo_root / relative_path
     if not path.exists():
@@ -109,7 +165,17 @@ def load_b3_dataset_registry(repo_root: Path) -> DatasetRegistry:
     return DatasetRegistry.model_validate(_load_yaml(repo_root, "configs/datasets/b3.yaml"))
 
 
+def load_b3_research_config(repo_root: Path) -> B3ResearchConfig:
+    return B3ResearchConfig.model_validate(_load_yaml(repo_root, "configs/derived/b3.yaml"))
+
+
 __all__ = [
+    "B3ContinuousFuturesConfig",
+    "B3DICurveConfig",
+    "B3ResearchConfig",
+    "B3ResearchRoots",
+    "B3ResearchSection",
+    "B3TargetsConfig",
     "EngineeringConfig",
     "InstrumentsConfig",
     "PathsConfig",
@@ -122,5 +188,6 @@ __all__ = [
     "load_instruments_config",
     "load_paths_config",
     "load_project_config",
+    "load_b3_research_config",
     "resolve_project_paths",
 ]
