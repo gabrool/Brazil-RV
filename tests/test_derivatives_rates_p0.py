@@ -6,10 +6,12 @@ from datetime import UTC, date, datetime
 import polars as pl
 import pytest
 
+import bralpha.ingestion.b3.common as b3_common
 from bralpha.infra.config import load_b3_dataset_registry
 from bralpha.infra.http import HttpResponse
 from bralpha.infra.raw_store import RawStore
 from bralpha.ingestion.b3.common import download_daily_dataset_for_date
+from bralpha.ingestion.b3.open_interest import download_open_interest_range
 from bralpha.ingestion.b3.reference_rates import download_reference_rates_for_date
 from bralpha.metadata.manifest import ManifestWriter
 from bralpha.normalization.b3_curves import (
@@ -57,6 +59,39 @@ class MockClient:
             headers={"content-type": "text/csv"},
             content=self.content,
         )
+
+
+def test_open_interest_range_closes_one_owned_client(repo_root, monkeypatch):
+    events: list[str] = []
+
+    class OwnedClient:
+        def __enter__(self):
+            events.append("enter")
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            events.append("exit")
+            return None
+
+        def get_bytes(self, url, params=None, headers=None):
+            events.append("get")
+            return HttpResponse(
+                url=f"{url}?mock=1",
+                status_code=200,
+                headers={"content-type": "text/csv"},
+                content=DERIVATIVES_CSV.encode("utf-8"),
+            )
+
+    monkeypatch.setattr(b3_common, "HttpClient", OwnedClient)
+
+    download_open_interest_range(
+        repo_root,
+        start=date(2024, 1, 2),
+        end=date(2024, 1, 2),
+        commodities=["DI1", "DOL"],
+    )
+
+    assert events == ["enter", "get", "get", "exit"]
 
 
 def test_open_interest_full_mocked_pattern_writes_source_specific_silver(repo_root, tmp_path):
@@ -245,12 +280,17 @@ def test_reference_rates_curve_daily_quality_and_source_specific_write(tmp_path)
     )
 
 
-def test_reference_rates_live_download_requires_confirmed_source_url(repo_root):
+def test_reference_rates_live_download_requires_confirmed_source_url(repo_root, monkeypatch):
+    class ExplodingClient:
+        def __init__(self):
+            raise AssertionError("client should not be created before URL validation")
+
+    monkeypatch.setattr(b3_common, "HttpClient", ExplodingClient)
+
     with pytest.raises(NotImplementedError, match="no confirmed free source URL"):
         download_reference_rates_for_date(
             repo_root,
             ref_date=date(2024, 1, 2),
-            client=MockClient(),
         )
 
 
