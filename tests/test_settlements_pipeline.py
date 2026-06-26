@@ -6,10 +6,12 @@ from datetime import UTC, date, datetime
 import polars as pl
 import pytest
 
+import bralpha.ingestion.b3.common as b3_common
 from bralpha.infra.hashing import sha256_bytes
 from bralpha.infra.http import HttpResponse
 from bralpha.infra.raw_store import RawStore
 from bralpha.ingestion.b3.common import download_daily_dataset_for_date
+from bralpha.ingestion.b3.settlements import download_settlements_range
 from bralpha.metadata.manifest import ManifestWriter
 from bralpha.normalization.b3_market_daily import (
     MARKET_DAILY_COLUMNS,
@@ -48,6 +50,39 @@ class MockClient:
 class FailingRawStore:
     def write_bytes(self, *args, **kwargs):
         raise OSError("raw store unavailable")
+
+
+def test_settlements_range_closes_one_owned_client(repo_root, monkeypatch):
+    events: list[str] = []
+
+    class OwnedClient:
+        def __enter__(self):
+            events.append("enter")
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            events.append("exit")
+            return None
+
+        def get_bytes(self, url, params=None, headers=None):
+            events.append("get")
+            return HttpResponse(
+                url=f"{url}?mock=1",
+                status_code=200,
+                headers={"content-type": "text/csv"},
+                content=SETTLEMENT_CSV.encode("utf-8"),
+            )
+
+    monkeypatch.setattr(b3_common, "HttpClient", OwnedClient)
+
+    download_settlements_range(
+        repo_root,
+        start=date(2024, 1, 2),
+        end=date(2024, 1, 2),
+        commodities=["DI1", "DOL"],
+    )
+
+    assert events == ["enter", "get", "get", "exit"]
 
 
 def test_mocked_settlement_download_writes_raw_and_manifest(repo_root, tmp_path):

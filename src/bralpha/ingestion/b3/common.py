@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -16,6 +17,10 @@ from bralpha.metadata.manifest import ManifestRecord, ManifestWriter
 class DownloadResult:
     record: ManifestRecord
     raw_path: Path | None
+
+
+def client_context(client: HttpClient | None) -> AbstractContextManager[HttpClient]:
+    return nullcontext(client) if client is not None else HttpClient()
 
 
 def download_daily_dataset_for_date(
