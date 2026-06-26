@@ -29,11 +29,11 @@ each panel's primary key.
 
 ## Point-in-time policy
 
-Every model-usable daily row has `ref_date` and `available_date`. Observation
-panels preserve the source observation date and source availability date. As-of
-panels use `ref_date` as the model date, set `available_date = ref_date`, and
-carry the original source dates as `observation_ref_date` and
-`observation_available_date`.
+Every model-usable daily row has `ref_date` and `available_date`.
+`available_date` is the model-usable daily decision date. Observation panels
+preserve the source observation date and source availability date. As-of panels
+use `ref_date` as the model date, set `available_date = ref_date`, and carry the
+original source dates as `observation_ref_date` and `observation_available_date`.
 
 As-of panels only use source rows where:
 
@@ -46,12 +46,12 @@ not create unavailable placeholder rows before first availability.
 
 ## Focus availability limitation
 
-BCB Focus silver currently sets `available_date = Data`. BCB documents that
-Focus statistics are calculated daily but normally published on the first
-business day of the week, so model-grade Focus usage later needs a
-publication-calendar rule. The gold Focus panels carry
-`availability_note = first_pass_available_date_equals_data` to keep this caveat
-visible.
+BCB Focus silver uses a conservative date-only next-business-day policy from
+`Data`. BCB documents that Focus statistics are calculated daily but normally
+published on the first business day of the week, so model-grade Focus usage
+later needs a publication-calendar rule. The gold Focus panels carry
+`availability_note = date_only_next_business_day_until_publication_calendar` to
+keep this caveat visible.
 
 ## Transformer-aware feature rule
 

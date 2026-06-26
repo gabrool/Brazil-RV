@@ -93,7 +93,7 @@ datasets:
       - endpoint: ExpectativasMercadoInflacao12Meses
       - endpoint: ExpectativasMercadoInflacao24Meses
     license_note: BCB Open Data / ODbL. Verify before redistribution.
-    notes: First pass sets available_date = Data; BCB documents weekly publication timing, so model-grade use needs a publication-calendar rule.
+    notes: Uses conservative date-only next-business-day available_date from Data; BCB documents weekly publication timing, so model-grade use needs a publication-calendar rule.
 
   - dataset_id: bcb_focus_top5_expectations
     source: bcb
@@ -125,7 +125,7 @@ datasets:
       - endpoint: ExpectativasMercadoTop5Inflacao12Meses
       - endpoint: ExpectativasMercadoTop5Inflacao24Meses
     license_note: BCB Open Data / ODbL. Verify before redistribution.
-    notes: First pass sets available_date = Data; BCB documents weekly publication timing, so model-grade use needs a publication-calendar rule.
+    notes: Uses conservative date-only next-business-day available_date from Data; BCB documents weekly publication timing, so model-grade use needs a publication-calendar rule.
 
   - dataset_id: bcb_focus_top5_reference_dates
     source: bcb

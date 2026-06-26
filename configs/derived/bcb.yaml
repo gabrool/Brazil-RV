@@ -23,7 +23,7 @@ bcb_research:
     include_general_expectations: true
     include_top5_expectations: true
     max_dense_keys: 5000
-    availability_note: first_pass_available_date_equals_data
+    availability_note: date_only_next_business_day_until_publication_calendar
     selected_indicators:
       - IPCA
       - Selic

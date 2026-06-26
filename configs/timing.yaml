@@ -1,0 +1,11 @@
+timing:
+  timezone: America/Sao_Paulo
+  default_profile: eod_daily
+
+  profiles:
+    eod_daily:
+      decision_cutoff_local_time: "18:30:00"
+      execution_lag: next_session
+      date_only_policy: next_business_day
+      unknown_time_policy: next_business_day
+      same_day_allowed_before_cutoff: true

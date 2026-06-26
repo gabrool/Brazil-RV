@@ -34,10 +34,15 @@ their panel primary key.
 ## Point-in-time policy
 
 Every feature or research panel row has `ref_date` and `available_date`.
-Derived rows that use multiple sources set `available_date` to the maximum
-contributing input availability. Contract selection for continuous futures uses
-only same-row, same-date point-in-time contract fields. Targets are separate
-label rows and use `label_available_date` from the future endpoint row.
+`available_date` is the model-usable daily decision date. Derived rows that use
+multiple sources set `available_date` to the maximum contributing input
+availability. Contract selection for continuous futures uses only same-row,
+same-date point-in-time contract fields. Targets are separate label rows and
+use `label_available_date` from the future endpoint row.
+
+B3 market data remains conservative: daily market observations for date `D` are
+usable no earlier than the next business day unless exact publication timestamps
+are modeled later.
 
 ## Continuous futures
 

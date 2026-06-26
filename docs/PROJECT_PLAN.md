@@ -272,7 +272,12 @@ No model or backtest can use rows with:
 available_date > asof_date
 ```
 
-For first-pass daily B3 market data, use a conservative convention: data for reference date `t` is available for decisions after publication and for execution on the next trading day.
+`available_date` is the model-usable daily decision date, not simply the raw
+source release date. Under the default EOD daily policy, exact timestamps at or
+before the Sao Paulo cutoff are usable that date, exact timestamps after the
+cutoff are usable the next business day, and date-only releases default to next
+business day. For first-pass daily B3 market data, use the conservative
+next-business-day convention until exact publication timestamps are modeled.
 
 ## 9. Modeling structure
 

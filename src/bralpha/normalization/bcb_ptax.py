@@ -1,12 +1,17 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, time
 from pathlib import Path
 from typing import Any
 
 import polars as pl
 
 from bralpha.parsing.common import parse_decimal, write_source_partitioned
+from bralpha.timing.availability import (
+    DEFAULT_DECISION_CUTOFF_TIME,
+    usable_date_from_available_datetime,
+    usable_date_from_date_only,
+)
 
 BCB_PTAX_SILVER_COLUMNS = [
     "ref_date",
@@ -39,15 +44,24 @@ def normalize_ptax_to_silver(
     currency_names = _currency_names(currencies if currencies is not None else bronze)
     quote_rows = []
     for row in bronze.to_dicts():
-        quote_datetime = _parse_datetime(row.get("dataHoraCotacao"))
-        if quote_datetime is None:
+        release_date = _parse_release_date(row.get("dataHoraCotacao"))
+        if release_date is None:
             continue
+        quote_datetime = _parse_datetime(row.get("dataHoraCotacao"))
+        available_date = (
+            usable_date_from_available_datetime(
+                quote_datetime,
+                cutoff_time=DEFAULT_DECISION_CUTOFF_TIME,
+            )
+            if quote_datetime is not None
+            else usable_date_from_date_only(release_date)
+        )
         currency_code = _currency_code(row)
         bulletin_type = _clean_text(row.get("tipoBoletim")) or "Fechamento"
         quote_rows.append(
             {
-                "ref_date": quote_datetime.date(),
-                "available_date": quote_datetime.date(),
+                "ref_date": release_date,
+                "available_date": available_date,
                 "currency_code": currency_code,
                 "currency_name": currency_names.get(currency_code),
                 "endpoint": row.get("endpoint"),
@@ -88,7 +102,7 @@ def _mark_selected_bulletins(rows: list[dict[str, Any]]) -> None:
             row for row in group if str(row.get("bulletin_type", "")).casefold() == "fechamento"
         ]
         candidates = closing or group
-        selected = max(candidates, key=lambda row: row["quote_datetime"])
+        selected = max(candidates, key=_quote_sort_key)
         selected["is_selected_bulletin"] = True
 
 
@@ -100,7 +114,7 @@ def _disambiguate_bulletin_types(rows: list[dict[str, Any]]) -> None:
     for group in by_key.values():
         if len(group) <= 1:
             continue
-        sorted_group = sorted(group, key=lambda item: item["quote_datetime"])
+        sorted_group = sorted(group, key=_quote_sort_key)
         for index, row in enumerate(sorted_group, start=1):
             row["bulletin_type"] = f"{row['bulletin_type']}_{index}"
 
@@ -132,7 +146,29 @@ def _parse_datetime(value: object) -> datetime | None:
     text = str(value).strip()
     if not text:
         return None
+    if "T" not in text and " " not in text.strip():
+        return None
     return datetime.fromisoformat(text.replace("Z", "+00:00")).replace(tzinfo=None)
+
+
+def _parse_release_date(value: object) -> date | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    text = str(value).strip()
+    if not text:
+        return None
+    return date.fromisoformat(text[:10])
+
+
+def _quote_sort_key(row: dict[str, Any]) -> datetime:
+    quote_datetime = row.get("quote_datetime")
+    if isinstance(quote_datetime, datetime):
+        return quote_datetime
+    return datetime.combine(row["ref_date"], time.min)
 
 
 def _upper_text(value: object) -> str | None:
