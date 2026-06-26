@@ -43,14 +43,32 @@ def build_listed_market_daily(
             if current is not None and current["_precedence"] > precedence:
                 continue
             ref = reference.get((symbol, market_type), {})
+            cotahist_available_date = _as_date(row["available_date"])
+            isin, used_isin_reference = _reference_value(_text(row.get("isin")), ref, "isin")
+            name, used_name_reference = _reference_value(row.get("name"), ref, "name")
+            asset_class, used_asset_class_reference = _reference_value(
+                _lower_text(row.get("asset_class")),
+                ref,
+                "asset_class",
+            )
+            used_reference = (
+                used_isin_reference or used_name_reference or used_asset_class_reference
+            )
+            available_date = cotahist_available_date
+            source_version = row.get("source_version") or "v0"
+            if used_reference:
+                reference_available_date = _optional_date(ref.get("available_date"))
+                if reference_available_date is not None:
+                    available_date = max(cotahist_available_date, reference_available_date)
+                source_version = _join_versions(source_version, ref.get("source_version"))
             rows_by_key[key] = {
                 "ref_date": ref_date,
-                "available_date": _as_date(row["available_date"]),
+                "available_date": available_date,
                 "symbol": symbol,
-                "isin": _text(row.get("isin")) or ref.get("isin"),
+                "isin": isin,
                 "market_type": market_type,
-                "asset_class": _lower_text(row.get("asset_class")) or ref.get("asset_class"),
-                "name": row.get("name") or ref.get("name"),
+                "asset_class": asset_class,
+                "name": name,
                 "open": row.get("open"),
                 "high": row.get("high"),
                 "low": row.get("low"),
@@ -63,7 +81,7 @@ def build_listed_market_daily(
                 "number_of_trades": row.get("number_of_trades"),
                 "source_dataset": _source_dataset(row.get("source_dataset"))
                 or "b3_cotahist_yearly",
-                "source_version": row.get("source_version") or "v0",
+                "source_version": source_version,
                 "_precedence": precedence,
             }
     rows = [
@@ -193,6 +211,8 @@ def _security_reference(
                 "isin": _text(row.get("isin")),
                 "name": row.get("name"),
                 "asset_class": _lower_text(row.get("asset_class")),
+                "available_date": _optional_date(row.get("available_date")),
+                "source_version": row.get("source_version") or "v0",
             }
     return reference
 
@@ -207,6 +227,35 @@ def _as_date(value: Any) -> date:
     if isinstance(value, date):
         return value
     return date.fromisoformat(str(value)[:10])
+
+
+def _optional_date(value: Any) -> date | None:
+    if value is None:
+        return None
+    if isinstance(value, date):
+        return value
+    text = str(value).strip()
+    if not text:
+        return None
+    return date.fromisoformat(text[:10])
+
+
+def _reference_value(
+    value: Any,
+    reference: dict[str, Any],
+    field: str,
+) -> tuple[Any, bool]:
+    if value is not None and str(value).strip():
+        return value, False
+    reference_value = reference.get(field)
+    if reference_value is not None and str(reference_value).strip():
+        return reference_value, True
+    return value, False
+
+
+def _join_versions(*versions: Any) -> str:
+    unique = sorted({str(version) for version in versions if version})
+    return "|".join(unique) if unique else "v0"
 
 
 def _text(value: Any) -> str | None:

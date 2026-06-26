@@ -56,6 +56,12 @@ unless source conventions later make that explicit. The fixed-tenor grid uses
 simple linear interpolation by `days_to_maturity_calendar`. Unsupported tenors
 remain null instead of being silently extrapolated.
 
+The fixed-tenor DI grid requires reliable maturity dates or days-to-maturity
+fields. If contract master data is absent, the observed DI contract panel can
+still be built, but fixed-tenor grid values may be null because interpolation
+cannot be performed safely. This is intentional; the pipeline prefers nulls
+over guessed maturity dates.
+
 ## Transformer-aware feature rule
 
 Included fields are structural or preprocessing fields: contract identifiers,
@@ -78,6 +84,8 @@ momentum windows.
   produced in this PR.
 - No live B3 Daily Bulletin endpoints are used unless separately confirmed in
   ingestion.
+- Without reliable contract master maturity data, the observed DI contract panel
+  may still build while fixed-tenor DI grid values remain sparse or null.
 - Root-specific futures P&L conventions are not finalized here.
 
 ## CLI

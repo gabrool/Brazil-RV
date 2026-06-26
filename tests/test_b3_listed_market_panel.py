@@ -27,6 +27,73 @@ def test_listed_market_preserves_isin_and_daily_supersedes_yearly_duplicate():
     assert panel["isin"].item() == "BRPETRACNPR6"
 
 
+def test_listed_market_reference_enrichment_maxes_available_date():
+    cotahist = pl.DataFrame(
+        [
+            _listed_row(
+                "b3_cotahist_yearly",
+                close=10.0,
+                isin=None,
+                asset_class=None,
+                name=None,
+            )
+        ]
+    )
+    reference = pl.DataFrame(
+        [
+            {
+                "symbol": "PETR4",
+                "market_type": "010",
+                "isin": "BRPETRACNPR6",
+                "name": "PETROBRAS PN",
+                "asset_class": "equity",
+                "available_date": date(2024, 1, 5),
+                "source_version": "reference-v0",
+            }
+        ]
+    )
+
+    panel = build_listed_market_daily(cotahist_yearly=cotahist, traded_securities=reference)
+    row = panel.row(0, named=True)
+
+    assert row["isin"] == "BRPETRACNPR6"
+    assert row["name"] == "PETROBRAS PN"
+    assert row["available_date"] == date(2024, 1, 5)
+    assert row["source_version"] == "reference-v0|v0"
+
+
+def test_listed_market_keeps_cotahist_availability_when_reference_unused():
+    cotahist = pl.DataFrame(
+        [
+            _listed_row(
+                "b3_cotahist_yearly",
+                close=10.0,
+                isin="BRPETRACNPR6",
+                asset_class="equity",
+                name="PETROBRAS PN",
+            )
+        ]
+    )
+    reference = pl.DataFrame(
+        [
+            {
+                "symbol": "PETR4",
+                "market_type": "010",
+                "isin": "BRPETRACNPR6",
+                "name": "PETROBRAS PN",
+                "asset_class": "equity",
+                "available_date": date(2024, 1, 5),
+                "source_version": "reference-v0",
+            }
+        ]
+    )
+
+    panel = build_listed_market_daily(cotahist_yearly=cotahist, traded_securities=reference)
+
+    assert panel["available_date"].item() == date(2024, 1, 3)
+    assert panel["source_version"].item() == "v0"
+
+
 def test_index_daily_preserves_raw_levels():
     panel = build_index_daily(
         pl.DataFrame(
@@ -72,14 +139,22 @@ def test_index_composition_keeps_source_datasets_separate_without_forward_fill()
     assert panel["ref_date"].to_list() == [date(2024, 1, 2), date(2024, 1, 2)]
 
 
-def _listed_row(source_dataset: str, *, close: float, isin: str):
+def _listed_row(
+    source_dataset: str,
+    *,
+    close: float,
+    isin: str | None,
+    asset_class: str | None = "equity",
+    name: str | None = None,
+):
     return {
         "ref_date": date(2024, 1, 2),
         "available_date": date(2024, 1, 3),
         "symbol": "PETR4",
         "isin": isin,
         "market_type": "010",
-        "asset_class": "equity",
+        "asset_class": asset_class,
+        "name": name,
         "open": 9.0,
         "high": 11.0,
         "low": 8.0,

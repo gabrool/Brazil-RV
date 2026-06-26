@@ -11,7 +11,6 @@ from bralpha.derived.b3.di_curve import build_di_curve_contract_daily, build_di_
 from bralpha.derived.b3.futures_contract_panel import build_futures_contract_daily
 from bralpha.derived.b3.io import (
     ResearchInputMissingError,
-    filter_date_range,
     read_gold_panel,
     read_silver_dataset,
     write_gold_panel,
@@ -79,6 +78,12 @@ def run_b3_research_spine(
         )
         built[panel] = frame
         status[panel] = f"written: {frame.height} rows"
+        if (
+            panel == "di_curve_grid_daily"
+            and frame.height
+            and not frame["has_curve_value"].fill_null(False).any()
+        ):
+            status[panel] += "; no curve values available because maturity data was missing"
         print(f"{panel}: {status[panel]}")
     return status
 
@@ -106,7 +111,14 @@ def _build_panel(
             end=end,
         )
     if panel == "continuous_futures_daily":
-        contracts = _dependency(paths, built, "futures_contract_daily", required=required)
+        contracts = _dependency(
+            paths,
+            built,
+            "futures_contract_daily",
+            start,
+            end,
+            required=required,
+        )
         if contracts is None:
             return None
         continuous = config.continuous_futures
@@ -122,7 +134,14 @@ def _build_panel(
             end=end,
         )
     if panel == "di_curve_contract_daily":
-        contracts = _dependency(paths, built, "futures_contract_daily", required=required)
+        contracts = _dependency(
+            paths,
+            built,
+            "futures_contract_daily",
+            start,
+            end,
+            required=required,
+        )
         if contracts is None:
             return None
         return build_di_curve_contract_daily(
@@ -132,7 +151,14 @@ def _build_panel(
             end=end,
         )
     if panel == "di_curve_grid_daily":
-        curve_contracts = _dependency(paths, built, "di_curve_contract_daily", required=required)
+        curve_contracts = _dependency(
+            paths,
+            built,
+            "di_curve_contract_daily",
+            start,
+            end,
+            required=required,
+        )
         if curve_contracts is None:
             return None
         return build_di_curve_grid_daily(
@@ -178,9 +204,9 @@ def _build_panel(
             end=end,
         )
     if panel == "targets_daily":
-        continuous = _dependency(paths, built, "continuous_futures_daily")
-        grid = _dependency(paths, built, "di_curve_grid_daily")
-        indexes = _dependency(paths, built, "index_daily")
+        continuous = _dependency(paths, built, "continuous_futures_daily", start, end)
+        grid = _dependency(paths, built, "di_curve_grid_daily", start, end)
+        indexes = _dependency(paths, built, "index_daily", start, end)
         if continuous is None and grid is None and indexes is None:
             if required:
                 raise ResearchInputMissingError("Missing target source panels")
@@ -198,20 +224,21 @@ def _build_panel(
 
 
 def _silver(paths, dataset_id: str, start: date, end: date, *, required: bool = False):
-    frame = read_silver_dataset(paths, dataset_id, required=required)
-    return filter_date_range(frame, start=start, end=end)
+    return read_silver_dataset(paths, dataset_id, required=required, start=start, end=end)
 
 
 def _dependency(
     paths,
     built: dict[str, pl.DataFrame],
     panel: str,
+    start: date,
+    end: date,
     *,
     required: bool = False,
 ) -> pl.DataFrame | None:
     if panel in built:
         return built[panel]
-    return read_gold_panel(paths, panel, required=required)
+    return read_gold_panel(paths, panel, required=required, start=start, end=end)
 
 
 def main(argv: list[str] | None = None) -> None:

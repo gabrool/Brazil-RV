@@ -28,8 +28,17 @@ def read_silver_dataset(
     dataset_id: str,
     *,
     required: bool = False,
+    start: date | None = None,
+    end: date | None = None,
+    date_col: str = "ref_date",
 ) -> pl.DataFrame | None:
-    return read_parquet_root(silver_dataset_root(paths, dataset_id), required=required)
+    return read_parquet_root(
+        silver_dataset_root(paths, dataset_id),
+        required=required,
+        start=start,
+        end=end,
+        date_col=date_col,
+    )
 
 
 def read_gold_panel(
@@ -37,20 +46,39 @@ def read_gold_panel(
     panel: str,
     *,
     required: bool = False,
+    start: date | None = None,
+    end: date | None = None,
+    date_col: str = "ref_date",
 ) -> pl.DataFrame | None:
-    return read_parquet_root(gold_panel_root(paths, panel), required=required)
+    return read_parquet_root(
+        gold_panel_root(paths, panel),
+        required=required,
+        start=start,
+        end=end,
+        date_col=date_col,
+    )
 
 
-def read_parquet_root(root: Path, *, required: bool = False) -> pl.DataFrame | None:
-    files = sorted(root.glob("**/*.parquet")) if root.exists() else []
+def read_parquet_root(
+    root: Path,
+    *,
+    required: bool = False,
+    start: date | None = None,
+    end: date | None = None,
+    date_col: str = "ref_date",
+) -> pl.DataFrame | None:
+    files = _select_parquet_files(root, start=start, end=end)
     if not files:
         if required:
             raise ResearchInputMissingError(f"Missing required parquet input: {root}")
         return None
-    frames = [pl.read_parquet(path) for path in files]
-    if not frames:
-        return None
-    return pl.concat(frames, how="diagonal_relaxed")
+    scan = pl.scan_parquet([str(path) for path in files])
+    if date_col in set(scan.collect_schema().names()):
+        if start is not None:
+            scan = scan.filter(pl.col(date_col) >= start)
+        if end is not None:
+            scan = scan.filter(pl.col(date_col) <= end)
+    return scan.collect()
 
 
 def filter_date_range(
@@ -89,3 +117,44 @@ def write_gold_panel(
 
 def _assert_inside(path: Path, root: Path) -> None:
     path.resolve().relative_to(root.resolve())
+
+
+def _select_parquet_files(
+    root: Path,
+    *,
+    start: date | None,
+    end: date | None,
+) -> list[Path]:
+    if not root.exists():
+        return []
+    files = sorted(root.glob("**/*.parquet"))
+    if not files or (start is None and end is None):
+        return files
+
+    partitioned = [(path, _partition_year(path)) for path in files]
+    if not any(year is not None for _, year in partitioned):
+        return files
+
+    selected = []
+    for path, year in partitioned:
+        if year is None:
+            selected.append(path)
+            continue
+        if start is not None and year < start.year:
+            continue
+        if end is not None and year > end.year:
+            continue
+        selected.append(path)
+    return selected
+
+
+def _partition_year(path: Path) -> int | None:
+    for parent in path.parents:
+        name = parent.name
+        if not name.startswith("year="):
+            continue
+        try:
+            return int(name.removeprefix("year="))
+        except ValueError:
+            return None
+    return None

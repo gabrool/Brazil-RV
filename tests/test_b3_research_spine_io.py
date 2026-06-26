@@ -6,6 +6,7 @@ from datetime import date
 import polars as pl
 import pytest
 
+import bralpha.derived.b3.io as io_module
 from bralpha.derived.b3.io import gold_panel_root, write_gold_panel
 from bralpha.infra.config import (
     load_b3_research_config,
@@ -59,3 +60,52 @@ def test_missing_inputs_skip_full_pipeline_but_selected_panel_raises(repo_root, 
             end=date(2024, 1, 31),
             panels=["futures_contract_daily"],
         )
+
+
+def test_partitioned_parquet_read_prunes_unrelated_years(tmp_path, monkeypatch):
+    root = tmp_path / "silver" / "b3_cotahist_yearly"
+    (root / "year=2023").mkdir(parents=True)
+    (root / "year=2024").mkdir(parents=True)
+    pl.DataFrame([{"ref_date": date(2023, 1, 2), "symbol": "OLD"}]).write_parquet(
+        root / "year=2023" / "data.parquet"
+    )
+    pl.DataFrame([{"ref_date": date(2024, 1, 2), "symbol": "NEW"}]).write_parquet(
+        root / "year=2024" / "data.parquet"
+    )
+    scanned: list[str] = []
+    original_scan_parquet = io_module.pl.scan_parquet
+
+    def tracking_scan(source, *args, **kwargs):
+        scanned.extend(source if isinstance(source, list) else [source])
+        return original_scan_parquet(source, *args, **kwargs)
+
+    monkeypatch.setattr(io_module.pl, "scan_parquet", tracking_scan)
+
+    frame = io_module.read_parquet_root(
+        root,
+        start=date(2024, 1, 1),
+        end=date(2024, 12, 31),
+    )
+
+    assert frame["symbol"].to_list() == ["NEW"]
+    assert any("year=2024" in path for path in scanned)
+    assert not any("year=2023" in path for path in scanned)
+
+
+def test_nonpartitioned_parquet_read_still_filters_dates(tmp_path):
+    root = tmp_path / "silver" / "flat_source"
+    root.mkdir(parents=True)
+    pl.DataFrame(
+        [
+            {"ref_date": date(2023, 1, 2), "symbol": "OLD"},
+            {"ref_date": date(2024, 1, 2), "symbol": "NEW"},
+        ]
+    ).write_parquet(root / "data.parquet")
+
+    frame = io_module.read_parquet_root(
+        root,
+        start=date(2024, 1, 1),
+        end=date(2024, 12, 31),
+    )
+
+    assert frame["symbol"].to_list() == ["NEW"]

@@ -52,8 +52,10 @@ def test_futures_contract_panel_merges_sources_and_maxes_available_date():
 
     assert f26["available_date"] == date(2024, 1, 5)
     assert f26["source_datasets"] == (
-        "b3_derivatives_open_interest|b3_derivatives_trade_summary|b3_futures_settlements"
+        "b3_derivatives_open_interest|b3_derivatives_trade_summary|"
+        "b3_futures_contract_master|b3_futures_settlements"
     )
+    assert f26["source_version"] == "master-v0|v0"
     assert f26["settlement"] == 10.0
     assert f26["volume"] == 200
     assert f26["open_interest"] == 1000
@@ -85,6 +87,53 @@ def test_futures_contract_panel_does_not_overwrite_with_trade_nulls():
     panel = build_futures_contract_daily(settlements=settlements, trade_summary=trade_summary)
 
     assert panel["volume"].item() == 123
+
+
+def test_contract_master_availability_and_lineage_when_fields_are_used():
+    settlements = pl.DataFrame(
+        [_source_row("b3_futures_settlements", "DI1", "F26", settlement=10.0)]
+    )
+    contract_master = pl.DataFrame(
+        [
+            {
+                "contract_id": "DI1_F26",
+                "available_date": date(2024, 1, 5),
+                "maturity_date": date(2026, 1, 2),
+                "quote_convention": "price",
+                "source_version": "master-v1",
+            }
+        ]
+    )
+
+    panel = build_futures_contract_daily(
+        settlements=settlements,
+        contract_master=contract_master,
+    )
+    row = panel.row(0, named=True)
+
+    assert row["available_date"] == date(2024, 1, 5)
+    assert "b3_futures_contract_master" in row["source_datasets"]
+    assert row["source_version"] == "master-v1|v0"
+    assert row["quote_convention"] == "price"
+
+
+def test_contract_master_without_contributing_fields_does_not_add_lineage():
+    settlements = pl.DataFrame(
+        [_source_row("b3_futures_settlements", "DI1", "F26", settlement=10.0)]
+    )
+    contract_master = pl.DataFrame(
+        [{"contract_id": "DI1_F26", "source_version": "unused-master-v0"}]
+    )
+
+    panel = build_futures_contract_daily(
+        settlements=settlements,
+        contract_master=contract_master,
+    )
+    row = panel.row(0, named=True)
+
+    assert row["available_date"] == date(2024, 1, 3)
+    assert row["source_datasets"] == "b3_futures_settlements"
+    assert row["source_version"] == "v0"
 
 
 def _source_row(

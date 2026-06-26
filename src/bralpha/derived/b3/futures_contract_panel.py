@@ -183,12 +183,24 @@ def _merge_bucket(bucket: dict[str, Any], row: dict[str, Any], source_name: str)
 def _merge_master(bucket: dict[str, Any], master: dict[str, Any]) -> None:
     if not master:
         return
-    bucket["maturity_date"] = _optional_date(master.get("maturity_date")) or bucket["maturity_date"]
+    contributed = False
+    maturity_date = _optional_date(master.get("maturity_date"))
+    if maturity_date is not None and bucket.get("maturity_date") != maturity_date:
+        bucket["maturity_date"] = maturity_date
+        contributed = True
     for column in ["asset_class", "currency", "unit", "quote_convention"]:
         if bucket.get(column) is None and master.get(column) is not None:
             bucket[column] = master[column]
-    if master.get("source_version"):
-        bucket["_source_versions"].add(str(master["source_version"]))
+            contributed = True
+    if not contributed:
+        return
+
+    # Manual contract-master rows without available_date are treated as already available
+    # at the market-row availability for v0; future dated masters should supply available_date.
+    master_available_date = _optional_date(master.get("available_date")) or bucket["available_date"]
+    bucket["available_date"] = max(bucket["available_date"], master_available_date)
+    bucket["_source_datasets"].add("b3_futures_contract_master")
+    bucket["_source_versions"].add(str(master.get("source_version") or "v0"))
 
 
 def _finalize_bucket(bucket: dict[str, Any]) -> None:
