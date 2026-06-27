@@ -1,0 +1,84 @@
+from __future__ import annotations
+
+FRED_OBSERVATION_COLUMNS = [
+    "series_id",
+    "series_name",
+    "category",
+    "frequency",
+    "unit",
+    "ref_date",
+    "available_date",
+    "availability_policy",
+    "feature_id",
+    "value",
+    "raw_value",
+    "value_status",
+    "has_value",
+    "realtime_start",
+    "realtime_end",
+    "model_usable",
+    "source_version",
+]
+
+FRED_ASOF_DAILY_COLUMNS = [
+    "ref_date",
+    "available_date",
+    "feature_id",
+    "series_id",
+    "series_name",
+    "category",
+    "frequency",
+    "unit",
+    "observation_ref_date",
+    "observation_available_date",
+    "availability_policy",
+    "value",
+    "raw_value",
+    "value_status",
+    "has_value",
+    "realtime_start",
+    "realtime_end",
+    "is_available",
+    "is_observed_on_ref_date",
+    "staleness_days",
+    "source_version",
+]
+
+FRED_SERIES_REFERENCE_COLUMNS = [
+    "series_id",
+    "series_name",
+    "category",
+    "frequency",
+    "unit",
+    "source",
+    "priority",
+    "model_usable",
+    "availability_policy",
+    "notes",
+    "feature_id",
+    "source_version",
+]
+
+FRED_DAILY_LONG_COLUMNS = [
+    "ref_date",
+    "available_date",
+    "source_family",
+    "feature_id",
+    "value_name",
+    "value",
+    "unit",
+    "observation_ref_date",
+    "observation_available_date",
+    "is_available",
+    "has_value",
+    "staleness_days",
+    "value_status",
+    "source_version",
+]
+
+PANEL_PRIMARY_KEYS = {
+    "observation": ["series_id", "ref_date"],
+    "asof_daily": ["ref_date", "feature_id"],
+    "series_reference": ["series_id"],
+    "daily_long": ["ref_date", "source_family", "feature_id", "value_name"],
+}
