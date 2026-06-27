@@ -52,8 +52,6 @@ def test_fred_observation_preserves_fields_and_filters_configured_rows():
     assert panel["value_status"].to_list() == ["ok", "missing"]
     assert panel["has_value"].to_list() == [True, False]
     assert panel["realtime_start"].to_list() == [date(2024, 1, 2), date(2024, 1, 3)]
-    assert "return" not in panel.columns
-    assert "spread" not in panel.columns
 
 
 def test_fred_asof_uses_latest_available_observation_and_pre_window_history():

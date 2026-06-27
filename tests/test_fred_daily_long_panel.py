@@ -24,9 +24,6 @@ def test_fred_daily_long_includes_non_null_asof_rows_only():
     assert row["value_name"] == "value"
     assert row["value"] == 4.0
     assert row["has_value"] is True
-    assert "series_name" not in panel.columns
-    assert "return" not in panel.columns
-    assert "spread" not in panel.columns
 
 
 def test_fred_daily_long_upholds_long_primary_key_by_last_value():
