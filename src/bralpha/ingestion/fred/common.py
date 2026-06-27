@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import polars as pl
 import yaml
@@ -249,8 +250,8 @@ def _manifest_from_response(
     return ManifestRecord(
         dataset_id=dataset.dataset_id,
         source=dataset.source or "fred",
-        source_url=response.url,
-        request_params=dict(params),
+        source_url=_redact_api_key_from_url(response.url),
+        request_params=_redact_manifest_params(params),
         download_timestamp_utc=timestamp,
         http_status=response.status_code,
         content_type=response.headers.get("content-type"),
@@ -275,8 +276,8 @@ def _failure_record(
     return ManifestRecord(
         dataset_id=dataset.dataset_id,
         source=dataset.source or "fred",
-        source_url=url,
-        request_params=dict(params),
+        source_url=_redact_api_key_from_url(url),
+        request_params=_redact_manifest_params(params),
         download_timestamp_utc=timestamp,
         http_status=response.status_code if response is not None else None,
         content_type=response.headers.get("content-type") if response is not None else None,
@@ -287,3 +288,31 @@ def _failure_record(
         success=False,
         error_message=error_message,
     )
+
+
+def _redact_manifest_params(params: dict[str, Any]) -> dict[str, Any]:
+    redacted = dict(params)
+    if "api_key" in redacted:
+        redacted["api_key"] = "<redacted>"
+    return redacted
+
+
+def _redact_api_key_from_url(url: str) -> str:
+    try:
+        parsed = urlparse(url)
+        if not parsed.query:
+            return url
+        pairs = parse_qsl(parsed.query, keep_blank_values=True)
+        found = False
+        redacted_pairs = []
+        for key, value in pairs:
+            if key == "api_key":
+                found = True
+                redacted_pairs.append((key, "<redacted>"))
+            else:
+                redacted_pairs.append((key, value))
+        if not found:
+            return url
+        return urlunparse(parsed._replace(query=urlencode(redacted_pairs)))
+    except Exception:
+        return url
