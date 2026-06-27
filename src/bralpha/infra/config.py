@@ -244,6 +244,60 @@ class IBGEResearchConfig(BaseModel):
     ibge_research: IBGEResearchSection
 
 
+class TesouroCalendarConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    default: str
+    timezone: str
+
+
+class TesouroPricesRatesResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_all_security_types: bool
+    max_dense_securities: int
+
+
+class TesouroFlowsResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_sales: bool
+    include_redemptions: bool
+    align_on_available_date: bool
+
+
+class TesouroStockResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_tesouro_direto_stock: bool
+    include_dpf_stock: bool
+    max_dense_keys: int
+
+
+class TesouroDailyLongConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_prices_rates: bool
+    include_flows: bool
+    include_stock: bool
+
+
+class TesouroResearchSection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    calendar: TesouroCalendarConfig
+    prices_rates: TesouroPricesRatesResearchConfig
+    flows: TesouroFlowsResearchConfig
+    stock: TesouroStockResearchConfig
+    daily_long: TesouroDailyLongConfig
+
+
+class TesouroResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tesouro_research: TesouroResearchSection
+
+
 def _load_yaml(repo_root: Path, relative_path: str) -> dict[str, Any]:
     path = repo_root / relative_path
     if not path.exists():
@@ -299,6 +353,12 @@ def load_ibge_research_config(repo_root: Path) -> IBGEResearchConfig:
     return IBGEResearchConfig.model_validate(_load_yaml(repo_root, "configs/derived/ibge.yaml"))
 
 
+def load_tesouro_research_config(repo_root: Path) -> TesouroResearchConfig:
+    return TesouroResearchConfig.model_validate(
+        _load_yaml(repo_root, "configs/derived/tesouro.yaml")
+    )
+
+
 __all__ = [
     "BCBCalendarConfig",
     "BCBDailyLongConfig",
@@ -327,6 +387,13 @@ __all__ = [
     "ProjectSection",
     "ResolvedPaths",
     "SleeveConfig",
+    "TesouroCalendarConfig",
+    "TesouroDailyLongConfig",
+    "TesouroFlowsResearchConfig",
+    "TesouroPricesRatesResearchConfig",
+    "TesouroResearchConfig",
+    "TesouroResearchSection",
+    "TesouroStockResearchConfig",
     "load_b3_dataset_registry",
     "load_anbima_dataset_registry",
     "load_tesouro_dataset_registry",
@@ -338,5 +405,6 @@ __all__ = [
     "load_paths_config",
     "load_project_config",
     "load_b3_research_config",
+    "load_tesouro_research_config",
     "resolve_project_paths",
 ]

@@ -1,0 +1,23 @@
+tesouro_research:
+  calendar:
+    default: business_days_mon_fri
+    timezone: America/Sao_Paulo
+
+  prices_rates:
+    include_all_security_types: true
+    max_dense_securities: 5000
+
+  flows:
+    include_sales: true
+    include_redemptions: true
+    align_on_available_date: true
+
+  stock:
+    include_tesouro_direto_stock: true
+    include_dpf_stock: true
+    max_dense_keys: 10000
+
+  daily_long:
+    include_prices_rates: true
+    include_flows: true
+    include_stock: true
