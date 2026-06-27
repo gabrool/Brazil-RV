@@ -1,0 +1,47 @@
+source: fred
+free_access_default: true
+requires_auth_default: true
+point_in_time_required: true
+
+raw_storage:
+  path_template: data/raw/fred/{dataset_id}/{download_date}/
+  manifest_path: data/manifests/fred/downloads.jsonl
+
+bronze_storage:
+  path_template: data/bronze/fred/{dataset_id}/
+  format: parquet
+
+silver_storage:
+  path_template: data/silver/{dataset_id}/
+  format: parquet
+
+datasets:
+  - dataset_id: fred_series_observations
+    source: fred
+    priority: P0
+    frequency: mixed
+    raw_format: json
+    canonical_table: fred_observation
+    partition_keys: [series_id, year]
+    primary_keys: [series_id, ref_date]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+      - available_date_not_null
+      - available_date_on_or_after_ref_date
+    source_map_status: live_download
+    requires_auth: true
+    api_key_env: FRED_API_KEY
+    source_urls:
+      - name: series_observations
+        url_template: "https://api.stlouisfed.org/fred/series/observations"
+        params:
+          series_id: "{series_id}"
+          api_key: "{api_key}"
+          file_type: json
+          observation_start: "{start:%Y-%m-%d}"
+          observation_end: "{end:%Y-%m-%d}"
+          sort_order: asc
+        filename_template: "fred_{series_id}_{start:%Y%m%d}_{end:%Y%m%d}.json"
+    license_note: FRED/St. Louis Fed terms and underlying source terms apply; cite each source/series.
+    notes: Official FRED series observations API, JSON only for this ingestion.
