@@ -1,0 +1,43 @@
+ibge_research:
+  calendar:
+    default: business_days_mon_fri
+    timezone: America/Sao_Paulo
+
+  sidra:
+    include_model_usable_only: true
+    include_priorities:
+      - P0
+    selected_dataset_slugs:
+      - ipca
+      - ipca15
+      - inpc
+      - gdp_volume_change
+      - gdp_volume_index
+      - gdp_current_values
+      - pim_industrial_production
+      - pmc_retail_index
+      - pmc_broad_retail_index
+      - pmc_retail_by_activity
+      - pmc_broad_retail_by_activity
+      - pms_services_index
+      - pms_services_segments
+      - pms_services_activities
+      - pnad_unemployment_rate
+      - pnad_participation_rate
+      - pnad_occupation_level
+      - pnad_underutilization_rate
+      - pnad_underutilization_level
+      - pnad_real_income
+      - pnad_real_income_usual
+      - pnad_real_income_mass
+      - pnad_real_income_mass_usual
+      - sinapi_cost_m2
+    max_dense_features: 20000
+
+  references:
+    include_release_calendar: true
+    include_products: true
+    include_news_metadata: true
+
+  daily_long:
+    include_sidra: true
