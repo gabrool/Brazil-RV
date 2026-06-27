@@ -1,0 +1,44 @@
+source: cvm
+portal:
+  name: Portal Dados Abertos CVM
+  url: https://dados.cvm.gov.br/
+  license_note: ODbL open data; cite CVM and dataset/source.
+
+official_pages:
+  - name: fund_daily_reports
+    dataset_id: cvm_fund_daily_reports
+    url: https://dados.cvm.gov.br/dataset/fi-doc-inf_diario
+  - name: fund_registry
+    dataset_id: cvm_fund_registry_current
+    url: https://dados.cvm.gov.br/dataset/fi-cad
+  - name: fund_registry_history
+    dataset_id: cvm_fund_registry_history
+    url: https://dados.cvm.gov.br/dataset/fi-cad
+  - name: fund_class_registry
+    dataset_id: cvm_fund_class_registry
+    url: https://dados.cvm.gov.br/dataset/fi-cad
+  - name: fund_portfolio_cda
+    dataset_id: cvm_fund_portfolio_cda
+    url: https://dados.cvm.gov.br/dataset/fi-doc-cda
+  - name: company_ipe_metadata
+    dataset_id: cvm_company_ipe_metadata
+    url: https://dados.cvm.gov.br/dataset/cia_aberta-doc-ipe
+  - name: company_itr
+    dataset_id: cvm_company_itr
+    url: https://dados.cvm.gov.br/dataset/cia_aberta-doc-itr
+  - name: company_dfp
+    dataset_id: cvm_company_dfp
+    url: https://dados.cvm.gov.br/dataset/cia_aberta-doc-dfp
+
+direct_directories:
+  fund_daily_reports_current: https://dados.cvm.gov.br/dados/FI/DOC/INF_DIARIO/DADOS/
+  fund_daily_reports_history: https://dados.cvm.gov.br/dados/FI/DOC/INF_DIARIO/DADOS/HIST/
+  fund_registry: https://dados.cvm.gov.br/dados/FI/CAD/DADOS/
+
+endpoint_policy:
+  live_download_requires:
+    - stable_direct_url_or_template
+    - no_login
+    - no_browser_automation
+    - fixture_test
+    - no_new_dependency

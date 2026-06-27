@@ -1,0 +1,207 @@
+source: cvm
+free_access_default: true
+requires_auth_default: false
+point_in_time_required: true
+
+raw_storage:
+  path_template: data/raw/cvm/{dataset_id}/{download_date}/
+  manifest_path: data/manifests/cvm/downloads.jsonl
+
+bronze_storage:
+  path_template: data/bronze/cvm/{dataset_id}/
+  format: parquet
+
+silver_storage:
+  path_template: data/silver/{dataset_id}/
+  format: parquet
+
+datasets:
+  - dataset_id: cvm_fund_daily_reports
+    source: cvm
+    priority: P0
+    frequency: daily
+    raw_format: zip_csv
+    canonical_table: cvm_fund_daily_report
+    partition_keys: [year, month]
+    primary_keys: [ref_date, fund_id]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+      - ref_date_not_null
+      - available_date_not_null
+      - available_date_on_or_after_ref_date
+    source_map_status: live_download
+    availability_policy: cvm_fund_daily_conservative_2bd
+    period_routing:
+      historical_annual_through: 2020
+      monthly_from: 2021-01
+    source_urls:
+      - name: informe_diario_monthly
+        url_template: "https://dados.cvm.gov.br/dados/FI/DOC/INF_DIARIO/DADOS/inf_diario_fi_{period:%Y%m}.zip"
+        filename_template: "inf_diario_fi_{period:%Y%m}.zip"
+      - name: informe_diario_historical_annual
+        url_template: "https://dados.cvm.gov.br/dados/FI/DOC/INF_DIARIO/DADOS/HIST/inf_diario_fi_{year}.zip"
+        filename_template: "inf_diario_fi_{year}.zip"
+    license_note: ODbL open data; cite CVM and the dataset/source.
+    notes: Daily fund reports with PL, quota value, subscriptions, redemptions, and cotistas. Annual historical ZIPs through 2020 and monthly ZIPs from 2021 onward.
+
+  - dataset_id: cvm_fund_registry_current
+    source: cvm
+    priority: P0
+    frequency: daily_snapshot
+    raw_format: csv
+    canonical_table: cvm_fund_registry_current
+    partition_keys: [snapshot_year]
+    primary_keys: [fund_id]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+    source_map_status: live_download
+    source_urls:
+      - name: cad_fi
+        url_template: "https://dados.cvm.gov.br/dados/FI/CAD/DADOS/cad_fi.csv"
+        filename_template: "cad_fi.csv"
+    license_note: ODbL open data; cite CVM and the dataset/source.
+    notes: Current fund registration snapshot. Reference/classification input, not a historical model feature by itself.
+
+  - dataset_id: cvm_fund_registry_history
+    source: cvm
+    priority: P0
+    frequency: daily
+    raw_format: zip_csv
+    canonical_table: cvm_fund_registry_history_raw
+    partition_keys: [year]
+    primary_keys: [fund_id, registry_event_date, registry_field]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+    source_map_status: raw_bronze_only_pending_normalizer
+    source_urls:
+      - name: cad_fi_hist
+        url_template: "https://dados.cvm.gov.br/dados/FI/CAD/DADOS/cad_fi_hist.zip"
+        filename_template: "cad_fi_hist.zip"
+    license_note: ODbL open data; cite CVM and the dataset/source.
+    notes: Live raw/bronze download only; silver normalizer deferred until official multi-file schema is fixture-verified.
+
+  - dataset_id: cvm_fund_class_registry
+    source: cvm
+    priority: P0
+    frequency: daily_snapshot
+    raw_format: zip_csv
+    canonical_table: cvm_fund_class_registry_raw
+    partition_keys: [snapshot_year]
+    primary_keys: [fund_id, class_id, subclass_id]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+    source_map_status: raw_bronze_only_pending_normalizer
+    source_urls:
+      - name: registro_fundo_classe
+        url_template: "https://dados.cvm.gov.br/dados/FI/CAD/DADOS/registro_fundo_classe.zip"
+        filename_template: "registro_fundo_classe.zip"
+    license_note: ODbL open data; cite CVM and the dataset/source.
+    notes: Live raw/bronze download only; silver normalizer deferred until registro_fundo/registro_classe/registro_subclasse layout is handled explicitly.
+
+  - dataset_id: cvm_fund_portfolio_cda
+    source: cvm
+    priority: P1
+    frequency: monthly
+    raw_format: zip_csv_large
+    canonical_table: cvm_fund_portfolio_cda
+    partition_keys: [year, month]
+    primary_keys: [ref_date, fund_id, asset_block, asset_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_feature_gated_large_files
+    source_urls: []
+    notes: Useful for crowding/exposures, but large/monthly/confidentiality-aware. Do not implement live in this PR.
+
+  - dataset_id: cvm_company_ipe_metadata
+    source: cvm
+    priority: P1
+    frequency: event
+    raw_format: zip_csv_metadata_pending
+    canonical_table: cvm_company_ipe_metadata
+    partition_keys: [year]
+    primary_keys: [document_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_metadata
+    source_urls: []
+    notes: Metadata-only future event source. Do not parse document bodies or text.
+
+  - dataset_id: cvm_fii_reports
+    source: cvm
+    priority: P1
+    frequency: monthly_or_event
+    raw_format: pending_endpoint
+    canonical_table: cvm_fii_report
+    partition_keys: [year]
+    primary_keys: [ref_date, fund_id, report_type]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: not_implemented_pending_endpoint
+    source_urls: []
+    notes: Useful real-estate/yield-product stress source. Future dedicated PR.
+
+  - dataset_id: cvm_fidc_reports
+    source: cvm
+    priority: P1
+    frequency: monthly
+    raw_format: pending_endpoint
+    canonical_table: cvm_fidc_report
+    partition_keys: [year]
+    primary_keys: [ref_date, fund_id, report_type]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: not_implemented_pending_endpoint
+    source_urls: []
+    notes: Useful private-credit stress source. Future dedicated PR.
+
+  - dataset_id: cvm_company_itr
+    source: cvm
+    priority: P2
+    frequency: quarterly
+    raw_format: zip_csv_large
+    canonical_table: cvm_company_itr
+    partition_keys: [year]
+    primary_keys: [company_id, ref_date, statement_id, account_code]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_slow_company_fundamentals
+    source_urls: []
+    notes: Slower company-level fundamentals; not first-order daily RV data.
+
+  - dataset_id: cvm_company_dfp
+    source: cvm
+    priority: P2
+    frequency: annual
+    raw_format: zip_csv_large
+    canonical_table: cvm_company_dfp
+    partition_keys: [year]
+    primary_keys: [company_id, ref_date, statement_id, account_code]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_slow_company_fundamentals
+    source_urls: []
+    notes: Annual company-level fundamentals; defer.
+
+  - dataset_id: cvm_public_offerings
+    source: cvm
+    priority: P2
+    frequency: event
+    raw_format: pending_endpoint
+    canonical_table: cvm_public_offering
+    partition_keys: [year]
+    primary_keys: [offering_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_feature_gated
+    source_urls: []
+    notes: Capital-market risk appetite source; defer.
+
+  - dataset_id: cvm_sanctions_regulatory_events
+    source: cvm
+    priority: P3
+    frequency: event
+    raw_format: pending_endpoint
+    canonical_table: cvm_regulatory_event
+    partition_keys: [year]
+    primary_keys: [event_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_low_priority
+    source_urls: []
+    notes: Regulatory stress source; lower priority.
