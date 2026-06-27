@@ -72,7 +72,7 @@ Include:
 - Focus expectations: IPCA, Selic, FX, GDP, current account, trade balance, fiscal variables, and Top 5 where available.
 - Copom calendar, decisions, statements, minutes, monetary policy reports, inflation reports, speeches, and press releases.
 
-Text data should begin with simple dictionary/count/similarity features. Do not train a dedicated NLP model initially.
+For the current ingestion and raw-to-research spine stage, keep policy/report/speech/press-release data source-mapped or metadata-only unless a later plan explicitly activates text features. Do not add dictionary, count, similarity, or other NLP-derived features in this stage.
 
 ### 4.3 IBGE macro actuals
 
@@ -168,7 +168,7 @@ Include:
 Include:
 
 - GDELT Events and GKG daily aggregates.
-- Official press-release metadata and simple text features from BCB, Tesouro, Fazenda, IBGE, Petrobras, ANP, TSE, Câmara, and Senado.
+- Official press-release metadata and source maps from BCB, Tesouro, Fazenda, IBGE, Petrobras, ANP, TSE, Câmara, and Senado.
 - Google Trends only if free/reliable access is available.
 - Wikipedia pageviews for selected policy/company/election pages.
 - Public RSS/headline metadata only where terms allow it.
@@ -315,4 +315,4 @@ Backtests must support:
 
 ## 11. Current immediate priority
 
-Build the B3 data-ingestion spine first. See `docs/B3_INGESTION_SETUP.md`.
+The current engineering stage is official-source ingestion plus raw-to-research spines for B3, BCB, and IBGE, followed by ANBIMA. Keep text/NLP, event-risk overlays, modeling, and portfolio research deferred until the source-specific ingestion and research-spine foundations are in place.

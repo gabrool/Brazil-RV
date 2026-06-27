@@ -16,7 +16,7 @@ The model should use information available by end of day `t` to forecast risk-ad
 
 Assume the plan in `docs/PROJECT_PLAN.md` is active unless explicitly superseded by a later committed document.
 
-The immediate engineering target is `docs/B3_INGESTION_SETUP.md`: create a robust B3 data-ingestion spine before model research.
+The current engineering stage is official-source ingestion plus raw-to-research spines for B3, BCB, and IBGE, followed by ANBIMA. Keep new work aligned with the raw -> bronze -> silver -> gold boundaries before moving into modeling or portfolio research.
 
 ## Non-negotiable rules
 
