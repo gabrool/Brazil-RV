@@ -67,7 +67,8 @@ def download_cvm_dataset(
 
 
 def _require_live_dataset(dataset: DatasetConfig) -> None:
-    if dataset.source_map_status != "live_download" or not dataset.source_urls:
+    live_statuses = {"live_download", "raw_bronze_only_pending_normalizer"}
+    if dataset.source_map_status not in live_statuses or not dataset.source_urls:
         raise CVMDatasetNotLiveError(
             f"CVM dataset {dataset.dataset_id!r} is not live in this PR "
             f"(status={dataset.source_map_status!r})"

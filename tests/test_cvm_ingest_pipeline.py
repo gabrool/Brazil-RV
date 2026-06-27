@@ -10,6 +10,7 @@ import pytest
 
 from bralpha.infra.http import HttpResponse
 from bralpha.ingestion.cvm.downloads import CVMDatasetNotLiveError
+from bralpha.pipelines import cvm_ingest
 from bralpha.pipelines.cvm_ingest import run_cvm_ingest
 
 
@@ -41,6 +42,12 @@ class MockCVMClient:
                 ),
             )
             content_type = "application/zip"
+        elif url.endswith(".zip"):
+            content = _zip_bytes(
+                "registro_fundo.csv",
+                "CNPJ_FUNDO;DENOM_SOCIAL\n00.000.000/0001-00;Fundo Teste\n",
+            )
+            content_type = "application/zip"
         else:
             content = (
                 "CNPJ_FUNDO;DENOM_SOCIAL;CD_CVM\n"
@@ -55,8 +62,18 @@ class MockCVMClient:
         )
 
 
-def test_cvm_pipeline_mocked_daily_raw_to_bronze_to_silver_multiple_months(repo_root, tmp_path):
+def test_cvm_pipeline_mocked_daily_raw_to_bronze_to_silver_multiple_months(
+    repo_root, tmp_path, monkeypatch
+):
     shutil.copytree(repo_root / "configs", tmp_path / "configs")
+    normalize_calls = []
+    original_normalize = cvm_ingest.normalize_cvm_to_silver
+
+    def spy_normalize(dataset_id, bronze):
+        normalize_calls.append(bronze.height)
+        return original_normalize(dataset_id, bronze)
+
+    monkeypatch.setattr(cvm_ingest, "normalize_cvm_to_silver", spy_normalize)
 
     status = run_cvm_ingest(
         repo_root=tmp_path,
@@ -67,6 +84,7 @@ def test_cvm_pipeline_mocked_daily_raw_to_bronze_to_silver_multiple_months(repo_
     )
 
     assert status == {"downloads": 2, "bronze_rows": 4, "silver_rows": 2}
+    assert normalize_calls == [2, 2]
     assert (
         tmp_path
         / "data"
@@ -144,6 +162,27 @@ def test_cvm_registry_current_pipeline(repo_root, tmp_path):
     silver = pl.read_parquet(silver_paths[0])
     assert silver["fund_name"].to_list() == ["Fundo Teste"]
     assert silver["cvm_code"].to_list() == ["00123"]
+
+
+def test_cvm_raw_bronze_only_registry_pipeline_writes_no_silver(repo_root, tmp_path):
+    shutil.copytree(repo_root / "configs", tmp_path / "configs")
+
+    status = run_cvm_ingest(
+        repo_root=tmp_path,
+        dataset_id="cvm_fund_class_registry",
+        client=MockCVMClient(),
+    )
+
+    assert status == {"downloads": 1, "bronze_rows": 1, "silver_rows": 0}
+    assert (
+        tmp_path
+        / "data"
+        / "bronze"
+        / "cvm"
+        / "cvm_fund_class_registry"
+        / "data.parquet"
+    ).exists()
+    assert not (tmp_path / "data" / "silver" / "cvm_fund_class_registry").exists()
 
 
 def test_cvm_source_map_only_pipeline_failure_writes_no_data(repo_root, tmp_path):

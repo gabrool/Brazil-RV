@@ -46,22 +46,30 @@ def run_cvm_ingest(
         end=end,
         client=client,
     )
+    paths = cvm_paths(repo_root)
+    if dataset_id == "cvm_fund_daily_reports":
+        if start is None or end is None:
+            raise ValueError("cvm_fund_daily_reports requires start and end")
+        return _run_daily_report_ingest(
+            dataset=dataset,
+            results=results,
+            paths=paths,
+            raw_format=dataset.raw_format or "zip_csv",
+            start=start,
+            end=end,
+        )
+
     frames = [
         _parse_successful_result(result, raw_format=dataset.raw_format or "csv")
         for result in _successful_results(results)
     ]
     bronze = _concat(frames)
-    paths = cvm_paths(repo_root)
-    if dataset_id == "cvm_fund_daily_reports":
-        write_cvm_fund_daily_bronze(bronze, cvm_bronze_root(paths, dataset.dataset_id))
-    else:
-        write_cvm_registry_bronze(bronze, cvm_bronze_root(paths, dataset.dataset_id))
+    write_cvm_registry_bronze(bronze, cvm_bronze_root(paths, dataset.dataset_id))
+
+    if _is_raw_bronze_only_dataset(dataset.source_map_status):
+        return {"downloads": len(results), "bronze_rows": bronze.height, "silver_rows": 0}
 
     silver = normalize_cvm_to_silver(dataset_id, bronze)
-    if dataset_id == "cvm_fund_daily_reports":
-        if start is None or end is None:
-            raise ValueError("cvm_fund_daily_reports requires start and end")
-        silver = _filter_window(silver, start=start, end=end)
     run_quality_checks(
         silver,
         check_names=dataset.quality_checks,
@@ -76,6 +84,41 @@ def run_cvm_ingest(
         ref_date_col=_silver_ref_date_col(dataset_id),
     )
     return {"downloads": len(results), "bronze_rows": bronze.height, "silver_rows": silver.height}
+
+
+def _run_daily_report_ingest(
+    *,
+    dataset,
+    results: list[CVMDownloadResult],
+    paths,
+    raw_format: str,
+    start: date,
+    end: date,
+) -> dict[str, int]:
+    bronze_rows = 0
+    silver_rows = 0
+    for result in _successful_results(results):
+        bronze_chunk = _parse_successful_result(result, raw_format=raw_format)
+        bronze_rows += bronze_chunk.height
+        write_cvm_fund_daily_bronze(bronze_chunk, cvm_bronze_root(paths, dataset.dataset_id))
+
+        silver_chunk = normalize_cvm_to_silver(dataset.dataset_id, bronze_chunk)
+        silver_chunk = _filter_window(silver_chunk, start=start, end=end)
+        run_quality_checks(
+            silver_chunk,
+            check_names=dataset.quality_checks,
+            primary_keys=dataset.primary_keys,
+            required_columns=CVM_SILVER_COLUMNS_BY_DATASET[dataset.dataset_id],
+        )
+        silver_rows += silver_chunk.height
+        write_cvm_silver(
+            silver_chunk,
+            cvm_silver_root(paths, dataset.dataset_id),
+            primary_keys=dataset.primary_keys,
+            partition_cols=dataset.partition_keys,
+            ref_date_col="ref_date",
+        )
+    return {"downloads": len(results), "bronze_rows": bronze_rows, "silver_rows": silver_rows}
 
 
 def _parse_successful_result(result: CVMDownloadResult, *, raw_format: str) -> pl.DataFrame:
@@ -110,11 +153,11 @@ def _filter_window(frame: pl.DataFrame, *, start: date, end: date) -> pl.DataFra
 def _silver_ref_date_col(dataset_id: str) -> str:
     if dataset_id == "cvm_fund_registry_current":
         return "snapshot_date"
-    if dataset_id == "cvm_fund_registry_history":
-        return "registry_event_date"
-    if dataset_id == "cvm_fund_class_registry":
-        return "snapshot_date"
     return "ref_date"
+
+
+def _is_raw_bronze_only_dataset(source_map_status: str | None) -> bool:
+    return source_map_status == "raw_bronze_only_pending_normalizer"
 
 
 def main(argv: list[str] | None = None) -> None:

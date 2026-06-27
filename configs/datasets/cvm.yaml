@@ -69,38 +69,38 @@ datasets:
     priority: P0
     frequency: daily
     raw_format: zip_csv
-    canonical_table: cvm_fund_registry_history
+    canonical_table: cvm_fund_registry_history_raw
     partition_keys: [year]
     primary_keys: [fund_id, registry_event_date, registry_field]
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys
-    source_map_status: live_download
+    source_map_status: raw_bronze_only_pending_normalizer
     source_urls:
       - name: cad_fi_hist
         url_template: "https://dados.cvm.gov.br/dados/FI/CAD/DADOS/cad_fi_hist.zip"
         filename_template: "cad_fi_hist.zip"
     license_note: ODbL open data; cite CVM and the dataset/source.
-    notes: Historical fund registration changes. Normalize only fixture-verified fields; preserve unknown raw columns in bronze.
+    notes: Live raw/bronze download only; silver normalizer deferred until official multi-file schema is fixture-verified.
 
   - dataset_id: cvm_fund_class_registry
     source: cvm
     priority: P0
     frequency: daily_snapshot
     raw_format: zip_csv
-    canonical_table: cvm_fund_class_registry
+    canonical_table: cvm_fund_class_registry_raw
     partition_keys: [snapshot_year]
     primary_keys: [fund_id, class_id, subclass_id]
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys
-    source_map_status: live_download
+    source_map_status: raw_bronze_only_pending_normalizer
     source_urls:
       - name: registro_fundo_classe
         url_template: "https://dados.cvm.gov.br/dados/FI/CAD/DADOS/registro_fundo_classe.zip"
         filename_template: "registro_fundo_classe.zip"
     license_note: ODbL open data; cite CVM and the dataset/source.
-    notes: Fund, class, and subclass registration data under CVM 175. Reference/classification input.
+    notes: Live raw/bronze download only; silver normalizer deferred until registro_fundo/registro_classe/registro_subclasse layout is handled explicitly.
 
   - dataset_id: cvm_fund_portfolio_cda
     source: cvm

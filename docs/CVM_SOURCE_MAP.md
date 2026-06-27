@@ -10,8 +10,8 @@ source-specific silver.
 |---|---:|---|---|---|---|---|---|
 | `cvm_fund_daily_reports` | P0 | `live_download` | `fi-doc-inf_diario`; `INF_DIARIO/DADOS/` monthly ZIPs and `INF_DIARIO/DADOS/HIST/` annual ZIPs | zip_csv | daily | `data/silver/cvm_fund_daily_reports/` | Administrators have one business day to send reports; first-pass availability is conservative two business days after `ref_date`. |
 | `cvm_fund_registry_current` | P0 | `live_download` | `fi-cad`; direct `cad_fi.csv` | csv | daily_snapshot | `data/silver/cvm_fund_registry_current/` | Current snapshot/reference data, not a historical model feature by itself. |
-| `cvm_fund_registry_history` | P0 | `live_download` | `fi-cad`; direct `cad_fi_hist.zip` | zip_csv | daily | `data/silver/cvm_fund_registry_history/` | Normalize only fixture-verified history fields; preserve unknown raw columns in bronze. |
-| `cvm_fund_class_registry` | P0 | `live_download` | `fi-cad`; direct `registro_fundo_classe.zip` | zip_csv | daily_snapshot | `data/silver/cvm_fund_class_registry/` | Fund/class/subclass reference data under CVM 175; do not infer classes from names. |
+| `cvm_fund_registry_history` | P0 | `raw_bronze_only_pending_normalizer` | `fi-cad`; direct `cad_fi_hist.zip` | zip_csv | daily | `data/bronze/cvm/cvm_fund_registry_history/` | Live raw/bronze download only; silver deferred until the official multi-file historical schema is fixture-verified. |
+| `cvm_fund_class_registry` | P0 | `raw_bronze_only_pending_normalizer` | `fi-cad`; direct `registro_fundo_classe.zip` | zip_csv | daily_snapshot | `data/bronze/cvm/cvm_fund_class_registry/` | Live raw/bronze download only; silver deferred until the `registro_fundo.csv` / `registro_classe.csv` / `registro_subclasse.csv` layout is handled explicitly. |
 | `cvm_fund_portfolio_cda` | P1 | `source_map_only_feature_gated_large_files` | `fi-doc-cda` | zip_csv_large | monthly | none | Large monthly holdings files with confidentiality mechanics; future feature-gated PR. |
 | `cvm_company_ipe_metadata` | P1 | `source_map_only_metadata` | `cia_aberta-doc-ipe` | zip_csv_metadata_pending | event | none | Future metadata-only event source; no document body or free-text parsing here. |
 | `cvm_fii_reports` | P1 | `not_implemented_pending_endpoint` | pending dedicated endpoint verification | pending_endpoint | monthly_or_event | none | Useful yield-product stress source; future dedicated PR. |
@@ -34,7 +34,9 @@ source-specific silver.
 - CVM's fund registry page covers fund CNPJ, registration date, status,
   fund/class/subclass data, and historical ICVM 555 changes. The direct registry
   directory contains `cad_fi.csv`, `cad_fi_hist.zip`, and
-  `registro_fundo_classe.zip`.
+  `registro_fundo_classe.zip`. In this PR, `cad_fi_hist.zip` and
+  `registro_fundo_classe.zip` are raw/bronze-only pending a fixture-verified
+  silver normalizer for their multi-file official layouts.
 
 ## Availability Policy
 
