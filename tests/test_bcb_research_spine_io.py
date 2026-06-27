@@ -86,6 +86,30 @@ def test_bcb_partitioned_parquet_read_prunes_unrelated_years(tmp_path, monkeypat
     assert (root / "year=2023", "**/*.parquet") not in globbed
 
 
+def test_bcb_nested_year_partitioned_parquet_read_prunes_unrelated_years(
+    tmp_path,
+    monkeypatch,
+):
+    root = tmp_path / "silver" / "bcb_sgs_series"
+    _write_nested_partition(root, "a", 2023, 1.0)
+    _write_nested_partition(root, "a", 2024, 2.0)
+    _write_nested_partition(root, "b", 2024, 3.0)
+    scanned, globbed = _track_scan_and_glob(monkeypatch)
+
+    frame = io_module.read_parquet_root(
+        root,
+        start=date(2024, 1, 1),
+        end=date(2024, 12, 31),
+    )
+
+    assert frame.sort("value")["value"].to_list() == [2.0, 3.0]
+    assert any("year=2024" in path for path in scanned)
+    assert not any("year=2023" in path for path in scanned)
+    parquet_globs = [path for path, pattern in globbed if pattern == "**/*.parquet"]
+    assert any(path.name == "year=2024" for path in parquet_globs)
+    assert not any(path.name == "year=2023" for path in parquet_globs)
+
+
 def test_bcb_pipeline_writes_gold_outputs_from_silver(repo_root, tmp_path):
     shutil.copytree(repo_root / "configs", tmp_path / "configs")
     write_source_partitioned(
@@ -166,6 +190,14 @@ def _write_partition(root: Path, year: int, value: float) -> None:
     pl.DataFrame(
         [{"ref_date": date(year, 1, 2), "series_id": 11, "value": value}]
     ).write_parquet(root / f"year={year}" / "data.parquet")
+
+
+def _write_nested_partition(root: Path, group: str, year: int, value: float) -> None:
+    part_dir = root / f"some_key={group}" / f"year={year}"
+    part_dir.mkdir(parents=True)
+    pl.DataFrame(
+        [{"ref_date": date(year, 1, 2), "series_id": 11, "value": value}]
+    ).write_parquet(part_dir / "data.parquet")
 
 
 def _sgs_silver_row(*, ref_date: date, available_date: date, value: float) -> dict[str, object]:

@@ -175,6 +175,30 @@ def test_partitioned_parquet_read_prunes_unrelated_years(tmp_path, monkeypatch):
     assert (root / "year=2024", "**/*.parquet") in globbed
 
 
+def test_nested_year_partitioned_parquet_read_prunes_unrelated_years(
+    tmp_path,
+    monkeypatch,
+):
+    root = tmp_path / "silver" / "b3_cotahist_yearly"
+    _write_nested_partition(root, "a", 2023, "OLD")
+    _write_nested_partition(root, "a", 2024, "NEW_A")
+    _write_nested_partition(root, "b", 2024, "NEW_B")
+    scanned, globbed = _track_scan_and_glob(monkeypatch)
+
+    frame = io_module.read_parquet_root(
+        root,
+        start=date(2024, 1, 1),
+        end=date(2024, 12, 31),
+    )
+
+    assert frame.sort("symbol")["symbol"].to_list() == ["NEW_A", "NEW_B"]
+    assert any("year=2024" in path for path in scanned)
+    assert not any("year=2023" in path for path in scanned)
+    parquet_globs = [path for path, pattern in globbed if pattern == "**/*.parquet"]
+    assert any(path.name == "year=2024" for path in parquet_globs)
+    assert not any(path.name == "year=2023" for path in parquet_globs)
+
+
 def test_partitioned_parquet_read_prunes_start_open_range(tmp_path, monkeypatch):
     root = tmp_path / "silver" / "b3_cotahist_yearly"
     _write_partition(root, 2023, "OLD")
@@ -229,6 +253,14 @@ def _write_partition(root: Path, year: int, symbol: str) -> None:
     pl.DataFrame(
         [{"ref_date": date(year, 1, 2), "symbol": symbol}]
     ).write_parquet(root / f"year={year}" / "data.parquet")
+
+
+def _write_nested_partition(root: Path, group: str, year: int, symbol: str) -> None:
+    part_dir = root / f"some_key={group}" / f"year={year}"
+    part_dir.mkdir(parents=True)
+    pl.DataFrame(
+        [{"ref_date": date(year, 1, 2), "symbol": symbol}]
+    ).write_parquet(part_dir / "data.parquet")
 
 
 def _track_scan_and_glob(monkeypatch) -> tuple[list[str], list[tuple[Path, str]]]:

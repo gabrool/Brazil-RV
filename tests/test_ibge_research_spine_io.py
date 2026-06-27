@@ -90,6 +90,30 @@ def test_ibge_partitioned_parquet_read_prunes_unrelated_years(tmp_path, monkeypa
     assert (root / "year=2023", "**/*.parquet") not in globbed
 
 
+def test_ibge_nested_year_partitioned_parquet_read_prunes_unrelated_years(
+    tmp_path,
+    monkeypatch,
+):
+    root = tmp_path / "silver" / "ibge_sidra_series"
+    _write_nested_partition(root, "a", 2023, 1.0)
+    _write_nested_partition(root, "a", 2024, 2.0)
+    _write_nested_partition(root, "b", 2024, 3.0)
+    scanned, globbed = _track_scan_and_glob(monkeypatch)
+
+    frame = read_parquet_root(
+        root,
+        start=date(2024, 1, 1),
+        end=date(2024, 12, 31),
+    )
+
+    assert frame.sort("value")["value"].to_list() == [2.0, 3.0]
+    assert any("year=2024" in path for path in scanned)
+    assert not any("year=2023" in path for path in scanned)
+    parquet_globs = [path for path, pattern in globbed if pattern == "**/*.parquet"]
+    assert any(path.name == "year=2024" for path in parquet_globs)
+    assert not any(path.name == "year=2023" for path in parquet_globs)
+
+
 def test_ibge_gold_writes_use_exact_primary_keys(repo_root, tmp_path):
     paths = resolve_project_paths(tmp_path, load_paths_config(repo_root))
     first = pl.DataFrame([{"product_id": 9256, "product_name": "old"}])
@@ -158,6 +182,20 @@ def _write_partition(root: Path, year: int, value: float) -> None:
             }
         ]
     ).write_parquet(root / f"year={year}" / "data.parquet")
+
+
+def _write_nested_partition(root: Path, group: str, year: int, value: float) -> None:
+    part_dir = root / f"some_key={group}" / f"year={year}"
+    part_dir.mkdir(parents=True)
+    pl.DataFrame(
+        [
+            {
+                "ref_date": date(year, 1, 31),
+                "dataset_slug": group,
+                "value": value,
+            }
+        ]
+    ).write_parquet(part_dir / "data.parquet")
 
 
 def _sidra_silver_row() -> dict[str, object]:
