@@ -1,0 +1,52 @@
+source: tesouro
+portal:
+  name: Tesouro Transparente CKAN
+  url: https://www.tesourotransparente.gov.br/ckan/dataset
+  api_base_url: https://www.tesourotransparente.gov.br/ckan/api/3/action
+  api_note: CKAN package/resource discovery should use package_show whenever possible.
+  license_note: Tesouro Transparente datasets are open and reusable under ODbL when the source is cited.
+
+official_pages:
+  - name: tesouro_direto_prices_rates
+    dataset_id: tesouro_direto_prices_rates
+    url: https://www.tesourotransparente.gov.br/ckan/dataset/taxas-dos-titulos-ofertados-pelo-tesouro-direto
+  - name: tesouro_direto_sales
+    dataset_id: tesouro_direto_sales
+    url: https://www.tesourotransparente.gov.br/ckan/dataset/vendas-do-tesouro-direto
+  - name: tesouro_direto_redemptions
+    dataset_id: tesouro_direto_redemptions
+    url: https://www.tesourotransparente.gov.br/ckan/dataset/resgates-do-tesouro-direto
+  - name: tesouro_direto_stock
+    dataset_id: tesouro_direto_stock
+    url: https://www.tesourotransparente.gov.br/ckan/dataset/estoque-do-tesouro-direto
+  - name: tesouro_dpf_stock
+    dataset_id: tesouro_dpf_stock
+    url: https://www.tesourotransparente.gov.br/ckan/dataset/estoque-da-divida-publica-federal
+  - name: tesouro_rtn_series
+    dataset_id: tesouro_rtn_series
+    url: https://www.tesourotransparente.gov.br/ckan/dataset/resultado-do-tesouro-nacional
+  - name: tesouro_dpf_emissions_redemptions
+    dataset_id: tesouro_dpf_emissions_redemptions
+    url: https://www.tesourotransparente.gov.br/ckan/dataset/emissoes-e-resgates-divida-publica-federal
+  - name: tesouro_direto_operations
+    dataset_id: tesouro_direto_operations
+    url: https://www.tesourotransparente.gov.br/ckan/dataset/operacoes-do-tesouro-direto
+  - name: tesouro_direto_investors
+    dataset_id: tesouro_direto_investors
+    url: https://www.tesourotransparente.gov.br/ckan/dataset/investidores-do-tesouro-direto
+  - name: tesouro_capag_states
+    dataset_id: tesouro_capag_states
+    url: https://www.tesourotransparente.gov.br/ckan/dataset/capag-estados
+  - name: tesouro_capag_municipalities
+    dataset_id: tesouro_capag_municipalities
+    url: https://www.tesourotransparente.gov.br/ckan/dataset/capag-municipios
+
+endpoint_policy:
+  live_download_requires:
+    - ckan_package_show_resource
+    - stable_direct_resource_url
+    - no_login
+    - no_browser_automation
+    - no_pdf_parsing
+    - fixture_test
+    - no_new_dependency
