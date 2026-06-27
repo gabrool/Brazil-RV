@@ -1,0 +1,271 @@
+series:
+  - series_id: DGS2
+    name: Market Yield on U.S. Treasury Securities at 2-Year Constant Maturity
+    category: treasury_nominal
+    frequency: daily
+    unit: percent
+    source: FRED / Board of Governors H.15
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: Global rates shock / DI-BRL driver.
+  - series_id: DGS5
+    name: Market Yield on U.S. Treasury Securities at 5-Year Constant Maturity
+    category: treasury_nominal
+    frequency: daily
+    unit: percent
+    source: FRED / Board of Governors H.15
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: Intermediate U.S. nominal yield proxy.
+  - series_id: DGS10
+    name: Market Yield on U.S. Treasury Securities at 10-Year Constant Maturity
+    category: treasury_nominal
+    frequency: daily
+    unit: percent
+    source: FRED / Board of Governors H.15
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: Global duration anchor.
+  - series_id: DGS30
+    name: Market Yield on U.S. Treasury Securities at 30-Year Constant Maturity
+    category: treasury_nominal
+    frequency: daily
+    unit: percent
+    source: FRED / Board of Governors H.15
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: Long-end U.S. nominal yield proxy.
+  - series_id: DFF
+    name: Federal Funds Effective Rate
+    category: fed_policy_money_market
+    frequency: daily
+    unit: percent
+    source: FRED / Board of Governors
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: Fed policy and dollar funding proxy.
+  - series_id: SOFR
+    name: Secured Overnight Financing Rate
+    category: fed_policy_money_market
+    frequency: daily
+    unit: percent
+    source: FRED / Federal Reserve Bank of New York
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: U.S. secured overnight money-market rate.
+  - series_id: DFEDTARU
+    name: Federal Funds Target Range - Upper Limit
+    category: fed_policy_money_market
+    frequency: daily
+    unit: percent
+    source: FRED / Board of Governors
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: Fed policy corridor upper bound.
+  - series_id: DFEDTARL
+    name: Federal Funds Target Range - Lower Limit
+    category: fed_policy_money_market
+    frequency: daily
+    unit: percent
+    source: FRED / Board of Governors
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: Fed policy corridor lower bound.
+  - series_id: DFII5
+    name: Market Yield on U.S. Treasury Securities at 5-Year Constant Maturity, Inflation-Indexed
+    category: treasury_real
+    frequency: daily
+    unit: percent
+    source: FRED / Board of Governors H.15
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: U.S. 5-year real yield proxy.
+  - series_id: DFII10
+    name: Market Yield on U.S. Treasury Securities at 10-Year Constant Maturity, Inflation-Indexed
+    category: treasury_real
+    frequency: daily
+    unit: percent
+    source: FRED / Board of Governors H.15
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: U.S. 10-year real yield proxy.
+  - series_id: DFII30
+    name: Market Yield on U.S. Treasury Securities at 30-Year Constant Maturity, Inflation-Indexed
+    category: treasury_real
+    frequency: daily
+    unit: percent
+    source: FRED / Board of Governors H.15
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: U.S. long real yield proxy.
+  - series_id: T5YIE
+    name: 5-Year Breakeven Inflation Rate
+    category: breakeven_inflation
+    frequency: daily
+    unit: percent
+    source: FRED / Federal Reserve Bank of St. Louis
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: U.S. 5-year inflation compensation proxy.
+  - series_id: T10YIE
+    name: 10-Year Breakeven Inflation Rate
+    category: breakeven_inflation
+    frequency: daily
+    unit: percent
+    source: FRED / Federal Reserve Bank of St. Louis
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: U.S. 10-year inflation compensation proxy.
+  - series_id: DTWEXBGS
+    name: Nominal Broad U.S. Dollar Index
+    category: dollar_fx_proxy
+    frequency: daily
+    unit: index
+    source: FRED / Board of Governors
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: Broad U.S. dollar pressure proxy.
+  - series_id: DTWEXAFEGS
+    name: Nominal Advanced Foreign Economies U.S. Dollar Index
+    category: dollar_fx_proxy
+    frequency: daily
+    unit: index
+    source: FRED / Board of Governors
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: Dollar proxy versus advanced economies.
+  - series_id: DTWEXEMEGS
+    name: Nominal Emerging Market Economies U.S. Dollar Index
+    category: dollar_fx_proxy
+    frequency: daily
+    unit: index
+    source: FRED / Board of Governors
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: Dollar proxy versus emerging-market economies.
+  - series_id: DEXCHUS
+    name: China / U.S. Foreign Exchange Rate
+    category: china_fx_proxy
+    frequency: daily
+    unit: cny_per_usd
+    source: FRED / Board of Governors H.10
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: China FX proxy available on FRED.
+  - series_id: SP500
+    name: S&P 500
+    category: equity_volatility_proxy
+    frequency: daily
+    unit: index
+    source: FRED / S&P Dow Jones Indices LLC
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: FRED currently provides limited recent S&P/Dow Jones daily history; source terms apply.
+  - series_id: NASDAQCOM
+    name: NASDAQ Composite Index
+    category: equity_volatility_proxy
+    frequency: daily
+    unit: index
+    source: FRED / NASDAQ
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: U.S. growth equity proxy available on FRED.
+  - series_id: VIXCLS
+    name: CBOE Volatility Index - VIX
+    category: equity_volatility_proxy
+    frequency: daily
+    unit: index
+    source: FRED / CBOE
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: U.S. implied volatility risk proxy.
+  - series_id: BAA10Y
+    name: Moody's Seasoned Baa Corporate Bond Yield Relative to Yield on 10-Year Treasury Constant Maturity
+    category: credit_spread_proxy
+    frequency: daily
+    unit: percent
+    source: FRED / Moody's
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: Long-history Baa credit spread proxy.
+  - series_id: AAA10Y
+    name: Moody's Seasoned Aaa Corporate Bond Yield Relative to Yield on 10-Year Treasury Constant Maturity
+    category: credit_spread_proxy
+    frequency: daily
+    unit: percent
+    source: FRED / Moody's
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: Long-history Aaa credit spread proxy.
+  - series_id: DBAA
+    name: Moody's Seasoned Baa Corporate Bond Yield
+    category: credit_spread_proxy
+    frequency: daily
+    unit: percent
+    source: FRED / Moody's
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: Long-history Baa corporate yield proxy.
+  - series_id: DAAA
+    name: Moody's Seasoned Aaa Corporate Bond Yield
+    category: credit_spread_proxy
+    frequency: daily
+    unit: percent
+    source: FRED / Moody's
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: Long-history Aaa corporate yield proxy.
+  - series_id: DCOILWTICO
+    name: Crude Oil Prices - West Texas Intermediate, Cushing, Oklahoma
+    category: oil_commodity_proxy
+    frequency: daily
+    unit: usd_per_barrel
+    source: FRED / U.S. Energy Information Administration
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: WTI oil price proxy available on FRED.
+  - series_id: DCOILBRENTEU
+    name: Crude Oil Prices - Brent, Europe
+    category: oil_commodity_proxy
+    frequency: daily
+    unit: usd_per_barrel
+    source: FRED / U.S. Energy Information Administration
+    priority: P0
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: Brent oil price proxy available on FRED.
+  - series_id: PCOPPUSDM
+    name: Global price of Copper
+    category: commodity_proxy
+    frequency: monthly
+    unit: usd_per_metric_ton
+    source: FRED / International Monetary Fund Primary Commodity Prices
+    priority: P1
+    model_usable: true
+    availability_policy: date_only_next_business_day
+    notes: Verified on FRED; IMF copyright/citation terms apply.

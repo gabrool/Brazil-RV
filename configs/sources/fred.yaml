@@ -1,0 +1,29 @@
+source: fred
+api:
+  name: FRED series observations API
+  url: https://api.stlouisfed.org/fred/series/observations
+  api_key_env: FRED_API_KEY
+  docs: https://fred.stlouisfed.org/docs/api/fred/series_observations.html
+endpoint_policy:
+  live_download_requires:
+    - registered_free_api_key
+    - configured_series_id
+    - fixture_test
+    - no_new_dependency
+deferred_sources:
+  non_fred_market_data:
+    status: deferred_pending_dedicated_source
+    examples:
+      - EWZ
+      - EEM
+      - EMB
+      - HYG
+      - LQD
+      - iron_ore_non_fred
+      - commodity_futures_eod
+      - china_equities
+      - china_pmi
+      - imf
+      - world_bank
+      - oecd
+      - bis

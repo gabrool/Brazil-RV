@@ -339,6 +339,10 @@ def load_tesouro_dataset_registry(repo_root: Path) -> DatasetRegistry:
     return DatasetRegistry.model_validate(_load_yaml(repo_root, "configs/datasets/tesouro.yaml"))
 
 
+def load_fred_dataset_registry(repo_root: Path) -> DatasetRegistry:
+    return DatasetRegistry.model_validate(_load_yaml(repo_root, "configs/datasets/fred.yaml"))
+
+
 def load_b3_research_config(repo_root: Path) -> B3ResearchConfig:
     return B3ResearchConfig.model_validate(_load_yaml(repo_root, "configs/derived/b3.yaml"))
 
@@ -395,6 +399,7 @@ __all__ = [
     "load_b3_dataset_registry",
     "load_anbima_dataset_registry",
     "load_tesouro_dataset_registry",
+    "load_fred_dataset_registry",
     "load_bcb_dataset_registry",
     "load_bcb_research_config",
     "load_ibge_dataset_registry",
