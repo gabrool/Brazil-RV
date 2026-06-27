@@ -1,0 +1,217 @@
+source: tesouro
+free_access_default: true
+requires_auth_default: false
+point_in_time_required: true
+
+raw_storage:
+  path_template: data/raw/tesouro/{dataset_id}/{download_date}/
+  manifest_path: data/manifests/tesouro/downloads.jsonl
+
+bronze_storage:
+  path_template: data/bronze/tesouro/{dataset_id}/
+  format: parquet
+
+silver_storage:
+  path_template: data/silver/{dataset_id}/
+  format: parquet
+
+datasets:
+  - dataset_id: tesouro_direto_prices_rates
+    source: tesouro
+    priority: P0
+    frequency: daily
+    raw_format: csv
+    canonical_table: tesouro_direto_price_rate
+    partition_keys: [year]
+    primary_keys: [ref_date, security_name, maturity_date]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: live_download
+    ckan_package: taxas-dos-titulos-ofertados-pelo-tesouro-direto
+    ckan_resource_formats: [CSV]
+    ckan_resource_name_contains: [Taxas dos Títulos Ofertados]
+    availability_policy: next_business_day
+    license_note: ODbL open data; cite Tesouro Transparente as source.
+    notes: One historical CSV; starts Jan 2002; daily; prices/rates reflect the secondary market for federal public bonds.
+
+  - dataset_id: tesouro_direto_sales
+    source: tesouro
+    priority: P0
+    frequency: daily
+    raw_format: csv
+    canonical_table: tesouro_direto_sale
+    partition_keys: [year]
+    primary_keys: [ref_date, security_name, maturity_date]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: live_download
+    ckan_package: vendas-do-tesouro-direto
+    ckan_resource_formats: [CSV]
+    ckan_resource_name_contains: [Vendas do Tesouro Direto]
+    availability_policy: next_business_day
+    license_note: ODbL open data; cite Tesouro Transparente as source.
+    notes: One historical CSV; starts Jan 2002; daily sales by title and maturity.
+
+  - dataset_id: tesouro_direto_redemptions
+    source: tesouro
+    priority: P0
+    frequency: daily
+    raw_format: csv_multi_resource
+    canonical_table: tesouro_direto_redemption
+    partition_keys: [redemption_type, year]
+    primary_keys: [ref_date, redemption_type, security_name, maturity_date]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: live_download
+    ckan_package: resgates-do-tesouro-direto
+    ckan_resource_formats: [CSV]
+    ckan_resource_name_contains_any:
+      - Vencimentos do Tesouro Direto
+      - Recompras do Tesouro Direto
+      - Pagamento de Cupom de Juros do Tesouro Direto
+    availability_policy: next_business_day
+    license_note: ODbL open data; cite Tesouro Transparente as source.
+    notes: Multiple CSV resources; starts Jan 2005; maturities, early repurchases, and coupon payments.
+
+  - dataset_id: tesouro_direto_stock
+    source: tesouro
+    priority: P0
+    frequency: monthly
+    raw_format: csv
+    canonical_table: tesouro_direto_stock
+    partition_keys: [year]
+    primary_keys: [ref_date, security_name, maturity_date]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: live_download
+    ckan_package: estoque-do-tesouro-direto
+    ckan_resource_formats: [CSV]
+    ckan_resource_name_contains: [Estoque do Tesouro Direto]
+    availability_policy: configured_lag_next_business_day
+    availability_lag_days: 30
+    license_note: ODbL open data; cite Tesouro Transparente as source.
+    notes: One historical CSV; starts Jan 2002; monthly. Uses issuance-rate stock calculation, not market prices.
+
+  - dataset_id: tesouro_dpf_stock
+    source: tesouro
+    priority: P0
+    frequency: monthly
+    raw_format: csv
+    canonical_table: tesouro_dpf_stock
+    partition_keys: [year]
+    primary_keys: [ref_date, debt_category, indexer, holder_or_maturity_bucket]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: live_download
+    ckan_package: estoque-da-divida-publica-federal
+    ckan_resource_formats: [CSV]
+    ckan_resource_name_contains: [Estoque da Dívida Pública Federal]
+    availability_policy: configured_lag_next_business_day
+    availability_lag_days: 45
+    license_note: ODbL open data; cite Tesouro Transparente as source.
+    notes: One historical CSV; starts Jan 2006; monthly. Conservative availability lag.
+
+  - dataset_id: tesouro_rtn_series
+    source: tesouro
+    priority: P0
+    frequency: monthly
+    raw_format: api_json_or_xlsx_pending
+    canonical_table: tesouro_rtn_series
+    partition_keys: [series_group, year]
+    primary_keys: [ref_date, series_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: live_download_if_api_verified
+    ckan_package: resultado-do-tesouro-nacional
+    ckan_resource_formats: [API]
+    ckan_resource_name_contains: [API Séries Temporais]
+    availability_policy: configured_lag_next_business_day
+    availability_lag_days: 45
+    source_urls: []
+    license_note: ODbL open data; cite Tesouro Transparente as source.
+    notes: Prefer API. Kept pending until the API response schema is fixture-verified; no XLSX parsing in this PR.
+
+  - dataset_id: tesouro_dpf_emissions_redemptions
+    source: tesouro
+    priority: P1
+    frequency: monthly
+    raw_format: xlsx_pending_parser
+    canonical_table: tesouro_dpf_emission_redemption
+    partition_keys: [year]
+    primary_keys: [ref_date, operation_type, security_type, issuance_type]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: not_implemented_pending_xlsx_parser
+    ckan_package: emissoes-e-resgates-divida-publica-federal
+    source_urls: []
+    license_note: ODbL open data; cite Tesouro Transparente as source.
+    notes: Useful supply/rollover data, but observed primary resource is XLSX. Do not implement until XLSX parser is explicitly approved.
+
+  - dataset_id: tesouro_direto_operations
+    source: tesouro
+    priority: P1
+    frequency: monthly
+    raw_format: zip_or_gz_csv_large
+    canonical_table: tesouro_direto_operation
+    partition_keys: [year]
+    primary_keys: [operation_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: feature_gated_large_files
+    ckan_package: operacoes-do-tesouro-direto
+    source_urls: []
+    license_note: ODbL open data; cite Tesouro Transparente as source.
+    notes: Very large annual CSV/ZIP/GZ resources from 2014. Do not include in default ingestion.
+
+  - dataset_id: tesouro_direto_investors
+    source: tesouro
+    priority: P2
+    frequency: annual
+    raw_format: zip_or_gz_csv_large
+    canonical_table: tesouro_direto_investor_profile
+    partition_keys: [year]
+    primary_keys: [investor_id, account_or_institution_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_large_privacy_sensitive
+    ckan_package: investidores-do-tesouro-direto
+    source_urls: []
+    license_note: ODbL open data; cite Tesouro Transparente as source.
+    notes: Very large investor/profile files. Source-map only until aggregation and privacy policy are specified.
+
+  - dataset_id: tesouro_capag_states
+    source: tesouro
+    priority: P1
+    frequency: quadrimestral
+    raw_format: csv_multi_resource
+    canonical_table: tesouro_capag_state
+    partition_keys: [year]
+    primary_keys: [ref_date, state_code]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_p1
+    ckan_package: capag-estados
+    ckan_resource_formats: [CSV]
+    ckan_resource_name_contains: [Capag Estados]
+    availability_policy: date_only_next_business_day
+    source_urls: []
+    license_note: ODbL open data; cite Tesouro Transparente as source.
+    notes: Subnational stress proxy with CSV resources from 2018. Source-map only in this first Tesouro PR.
+
+  - dataset_id: tesouro_capag_municipalities
+    source: tesouro
+    priority: P2
+    frequency: quadrimestral
+    raw_format: xlsx_pending_parser
+    canonical_table: tesouro_capag_municipality
+    partition_keys: [year]
+    primary_keys: [ref_date, municipality_code]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: not_implemented_pending_xlsx_parser
+    ckan_package: capag-municipios
+    source_urls: []
+    license_note: ODbL open data; cite Tesouro Transparente as source.
+    notes: Useful but observed resources are XLSX; do not implement in this PR.
+
+  - dataset_id: tesouro_auction_calendar_results
+    source: tesouro
+    priority: P1
+    frequency: event
+    raw_format: pending_endpoint
+    canonical_table: tesouro_auction_event
+    partition_keys: [year]
+    primary_keys: [event_date, security_type, maturity_date, auction_type]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: not_implemented_pending_endpoint
+    source_urls: []
+    notes: Source-map only until a stable public auction calendar/results source is confirmed. Do not fake an endpoint.
