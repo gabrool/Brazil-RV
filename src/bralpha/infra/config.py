@@ -279,6 +279,10 @@ def load_ibge_dataset_registry(repo_root: Path) -> DatasetRegistry:
     return DatasetRegistry.model_validate(_load_yaml(repo_root, "configs/datasets/ibge.yaml"))
 
 
+def load_anbima_dataset_registry(repo_root: Path) -> DatasetRegistry:
+    return DatasetRegistry.model_validate(_load_yaml(repo_root, "configs/datasets/anbima.yaml"))
+
+
 def load_b3_research_config(repo_root: Path) -> B3ResearchConfig:
     return B3ResearchConfig.model_validate(_load_yaml(repo_root, "configs/derived/b3.yaml"))
 
@@ -320,6 +324,7 @@ __all__ = [
     "ResolvedPaths",
     "SleeveConfig",
     "load_b3_dataset_registry",
+    "load_anbima_dataset_registry",
     "load_bcb_dataset_registry",
     "load_bcb_research_config",
     "load_ibge_dataset_registry",
