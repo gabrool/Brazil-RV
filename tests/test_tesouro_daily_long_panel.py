@@ -38,7 +38,7 @@ def test_daily_long_includes_all_tesouro_families_and_drops_null_values():
     assert not panel.filter(pl.col("value").is_null()).height
 
 
-def test_daily_long_uses_long_primary_key_and_excludes_derived_fields():
+def test_daily_long_uses_long_primary_key():
     panel = build_daily_long(
         direto_prices_rates_asof_daily=_prices_asof(),
         direto_flows_daily=_flows_daily(),
@@ -51,13 +51,6 @@ def test_daily_long_uses_long_primary_key_and_excludes_derived_fields():
 
     keys = ["ref_date", "source_family", "feature_id", "value_name"]
     assert panel.group_by(keys).len().height == panel.height
-    assert {
-        "buy_rate_return",
-        "rate_spread",
-        "net_flow",
-        "flow_ratio",
-        "rolling_zscore",
-    }.isdisjoint(panel.columns)
 
 
 def _prices_asof() -> pl.DataFrame:

@@ -254,7 +254,6 @@ class TesouroCalendarConfig(BaseModel):
 class TesouroPricesRatesResearchConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    include_all_security_types: bool
     max_dense_securities: int
 
 
@@ -263,7 +262,6 @@ class TesouroFlowsResearchConfig(BaseModel):
 
     include_sales: bool
     include_redemptions: bool
-    align_on_available_date: bool
 
 
 class TesouroStockResearchConfig(BaseModel):

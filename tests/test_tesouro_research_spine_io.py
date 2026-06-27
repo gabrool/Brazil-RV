@@ -23,8 +23,12 @@ def test_tesouro_research_config_loads(repo_root):
 
     assert config.calendar.default == "business_days_mon_fri"
     assert config.prices_rates.max_dense_securities == 5000
-    assert config.flows.align_on_available_date is True
+    assert config.flows.include_sales is True
+    assert config.flows.include_redemptions is True
     assert config.stock.max_dense_keys == 10000
+    assert config.daily_long.include_prices_rates is True
+    assert config.daily_long.include_flows is True
+    assert config.daily_long.include_stock is True
 
 
 def test_tesouro_gold_output_path_stays_under_data_gold_tesouro(repo_root, tmp_path):
@@ -91,6 +95,27 @@ def test_tesouro_partitioned_parquet_read_prunes_unrelated_years(tmp_path, monke
     assert (root / "year=2023", "**/*.parquet") not in globbed
 
 
+def test_tesouro_nested_year_partition_read_prunes_unrelated_years(tmp_path, monkeypatch):
+    root = tmp_path / "silver" / "tesouro_direto_redemptions"
+    _write_nested_partition(root, "early_repurchase", 2023, 10.0)
+    _write_nested_partition(root, "early_repurchase", 2024, 20.0)
+    _write_nested_partition(root, "maturity", 2024, 21.0)
+    scanned, globbed = _track_scan_and_glob(monkeypatch)
+
+    frame = io_module.read_parquet_root(
+        root,
+        start=date(2024, 1, 1),
+        end=date(2024, 12, 31),
+    )
+
+    assert frame.sort("redemption_type")["value"].to_list() == [20.0, 21.0]
+    assert any("year=2024" in path for path in scanned)
+    assert not any("year=2023" in path for path in scanned)
+    parquet_globs = [path for path, pattern in globbed if pattern == "**/*.parquet"]
+    assert any(path.name == "year=2024" for path in parquet_globs)
+    assert not any(path.name == "year=2023" for path in parquet_globs)
+
+
 def test_tesouro_gold_writes_use_exact_panel_primary_keys(repo_root, tmp_path):
     paths = resolve_project_paths(tmp_path, load_paths_config(repo_root))
     first = _flow_gold_row(value=10.0, source_dataset="sales_first")
@@ -120,6 +145,25 @@ def _write_partition(root: Path, year: int, value: float) -> None:
     pl.DataFrame(
         [{"ref_date": date(year, 1, 2), "security_name": "A", "buy_rate": value}]
     ).write_parquet(root / f"year={year}" / "data.parquet")
+
+
+def _write_nested_partition(
+    root: Path,
+    redemption_type: str,
+    year: int,
+    value: float,
+) -> None:
+    part_dir = root / f"redemption_type={redemption_type}" / f"year={year}"
+    part_dir.mkdir(parents=True)
+    pl.DataFrame(
+        [
+            {
+                "ref_date": date(year, 1, 2),
+                "redemption_type": redemption_type,
+                "value": value,
+            }
+        ]
+    ).write_parquet(part_dir / "data.parquet")
 
 
 def _flow_gold_row(*, value: float, source_dataset: str) -> dict[str, object]:

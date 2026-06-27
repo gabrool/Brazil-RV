@@ -4,13 +4,11 @@ tesouro_research:
     timezone: America/Sao_Paulo
 
   prices_rates:
-    include_all_security_types: true
     max_dense_securities: 5000
 
   flows:
     include_sales: true
     include_redemptions: true
-    align_on_available_date: true
 
   stock:
     include_tesouro_direto_stock: true

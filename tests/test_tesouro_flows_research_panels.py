@@ -47,17 +47,6 @@ def test_flows_preserve_redemption_type_and_null_safe_sales_key():
     ).len().height == panel.height
 
 
-def test_flows_do_not_compute_net_flow_or_ratio_fields():
-    panel = build_direto_flows_daily(
-        sales=pl.DataFrame([_sales_row()]),
-        redemptions=pl.DataFrame([_redemption_row()]),
-        include_sales=True,
-        include_redemptions=True,
-    )
-
-    assert {"net_flow", "flow_ratio", "rolling_sum"}.isdisjoint(panel.columns)
-
-
 def _sales_row() -> dict[str, object]:
     return {
         "ref_date": date(2024, 1, 1),

@@ -114,30 +114,38 @@ def _select_parquet_files(
     if start is None and end is None:
         return sorted(root.glob("**/*.parquet"))
 
-    partition_years = _year_partitions(root)
-    if not partition_years:
+    partition_dirs = _year_partition_dirs(root)
+    if not partition_dirs:
         return sorted(root.glob("**/*.parquet"))
 
-    first_year = start.year if start is not None else min(partition_years)
-    last_year = end.year if end is not None else max(partition_years)
+    years = [year for year, _ in partition_dirs]
+    first_year = start.year if start is not None else min(years)
+    last_year = end.year if end is not None else max(years)
     if first_year > last_year:
         return []
 
     files: list[Path] = []
-    for year in range(first_year, last_year + 1):
-        part_dir = root / f"year={year}"
-        if part_dir.exists():
-            files.extend(sorted(part_dir.glob("**/*.parquet")))
+    seen: set[Path] = set()
+    for year, part_dir in partition_dirs:
+        if year < first_year or year > last_year:
+            continue
+        for path in sorted(part_dir.glob("**/*.parquet")):
+            resolved = path.resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            files.append(path)
     return files
 
 
-def _year_partitions(root: Path) -> list[int]:
-    years = []
-    for child in root.iterdir():
-        if not child.is_dir() or not child.name.startswith("year="):
+def _year_partition_dirs(root: Path) -> list[tuple[int, Path]]:
+    partitions: list[tuple[int, Path]] = []
+    for child in root.glob("**/year=*"):
+        if not child.is_dir():
             continue
         try:
-            years.append(int(child.name.removeprefix("year=")))
+            year = int(child.name.removeprefix("year="))
         except ValueError:
             continue
-    return sorted(years)
+        partitions.append((year, child))
+    return sorted(partitions, key=lambda item: (item[0], str(item[1])))
