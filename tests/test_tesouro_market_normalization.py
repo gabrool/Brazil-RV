@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 import polars as pl
 
@@ -14,6 +14,7 @@ from bralpha.normalization.tesouro_market import (
     normalize_sales_to_silver,
     normalize_tesouro_direto_stock_to_silver,
 )
+from bralpha.timing.availability import usable_date_from_date_only
 
 
 def test_tesouro_prices_rates_preserve_official_rates_prices():
@@ -38,7 +39,7 @@ def test_tesouro_prices_rates_preserve_official_rates_prices():
     assert row["ref_date"] == date(2024, 1, 2)
     assert row["available_date"] == date(2024, 1, 3)
     assert row["security_name"] == "Tesouro Prefixado"
-    assert row["security_type"] == "Tesouro"
+    assert row["security_type"] == "Tesouro Prefixado"
     assert row["maturity_date"] == date(2027, 1, 1)
     assert row["buy_rate"] == 10.5
     assert row["sell_price"] == 949.10
@@ -109,8 +110,11 @@ def test_tesouro_direto_stock_uses_30_day_lag_then_next_business_day():
     row = silver.row(0, named=True)
 
     assert silver.columns == TESOURO_DIRETO_STOCK_COLUMNS
-    assert row["ref_date"] == date(2024, 1, 1)
-    assert row["available_date"] == date(2024, 2, 1)
+    expected_ref_date = date(2024, 1, 31)
+    assert row["ref_date"] == expected_ref_date
+    assert row["available_date"] == usable_date_from_date_only(
+        expected_ref_date + timedelta(days=30)
+    )
     assert row["stock_value"] == 98765.43
     assert row["investor_count"] == 9
 

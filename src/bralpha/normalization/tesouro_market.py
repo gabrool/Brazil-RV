@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from calendar import monthrange
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
@@ -342,10 +343,14 @@ def _parse_date(value: Any) -> date | None:
         parts = text[:10].split("/")
         if len(parts) == 2:
             month, year = parts
-            return date(int(year), int(month), 1)
+            return _month_end(int(year), int(month))
         day, month, year = parts
         return date(int(year), int(month), int(day))
     return date.fromisoformat(text[:10])
+
+
+def _month_end(year: int, month: int) -> date:
+    return date(year, month, monthrange(year, month)[1])
 
 
 def _available_date(ref_date: date | None) -> date | None:
@@ -361,7 +366,7 @@ def _lagged_available_date(ref_date: date | None, *, days: int) -> date | None:
 def _security_type(security_name: str | None) -> str | None:
     if not security_name:
         return None
-    return security_name.split(maxsplit=1)[0]
+    return security_name.strip()
 
 
 def _redemption_type(row: dict[str, Any]) -> str | None:
