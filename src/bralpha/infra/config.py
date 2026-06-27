@@ -199,6 +199,51 @@ class BCBResearchConfig(BaseModel):
     bcb_research: BCBResearchSection
 
 
+class IBGECalendarConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    default: str
+    timezone: str
+
+
+class IBGESIDRAResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_model_usable_only: bool
+    include_priorities: list[str]
+    selected_dataset_slugs: list[str]
+    max_dense_features: int
+
+
+class IBGEReferencesConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_release_calendar: bool
+    include_products: bool
+    include_news_metadata: bool
+
+
+class IBGEDailyLongConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_sidra: bool
+
+
+class IBGEResearchSection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    calendar: IBGECalendarConfig
+    sidra: IBGESIDRAResearchConfig
+    references: IBGEReferencesConfig
+    daily_long: IBGEDailyLongConfig
+
+
+class IBGEResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ibge_research: IBGEResearchSection
+
+
 def _load_yaml(repo_root: Path, relative_path: str) -> dict[str, Any]:
     path = repo_root / relative_path
     if not path.exists():
@@ -242,6 +287,10 @@ def load_bcb_research_config(repo_root: Path) -> BCBResearchConfig:
     return BCBResearchConfig.model_validate(_load_yaml(repo_root, "configs/derived/bcb.yaml"))
 
 
+def load_ibge_research_config(repo_root: Path) -> IBGEResearchConfig:
+    return IBGEResearchConfig.model_validate(_load_yaml(repo_root, "configs/derived/ibge.yaml"))
+
+
 __all__ = [
     "BCBCalendarConfig",
     "BCBDailyLongConfig",
@@ -257,6 +306,12 @@ __all__ = [
     "B3ResearchSection",
     "B3TargetsConfig",
     "EngineeringConfig",
+    "IBGECalendarConfig",
+    "IBGEDailyLongConfig",
+    "IBGEReferencesConfig",
+    "IBGEResearchConfig",
+    "IBGEResearchSection",
+    "IBGESIDRAResearchConfig",
     "InstrumentsConfig",
     "PathsConfig",
     "PointInTimeConfig",
@@ -268,6 +323,7 @@ __all__ = [
     "load_bcb_dataset_registry",
     "load_bcb_research_config",
     "load_ibge_dataset_registry",
+    "load_ibge_research_config",
     "load_instruments_config",
     "load_paths_config",
     "load_project_config",
