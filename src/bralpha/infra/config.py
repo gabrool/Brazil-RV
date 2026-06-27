@@ -296,6 +296,48 @@ class TesouroResearchConfig(BaseModel):
     tesouro_research: TesouroResearchSection
 
 
+class FredCalendarConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    default: str
+    timezone: str
+
+
+class FredObservationsResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_model_usable_only: bool
+    include_priorities: list[str]
+    max_dense_series: int
+
+
+class FredReferencesConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_series_reference: bool
+
+
+class FredDailyLongConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_observations: bool
+
+
+class FredResearchSection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    calendar: FredCalendarConfig
+    observations: FredObservationsResearchConfig
+    references: FredReferencesConfig
+    daily_long: FredDailyLongConfig
+
+
+class FredResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    fred_research: FredResearchSection
+
+
 def _load_yaml(repo_root: Path, relative_path: str) -> dict[str, Any]:
     path = repo_root / relative_path
     if not path.exists():
@@ -361,6 +403,10 @@ def load_tesouro_research_config(repo_root: Path) -> TesouroResearchConfig:
     )
 
 
+def load_fred_research_config(repo_root: Path) -> FredResearchConfig:
+    return FredResearchConfig.model_validate(_load_yaml(repo_root, "configs/derived/fred.yaml"))
+
+
 __all__ = [
     "BCBCalendarConfig",
     "BCBDailyLongConfig",
@@ -376,6 +422,12 @@ __all__ = [
     "B3ResearchSection",
     "B3TargetsConfig",
     "EngineeringConfig",
+    "FredCalendarConfig",
+    "FredDailyLongConfig",
+    "FredObservationsResearchConfig",
+    "FredReferencesConfig",
+    "FredResearchConfig",
+    "FredResearchSection",
     "IBGECalendarConfig",
     "IBGEDailyLongConfig",
     "IBGEReferencesConfig",
@@ -400,6 +452,7 @@ __all__ = [
     "load_anbima_dataset_registry",
     "load_tesouro_dataset_registry",
     "load_fred_dataset_registry",
+    "load_fred_research_config",
     "load_bcb_dataset_registry",
     "load_bcb_research_config",
     "load_ibge_dataset_registry",

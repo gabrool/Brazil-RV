@@ -1,0 +1,17 @@
+fred_research:
+  calendar:
+    default: business_days_mon_fri
+    timezone: America/Sao_Paulo
+
+  observations:
+    include_model_usable_only: true
+    include_priorities:
+      - P0
+      - P1
+    max_dense_series: 5000
+
+  references:
+    include_series_reference: true
+
+  daily_long:
+    include_observations: true
