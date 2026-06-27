@@ -1,0 +1,35 @@
+source: anbima
+official_pages:
+  - name: taxas_titulos_publicos
+    url: https://www.anbima.com.br/pt_br/informar/taxas-de-titulos-publicos.htm
+    dataset_ids:
+      - anbima_sovereign_secondary_market
+  - name: indices
+    url: https://www.anbima.com.br/pt_br/informar/indices.htm
+    dataset_ids:
+      - anbima_fixed_income_indices
+  - name: dados
+    url: https://www.anbima.com.br/pt_br/informar/dados.htm
+    dataset_ids: []
+  - name: projecoes_ipca_igpm
+    url: https://www.anbima.com.br/pt_br/informar/projecoes-ipca-e-igp-m.htm
+    dataset_ids:
+      - anbima_inflation_projections
+  - name: anbima_data
+    url: https://data.anbima.com.br/
+    dataset_ids:
+      - anbima_sovereign_secondary_market
+      - anbima_sovereign_yield_curves
+      - anbima_vna
+      - anbima_fixed_income_indices
+      - anbima_debenture_secondary_market
+      - anbima_credit_curves
+
+endpoint_policy:
+  live_download_requires:
+    - stable_direct_url
+    - no_login
+    - no_browser_automation
+    - no_manual_export
+    - fixture_test
+    - no_new_dependency

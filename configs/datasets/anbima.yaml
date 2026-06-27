@@ -1,0 +1,122 @@
+source: anbima
+free_access_default: true
+requires_auth_default: false
+point_in_time_required: true
+
+raw_storage:
+  path_template: data/raw/anbima/{dataset_id}/{download_date}/
+  manifest_path: data/manifests/anbima/downloads.jsonl
+
+bronze_storage:
+  path_template: data/bronze/anbima/{dataset_id}/
+  format: parquet
+
+silver_storage:
+  path_template: data/silver/{dataset_id}/
+  format: parquet
+
+datasets:
+  - dataset_id: anbima_sovereign_secondary_market
+    source: anbima
+    priority: P0
+    frequency: daily
+    raw_format: structured_json_csv_or_txt_pending
+    canonical_table: anbima_sovereign_bond_quote
+    partition_keys: [year]
+    primary_keys: [ref_date, security_id]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+    source_map_status: not_implemented_pending_endpoint
+    source_urls: []
+    notes: Implement live only after a stable free direct endpoint/file is verified.
+
+  - dataset_id: anbima_sovereign_yield_curves
+    source: anbima
+    priority: P0
+    frequency: daily
+    raw_format: structured_json_csv_or_txt_pending
+    canonical_table: anbima_yield_curve_point
+    partition_keys: [curve_type, year]
+    primary_keys: [ref_date, curve_type, tenor_days]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+    source_map_status: not_implemented_pending_endpoint
+    source_urls: []
+    notes: Includes fixed/pre, IPCA-linked real, and implied-inflation/breakeven curves if exposed in structured form.
+
+  - dataset_id: anbima_vna
+    source: anbima
+    priority: P0
+    frequency: daily
+    raw_format: structured_json_csv_or_txt_pending
+    canonical_table: anbima_vna
+    partition_keys: [year]
+    primary_keys: [ref_date, security_type]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+    source_map_status: not_implemented_pending_endpoint
+    source_urls: []
+    notes: Implement live only after stable direct endpoint/file is verified.
+
+  - dataset_id: anbima_fixed_income_indices
+    source: anbima
+    priority: P0
+    frequency: daily
+    raw_format: structured_json_csv_or_txt_pending
+    canonical_table: anbima_fixed_income_index
+    partition_keys: [index_family, year]
+    primary_keys: [ref_date, index_id]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+    source_map_status: not_implemented_pending_endpoint
+    source_urls: []
+    notes: IMA, IMA-B, IMA-S, IRF-M, IDkA and subindices if free structured endpoint exists.
+
+  - dataset_id: anbima_inflation_projections
+    source: anbima
+    priority: P0
+    frequency: monthly_or_event
+    raw_format: structured_json_csv_or_txt_pending
+    canonical_table: anbima_inflation_projection
+    partition_keys: [indicator, year]
+    primary_keys: [ref_date, indicator, reference_period, statistic]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+    source_map_status: not_implemented_pending_endpoint
+    source_urls: []
+    notes: IPCA and IGP-M projections from ANBIMA macro consultative group, live only after stable structured endpoint/file is verified.
+
+  - dataset_id: anbima_debenture_secondary_market
+    source: anbima
+    priority: P1
+    frequency: daily
+    raw_format: structured_json_csv_or_txt_pending
+    canonical_table: anbima_debenture_quote
+    partition_keys: [year]
+    primary_keys: [ref_date, security_id]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+    source_map_status: not_implemented_pending_endpoint
+    source_urls: []
+    notes: Conditional on free structured access.
+
+  - dataset_id: anbima_credit_curves
+    source: anbima
+    priority: P1
+    frequency: daily_or_periodic
+    raw_format: structured_json_csv_or_txt_pending
+    canonical_table: anbima_credit_curve_point
+    partition_keys: [curve_type, rating_bucket, year]
+    primary_keys: [ref_date, curve_type, rating_bucket, tenor_days]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+    source_map_status: not_implemented_pending_endpoint
+    source_urls: []
+    notes: Conditional on free structured access.
