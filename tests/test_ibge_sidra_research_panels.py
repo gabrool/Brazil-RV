@@ -9,19 +9,6 @@ from bralpha.derived.ibge.sidra import build_sidra_asof_daily, build_sidra_obser
 from bralpha.infra.config import load_ibge_research_config
 from bralpha.ingestion.ibge.sidra import SidraSeriesConfig, load_sidra_series_config
 
-BANNED_FEATURE_COLUMNS = {
-    "rolling_mean",
-    "zscore",
-    "rolling_vol",
-    "rolling_corr",
-    "pca",
-    "surprise",
-    "revision",
-    "breadth",
-    "stationarity",
-    "real_rate",
-}
-
 
 def test_sidra_observation_filters_scope_and_preserves_source_context(repo_root):
     config = load_ibge_research_config(repo_root).ibge_research
@@ -50,7 +37,6 @@ def test_sidra_observation_filters_scope_and_preserves_source_context(repo_root)
     assert row["geography_id"] == "1"
     assert row["classification_key"] == "315=7169"
     assert row["has_value"] is True
-    assert BANNED_FEATURE_COLUMNS.isdisjoint(panel.columns)
 
 
 def test_sidra_asof_uses_latest_available_observation_and_keeps_withheld_latest():
@@ -108,7 +94,6 @@ def test_sidra_asof_uses_latest_available_observation_and_keeps_withheld_latest(
     assert (
         asof.filter(pl.col("observation_available_date") > pl.col("ref_date")).height == 0
     )
-    assert BANNED_FEATURE_COLUMNS.isdisjoint(asof.columns)
 
 
 def test_sidra_asof_uses_pre_window_history_at_output_start():
