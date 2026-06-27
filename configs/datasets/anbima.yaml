@@ -120,3 +120,33 @@ datasets:
     source_map_status: not_implemented_pending_endpoint
     source_urls: []
     notes: Conditional on free structured access.
+
+  - dataset_id: anbima_fund_industry_statistics
+    source: anbima
+    priority: P1
+    frequency: daily_or_monthly
+    raw_format: structured_json_csv_or_txt_pending
+    canonical_table: anbima_fund_industry_statistic
+    partition_keys: [fund_class, year]
+    primary_keys: [ref_date, fund_class, statistic]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+    source_map_status: not_implemented_pending_endpoint
+    source_urls: []
+    notes: Fund-industry AUM, net assets, counts, subscriptions/redemptions, and related aggregate statistics if free structured access is verified. Conditional only; no live endpoint committed.
+
+  - dataset_id: anbima_fund_flows
+    source: anbima
+    priority: P1
+    frequency: daily_or_monthly
+    raw_format: structured_json_csv_or_txt_pending
+    canonical_table: anbima_fund_flow
+    partition_keys: [fund_class, year]
+    primary_keys: [ref_date, fund_class, flow_type]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+    source_map_status: not_implemented_pending_endpoint
+    source_urls: []
+    notes: Aggregate fund subscriptions, redemptions, and net flows by fund class if free structured access is verified. Conditional only; no live endpoint committed.

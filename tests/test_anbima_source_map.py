@@ -12,6 +12,8 @@ ANBIMA_DATASETS = {
     "anbima_inflation_projections",
     "anbima_debenture_secondary_market",
     "anbima_credit_curves",
+    "anbima_fund_industry_statistics",
+    "anbima_fund_flows",
 }
 
 
@@ -23,6 +25,10 @@ def test_anbima_dataset_config_loads_all_requested_datasets(repo_root):
     assert registry.get("anbima_sovereign_secondary_market").source_map_status == (
         "not_implemented_pending_endpoint"
     )
+    assert registry.get("anbima_fund_industry_statistics").source_map_status == (
+        "not_implemented_pending_endpoint"
+    )
+    assert registry.get("anbima_fund_flows").source_urls == []
 
 
 def test_anbima_source_metadata_loads_official_pages(repo_root):
@@ -38,6 +44,9 @@ def test_anbima_source_metadata_loads_official_pages(repo_root):
     }.issubset(page_names)
     assert "stable_direct_url" in data["endpoint_policy"]["live_download_requires"]
     assert "no_browser_automation" in data["endpoint_policy"]["live_download_requires"]
+    page_by_name = {page["name"]: page for page in data["official_pages"]}
+    assert "anbima_fund_industry_statistics" in page_by_name["dados"]["dataset_ids"]
+    assert "anbima_fund_flows" in page_by_name["anbima_data"]["dataset_ids"]
 
 
 def test_anbima_source_map_lists_all_requested_datasets(repo_root):

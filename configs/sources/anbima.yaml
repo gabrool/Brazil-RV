@@ -10,7 +10,9 @@ official_pages:
       - anbima_fixed_income_indices
   - name: dados
     url: https://www.anbima.com.br/pt_br/informar/dados.htm
-    dataset_ids: []
+    dataset_ids:
+      - anbima_fund_industry_statistics
+      - anbima_fund_flows
   - name: projecoes_ipca_igpm
     url: https://www.anbima.com.br/pt_br/informar/projecoes-ipca-e-igp-m.htm
     dataset_ids:
@@ -24,6 +26,8 @@ official_pages:
       - anbima_fixed_income_indices
       - anbima_debenture_secondary_market
       - anbima_credit_curves
+      - anbima_fund_industry_statistics
+      - anbima_fund_flows
 
 endpoint_policy:
   live_download_requires:

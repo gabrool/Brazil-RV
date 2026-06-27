@@ -15,6 +15,8 @@ file contract was verified from official public documentation.
 | `anbima_inflation_projections` | P0 | `not_implemented_pending_endpoint` | `https://www.anbima.com.br/pt_br/informar/projecoes-ipca-e-igp-m.htm` | structured_json_csv_or_txt_pending | monthly_or_event | `data/silver/anbima_inflation_projections/` | Page states projections are based on ANBIMA macro consultative group consensus; structured endpoint remains pending. |
 | `anbima_debenture_secondary_market` | P1 | `not_implemented_pending_endpoint` | `https://data.anbima.com.br/` | structured_json_csv_or_txt_pending | daily | none | Conditional on verified free structured access. No associate-login, manual-export, or page-scraping workflow is implemented. |
 | `anbima_credit_curves` | P1 | `not_implemented_pending_endpoint` | `https://data.anbima.com.br/` | structured_json_csv_or_txt_pending | daily_or_periodic | none | Conditional on verified free structured access. No associate-login, manual-export, or page-scraping workflow is implemented. |
+| `anbima_fund_industry_statistics` | P1 | `not_implemented_pending_endpoint` | ANBIMA Dados / ANBIMA Data | structured_json_csv_or_txt_pending | daily_or_monthly | none | Conditional on verified free structured access. Useful as domestic fund-industry size/risk-appetite proxy. No manual export, associate-login, PDF/XLSX, or page-scraping workflow is implemented. |
+| `anbima_fund_flows` | P1 | `not_implemented_pending_endpoint` | ANBIMA Dados / ANBIMA Data | structured_json_csv_or_txt_pending | daily_or_monthly | none | Conditional on verified free structured access. Useful as aggregate fund-flow/local-risk-appetite proxy. No manual export, associate-login, PDF/XLSX, or page-scraping workflow is implemented. |
 
 ## Official source facts
 
@@ -23,6 +25,9 @@ file contract was verified from official public documentation.
   Curvas, Indices, Precos, and Dados.
 - Public ANBIMA pages link to ANBIMA Data - Dados e Ferramentas de
   Investimentos.
+- Fund-industry and fund-flow data are source-mapped because ANBIMA public pages
+  list fund investment data/reporting areas, but they remain non-live until a
+  stable free structured endpoint/file is verified.
 - The Projecoes IPCA e IGP-M page describes projections for both indicators as
   consensus from ANBIMA's permanent macroeconomic consultative group.
 
