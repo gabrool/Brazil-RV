@@ -173,6 +173,30 @@ def test_anp_pipeline_rerun_is_idempotent_for_silver_primary_keys(repo_root, tmp
     assert silver.group_by(["ref_date", "state", "product"]).len().height == 1
 
 
+def test_anp_pipeline_fuel_price_rerun_is_idempotent_for_observation_id(repo_root, tmp_path):
+    shutil.copytree(repo_root / "configs", tmp_path / "configs")
+
+    for _ in range(2):
+        run_anp_ingest(
+            repo_root=tmp_path,
+            dataset_id="anp_fuel_prices_weekly",
+            start=date(2024, 1, 1),
+            end=date(2024, 1, 31),
+            client=MockANPPipelineClient(),
+        )
+
+    silver = pl.read_parquet(
+        tmp_path
+        / "data"
+        / "silver"
+        / "anp_fuel_prices_weekly"
+        / "year=2024"
+        / "data.parquet"
+    )
+    assert silver.height == 3
+    assert silver.group_by(["observation_id"]).len().height == 3
+
+
 def test_anp_pipeline_source_map_only_failure_writes_no_data(repo_root, tmp_path):
     shutil.copytree(repo_root / "configs", tmp_path / "configs")
 

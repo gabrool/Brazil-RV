@@ -136,6 +136,9 @@ def normalize_anp_fuel_prices_weekly(
             _text_expr(bronze, "unidade_de_medida").alias("unit"),
             _text_expr(bronze, "bandeira").alias("brand"),
             _existing_or_literal(bronze, "resource_family", None).alias("resource_family"),
+            _existing_or_literal(bronze, "resource_name", None).alias("resource_name"),
+            _existing_or_literal(bronze, "inner_filename", None).alias("inner_filename"),
+            _existing_or_literal(bronze, "row_index", None).alias("row_index"),
             _existing_or_literal(bronze, "source", "anp").alias("source"),
             _existing_or_literal(bronze, "source_dataset", None).alias("source_dataset"),
             _existing_or_literal(bronze, "download_timestamp_utc", None).alias(
@@ -157,16 +160,15 @@ def normalize_anp_fuel_prices_weekly(
     id_columns = [
         "source_dataset",
         "resource_family",
-        "raw_path",
+        "resource_name",
+        "inner_filename",
+        "row_index",
         "station_cnpj",
         "product",
         "ref_date",
         "sale_price",
         "purchase_price",
     ]
-    if "row_index" in bronze.columns:
-        frame = frame.with_columns(pl.col("row_index").alias("_row_index_for_id"))
-        id_columns.insert(3, "_row_index_for_id")
     frame = frame.with_columns(
         pl.struct(id_columns)
         .map_elements(_observation_id, return_dtype=pl.Utf8)

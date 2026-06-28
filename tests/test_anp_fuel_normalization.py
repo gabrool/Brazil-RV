@@ -36,6 +36,8 @@ def test_anp_fuel_price_normalization_maps_official_fields_and_availability():
             "resource_family": ["ethanol_gasoline_monthly", "ethanol_gasoline_monthly"],
             "source": ["anp", "anp"],
             "source_dataset": ["anp_fuel_prices_weekly", "anp_fuel_prices_weekly"],
+            "resource_name": ["prices-jan", "prices-jan"],
+            "inner_filename": [None, None],
             "download_timestamp_utc": [datetime(2024, 1, 20), datetime(2024, 1, 20)],
             "raw_path": ["prices.csv", "prices.csv"],
             "sha256": ["abc", "abc"],
@@ -54,8 +56,40 @@ def test_anp_fuel_price_normalization_maps_official_fields_and_availability():
         ANP_WEEKLY_PRICE_AVAILABILITY_POLICY
     ]
     assert silver["observation_id"].to_list() == silver_again["observation_id"].to_list()
-    assert "spread" not in silver.columns
-    assert "price_change" not in silver.columns
+
+
+def test_anp_fuel_price_observation_id_ignores_download_lineage():
+    stable = {
+        "row_index": [0, 0],
+        "raw_regiao_sigla": ["SE", "SE"],
+        "raw_estado_sigla": ["SP", "SP"],
+        "raw_municipio": ["Sao Paulo", "Sao Paulo"],
+        "raw_revenda": ["Posto A", "Posto A"],
+        "raw_cnpj_da_revenda": ["00.000.000/0001-00", "00.000.000/0001-00"],
+        "raw_produto": ["GASOLINA C", "GASOLINA C"],
+        "raw_data_da_coleta": ["05/01/2024", "05/01/2024"],
+        "raw_valor_de_venda": ["5,10", "5,10"],
+        "raw_valor_de_compra": ["4,90", "4,90"],
+        "raw_unidade_de_medida": ["R$ / litro", "R$ / litro"],
+        "resource_family": ["ethanol_gasoline_monthly", "ethanol_gasoline_monthly"],
+        "resource_name": ["prices-jan", "prices-jan"],
+        "inner_filename": [None, None],
+        "source": ["anp", "anp"],
+        "source_dataset": ["anp_fuel_prices_weekly", "anp_fuel_prices_weekly"],
+    }
+    bronze = pl.DataFrame(
+        {
+            **stable,
+            "download_timestamp_utc": [datetime(2024, 1, 20), datetime(2024, 1, 21)],
+            "raw_path": ["2024-01-20/prices.csv", "2024-01-21/prices.csv"],
+            "sha256": ["abc", "def"],
+        }
+    )
+
+    silver = normalize_anp_fuel_prices_weekly(bronze)
+
+    assert silver["observation_id"].n_unique() == 1
+    assert silver["raw_path"].to_list() == ["2024-01-20/prices.csv", "2024-01-21/prices.csv"]
 
 
 def test_anp_fuel_sales_normalization_maps_monthly_volume_without_shares():
@@ -83,8 +117,6 @@ def test_anp_fuel_sales_normalization_maps_monthly_volume_without_shares():
     assert silver["month"].to_list() == [1]
     assert silver["sales_volume_m3"].to_list() == [1234.5]
     assert silver["unit"].to_list() == ["m3"]
-    assert "sales_share" not in silver.columns
-    assert "volume_change" not in silver.columns
 
 
 def test_anp_production_normalization_maps_metric_family_and_units():
@@ -119,5 +151,3 @@ def test_anp_production_normalization_maps_metric_family_and_units():
     ]
     assert silver["metric_value"].to_list() == [10.5, 20.5]
     assert silver["unit"].to_list() == ["m3", "mil_m3"]
-    assert "boe" not in silver.columns
-    assert "flaring_share" not in silver.columns

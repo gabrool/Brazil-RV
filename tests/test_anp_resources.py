@@ -23,7 +23,12 @@ def test_anp_price_pre_2023_generates_legacy_semester_resources(repo_root):
         ("automotive_legacy_semester", 2022, 2),
         ("glp_legacy_semester", 2022, 2),
     ]
-    assert all(item.url.endswith(".zip") for item in resources)
+    assert [item.filename for item in resources] == [
+        "ca-2022-01.zip",
+        "glp-2022-01.csv",
+        "ca-2022-02.zip",
+        "glp-2022-02.csv",
+    ]
 
 
 def test_anp_price_2023_onward_generates_monthly_families(repo_root):
@@ -32,6 +37,11 @@ def test_anp_price_2023_onward_generates_monthly_families(repo_root):
     resources = anp_fuel_price_resources(dataset, date(2023, 1, 1), date(2023, 2, 28))
 
     assert len(resources) == 6
+    assert [item.filename for item in resources[:3]] == [
+        "precos-diesel-gnv-01.csv",
+        "01-dados-abertos-precos-gasolina-etanol.csv",
+        "01-dados-abertos-precos-glp.csv",
+    ]
     assert {item.resource_family for item in resources} == {
         "diesel_gnv_monthly",
         "ethanol_gasoline_monthly",

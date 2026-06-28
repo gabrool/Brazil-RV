@@ -50,8 +50,8 @@ def test_anp_fuel_price_downloads_write_raw_files_and_manifest_only(repo_root, t
 
     assert len(results) == 3
     assert [request["url"].split("/")[-1] for request in client.requests] == [
-        "01-dados-abertos-precos-diesel-gnv.csv",
-        "01-dados-abertos-precos-etanol-gasolina.csv",
+        "precos-diesel-gnv-01.csv",
+        "01-dados-abertos-precos-gasolina-etanol.csv",
         "01-dados-abertos-precos-glp.csv",
     ]
     assert all(result.raw_path is not None for result in results)

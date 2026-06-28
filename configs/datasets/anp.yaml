@@ -43,20 +43,20 @@ datasets:
       - name: glp_legacy_semester
         products: glp_p13
         mode: semiannual_zip
-        url_template: "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/arquivos/shpc/dsas/glp/glp-{year}-{semester:02d}.zip"
-        filename_template: "glp-{year}-{semester:02d}.zip"
+        url_template: "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/arquivos/shpc/dsas/glp/glp-{year}-{semester:02d}.csv"
+        filename_template: "glp-{year}-{semester:02d}.csv"
         applies_until: "2022-12-31"
       - name: diesel_gnv_monthly
         products: diesel_gnv
         mode: monthly_csv
-        url_template: "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/arquivos/shpc/dsan/{year}/{month:02d}-dados-abertos-precos-diesel-gnv.csv"
-        filename_template: "{month:02d}-dados-abertos-precos-diesel-gnv.csv"
+        url_template: "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/arquivos/shpc/dsan/{year}/precos-diesel-gnv-{month:02d}.csv"
+        filename_template: "precos-diesel-gnv-{month:02d}.csv"
         applies_from: "2023-01-01"
       - name: ethanol_gasoline_monthly
         products: ethanol_gasoline
         mode: monthly_csv
-        url_template: "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/arquivos/shpc/dsan/{year}/{month:02d}-dados-abertos-precos-etanol-gasolina.csv"
-        filename_template: "{month:02d}-dados-abertos-precos-etanol-gasolina.csv"
+        url_template: "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/arquivos/shpc/dsan/{year}/{month:02d}-dados-abertos-precos-gasolina-etanol.csv"
+        filename_template: "{month:02d}-dados-abertos-precos-gasolina-etanol.csv"
         applies_from: "2023-01-01"
       - name: glp_monthly
         products: glp_p13
