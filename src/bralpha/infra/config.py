@@ -502,6 +502,10 @@ def load_ons_dataset_registry(repo_root: Path) -> DatasetRegistry:
     return DatasetRegistry.model_validate(_load_yaml(repo_root, "configs/datasets/ons.yaml"))
 
 
+def load_anp_dataset_registry(repo_root: Path) -> DatasetRegistry:
+    return DatasetRegistry.model_validate(_load_yaml(repo_root, "configs/datasets/anp.yaml"))
+
+
 def load_b3_research_config(repo_root: Path) -> B3ResearchConfig:
     return B3ResearchConfig.model_validate(_load_yaml(repo_root, "configs/derived/b3.yaml"))
 
@@ -589,6 +593,7 @@ __all__ = [
     "TesouroStockResearchConfig",
     "load_b3_dataset_registry",
     "load_anbima_dataset_registry",
+    "load_anp_dataset_registry",
     "load_cvm_dataset_registry",
     "load_cvm_research_config",
     "load_ons_dataset_registry",
