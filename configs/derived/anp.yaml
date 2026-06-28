@@ -1,0 +1,41 @@
+anp_research:
+  calendar:
+    default: business_days_mon_fri
+    timezone: America/Sao_Paulo
+
+  fuel_prices:
+    include_station_observation: true
+    include_group_observation: true
+    group_by:
+      - all
+      - region
+      - state
+    max_groups: 500
+    aggregation: mean
+
+  fuel_sales:
+    include_observation: true
+    include_group_observation: true
+    group_by:
+      - all
+      - region
+      - state
+    max_groups: 500
+
+  oil_gas:
+    include_observation: true
+    include_group_observation: true
+    group_by:
+      - all
+      - region
+      - state
+    max_groups: 1000
+
+  asof:
+    include_state_asof_daily: true
+    max_features: 20000
+
+  daily_long:
+    include_fuel_prices: true
+    include_fuel_sales: true
+    include_oil_gas: true
