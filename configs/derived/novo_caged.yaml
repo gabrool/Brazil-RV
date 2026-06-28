@@ -1,0 +1,28 @@
+novo_caged_research:
+  calendar:
+    default: business_days_mon_fri
+    timezone: America/Sao_Paulo
+
+  movements:
+    include_record_observation: true
+    include_group_observation: true
+    group_by:
+      - all
+      - region
+      - state
+      - cnae_section
+    cross_by:
+      - movement_sign
+    max_groups: 5000
+
+  release_calendar:
+    prefer_official_calendar: true
+    include_reference: true
+
+  asof:
+    include_state_asof_daily: true
+    max_features: 50000
+
+  daily_long:
+    include_movement_counts: true
+    include_wage_hours: true
