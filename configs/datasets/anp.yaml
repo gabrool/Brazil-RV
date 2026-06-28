@@ -1,0 +1,283 @@
+source: anp
+free_access_default: true
+requires_auth_default: false
+point_in_time_required: true
+
+raw_storage:
+  path_template: data/raw/anp/{dataset_id}/{download_date}/
+  manifest_path: data/manifests/anp/downloads.jsonl
+
+bronze_storage:
+  path_template: data/bronze/anp/{dataset_id}/
+  format: parquet
+
+silver_storage:
+  path_template: data/silver/{dataset_id}/
+  format: parquet
+
+datasets:
+  - dataset_id: anp_fuel_prices_weekly
+    source: anp
+    priority: P0
+    frequency: weekly_survey
+    raw_format: mixed_csv_zip
+    canonical_table: anp_fuel_price_observation
+    partition_keys: [year]
+    primary_keys: [observation_id]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+      - ref_date_not_null
+      - available_date_not_null
+      - available_date_on_or_after_ref_date
+    source_map_status: live_download
+    availability_policy: anp_weekly_price_survey_conservative_7d_next_business_day
+    source_page_url: "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/serie-historica-de-precos-de-combustiveis"
+    resource_families:
+      - name: automotive_legacy_semester
+        products: automotive
+        mode: semiannual_zip
+        url_template: "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/arquivos/shpc/dsas/ca/ca-{year}-{semester:02d}.zip"
+        filename_template: "ca-{year}-{semester:02d}.zip"
+        applies_until: "2022-12-31"
+      - name: glp_legacy_semester
+        products: glp_p13
+        mode: semiannual_zip
+        url_template: "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/arquivos/shpc/dsas/glp/glp-{year}-{semester:02d}.zip"
+        filename_template: "glp-{year}-{semester:02d}.zip"
+        applies_until: "2022-12-31"
+      - name: diesel_gnv_monthly
+        products: diesel_gnv
+        mode: monthly_csv
+        url_template: "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/arquivos/shpc/dsan/{year}/{month:02d}-dados-abertos-precos-diesel-gnv.csv"
+        filename_template: "{month:02d}-dados-abertos-precos-diesel-gnv.csv"
+        applies_from: "2023-01-01"
+      - name: ethanol_gasoline_monthly
+        products: ethanol_gasoline
+        mode: monthly_csv
+        url_template: "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/arquivos/shpc/dsan/{year}/{month:02d}-dados-abertos-precos-etanol-gasolina.csv"
+        filename_template: "{month:02d}-dados-abertos-precos-etanol-gasolina.csv"
+        applies_from: "2023-01-01"
+      - name: glp_monthly
+        products: glp_p13
+        mode: monthly_csv
+        url_template: "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/arquivos/shpc/dsan/{year}/{month:02d}-dados-abertos-precos-glp.csv"
+        filename_template: "{month:02d}-dados-abertos-precos-glp.csv"
+        applies_from: "2023-01-01"
+    notes: Weekly fuel and GLP P13 survey microdata. Use semiannual historical files through 2022 and monthly resources from 2023 onward; do not ingest four-latest-weeks overlap files.
+
+  - dataset_id: anp_fuel_sales_monthly
+    source: anp
+    priority: P0
+    frequency: monthly
+    raw_format: csv
+    canonical_table: anp_fuel_sales_monthly
+    partition_keys: [year]
+    primary_keys: [ref_date, state, product]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+      - ref_date_not_null
+      - available_date_not_null
+      - available_date_on_or_after_ref_date
+    source_map_status: live_download
+    availability_policy: anp_monthly_next_month_end_next_business_day
+    source_page_url: "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/vendas-de-derivados-de-petroleo-e-biocombustiveis"
+    link_text_contains: "Vendas de derivados petróleo e etanol"
+    notes: Monthly distributor sales volumes of petroleum derivatives and hydrated ethanol in cubic meters; discover the current official linked CSV from the source page.
+
+  - dataset_id: anp_oil_gas_production_monthly
+    source: anp
+    priority: P1
+    frequency: monthly
+    raw_format: csv_multi_resource
+    canonical_table: anp_oil_gas_production_monthly
+    partition_keys: [year]
+    primary_keys: [ref_date, state, location, metric_type]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+      - ref_date_not_null
+      - available_date_not_null
+      - available_date_on_or_after_ref_date
+    source_map_status: live_download
+    availability_policy: anp_monthly_next_month_end_next_business_day
+    source_page_url: "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/producao-de-petroleo-e-gas-natural-por-estado-e-localizacao"
+    resource_link_texts:
+      petroleum_production: "Produção de petróleo"
+      lgn_production: "Produção de LGN"
+      natural_gas_production: "Produção de gás natural"
+      natural_gas_reinjection: "Reinjeção de gás natural"
+      natural_gas_flaring_losses: "Queima e perda de gás natural"
+      natural_gas_own_consumption: "Consumo próprio de gás natural"
+      natural_gas_available: "Gás natural disponível"
+    notes: Monthly production and gas-balance resources by state/location. Preserve official metric rows only.
+
+  - dataset_id: anp_downstream_movements
+    source: anp
+    priority: P1
+    frequency: monthly
+    raw_format: zip_csv
+    canonical_table: anp_downstream_movements
+    partition_keys: [year]
+    primary_keys: [ref_date, segment, product, state]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_high_dimensional
+    source_urls: []
+    notes: Useful later but broader than first-pass sales volumes.
+
+  - dataset_id: anp_government_take_royalties
+    source: anp
+    priority: P2
+    frequency: annual
+    raw_format: csv_or_xlsx_by_year
+    canonical_table: anp_government_take_royalties
+    partition_keys: [year]
+    primary_keys: [ref_year, beneficiary_type, beneficiary_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_slow_fiscal
+    source_urls: []
+    notes: Annual/fragmented fiscal and royalty context. Defer to a dedicated PR.
+
+  - dataset_id: anp_government_take_special_participation
+    source: anp
+    priority: P2
+    frequency: annual_or_quarterly
+    raw_format: mixed_pending
+    canonical_table: anp_government_take_special_participation
+    partition_keys: [year]
+    primary_keys: [ref_period, beneficiary_type, beneficiary_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_slow_fiscal
+    source_urls: []
+    notes: Special participation files are useful fiscal context but fragmented. Defer.
+
+  - dataset_id: anp_reference_oil_price
+    source: anp
+    priority: P2
+    frequency: monthly_or_annual
+    raw_format: csv_or_xlsx_by_year
+    canonical_table: anp_reference_oil_price
+    partition_keys: [year]
+    primary_keys: [ref_date, field_or_state]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_petroleum_reference
+    source_urls: []
+    notes: Reference oil price context for later Petrobras/fiscal work. Defer.
+
+  - dataset_id: anp_reference_gas_price
+    source: anp
+    priority: P2
+    frequency: monthly_or_annual
+    raw_format: csv_or_xlsx_by_year
+    canonical_table: anp_reference_gas_price
+    partition_keys: [year]
+    primary_keys: [ref_date, field_or_state]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_petroleum_reference
+    source_urls: []
+    notes: Reference natural gas price context for later Petrobras/fiscal work. Defer.
+
+  - dataset_id: anp_fuel_station_registry
+    source: anp
+    priority: P2
+    frequency: snapshot
+    raw_format: mixed_pending
+    canonical_table: anp_fuel_station_registry
+    partition_keys: [snapshot_year]
+    primary_keys: [station_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_reference
+    source_urls: []
+    notes: Retail station registry is reference data, not first-pass model input.
+
+  - dataset_id: anp_glp_reseller_registry
+    source: anp
+    priority: P2
+    frequency: snapshot
+    raw_format: mixed_pending
+    canonical_table: anp_glp_reseller_registry
+    partition_keys: [snapshot_year]
+    primary_keys: [reseller_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_reference
+    source_urls: []
+    notes: GLP reseller registry is reference-only future work.
+
+  - dataset_id: anp_distributor_registry
+    source: anp
+    priority: P2
+    frequency: snapshot
+    raw_format: mixed_pending
+    canonical_table: anp_distributor_registry
+    partition_keys: [snapshot_year]
+    primary_keys: [distributor_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_reference
+    source_urls: []
+    notes: Distributor registry is reference-only future work.
+
+  - dataset_id: anp_storage_capacity
+    source: anp
+    priority: P2
+    frequency: snapshot
+    raw_format: mixed_pending
+    canonical_table: anp_storage_capacity
+    partition_keys: [snapshot_year]
+    primary_keys: [facility_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_reference
+    source_urls: []
+    notes: Storage capacity is specialized/reference data. Defer.
+
+  - dataset_id: anp_import_export_authorizations
+    source: anp
+    priority: P3
+    frequency: event_or_snapshot
+    raw_format: mixed_pending
+    canonical_table: anp_import_export_authorizations
+    partition_keys: [year]
+    primary_keys: [authorization_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_specialized
+    source_urls: []
+    notes: Import/export authorization data is specialized. Defer.
+
+  - dataset_id: anp_quality_monitoring_pmqc
+    source: anp
+    priority: P3
+    frequency: mixed
+    raw_format: mixed_pending
+    canonical_table: anp_quality_monitoring_pmqc
+    partition_keys: [year]
+    primary_keys: [sample_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_specialized
+    source_urls: []
+    notes: PMQC quality monitoring needs a dedicated parser/normalizer. Defer.
+
+  - dataset_id: anp_fuel_stock_data
+    source: anp
+    priority: P3
+    frequency: mixed
+    raw_format: mixed_pending
+    canonical_table: anp_fuel_stock_data
+    partition_keys: [year]
+    primary_keys: [ref_date, product, location]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_specialized
+    source_urls: []
+    notes: Fuel stock data is specialized. Defer.
+
+  - dataset_id: anp_renovabio_cbio
+    source: anp
+    priority: P3
+    frequency: mixed
+    raw_format: mixed_pending
+    canonical_table: anp_renovabio_cbio
+    partition_keys: [year]
+    primary_keys: [ref_date, issuer_or_obligated_party]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_specialized
+    source_urls: []
+    notes: RenovaBio/CBIO data is specialized. Defer.
