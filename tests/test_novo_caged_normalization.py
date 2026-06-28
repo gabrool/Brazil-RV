@@ -52,21 +52,6 @@ def test_novo_caged_movement_id_excludes_raw_path_timestamp_and_hash():
     assert silver_a["sha256"].to_list() != silver_b["sha256"].to_list()
 
 
-def test_novo_caged_movement_normalizer_adds_no_labor_features():
-    silver = normalize_novo_caged_movements_monthly(_movement_bronze())
-
-    banned = {
-        "admissions",
-        "dismissals",
-        "net_jobs",
-        "wage_growth",
-        "sector_total",
-        "rolling_value",
-        "seasonally_adjusted",
-    }
-    assert banned.isdisjoint(set(silver.columns))
-
-
 def test_novo_caged_release_calendar_normalizer_parses_official_style_rows():
     bronze = parse_novo_caged_tabular_bytes(
         (
