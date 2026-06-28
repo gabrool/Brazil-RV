@@ -1,0 +1,21 @@
+cvm_research:
+  calendar:
+    default: business_days_mon_fri
+    timezone: America/Sao_Paulo
+
+  fund_reports:
+    include_per_fund_observation: true
+    include_group_observation: true
+    include_flow_daily: true
+    include_state_asof_daily: true
+    group_by:
+      - all
+      - fund_type
+    max_groups: 100
+
+  registry:
+    include_current_reference: true
+
+  daily_long:
+    include_fund_flows: true
+    include_fund_state: true

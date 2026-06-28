@@ -338,6 +338,52 @@ class FredResearchConfig(BaseModel):
     fred_research: FredResearchSection
 
 
+class CVMCalendarConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    default: str
+    timezone: str
+
+
+class CVMFundReportsResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_per_fund_observation: bool
+    include_group_observation: bool
+    include_flow_daily: bool
+    include_state_asof_daily: bool
+    group_by: list[str]
+    max_groups: int
+
+
+class CVMRegistryResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_current_reference: bool
+
+
+class CVMDailyLongConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_fund_flows: bool
+    include_fund_state: bool
+
+
+class CVMResearchSection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    calendar: CVMCalendarConfig
+    fund_reports: CVMFundReportsResearchConfig
+    registry: CVMRegistryResearchConfig
+    daily_long: CVMDailyLongConfig
+
+
+class CVMResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    cvm_research: CVMResearchSection
+
+
 class ONSCalendarConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -478,6 +524,10 @@ def load_fred_research_config(repo_root: Path) -> FredResearchConfig:
     return FredResearchConfig.model_validate(_load_yaml(repo_root, "configs/derived/fred.yaml"))
 
 
+def load_cvm_research_config(repo_root: Path) -> CVMResearchConfig:
+    return CVMResearchConfig.model_validate(_load_yaml(repo_root, "configs/derived/cvm.yaml"))
+
+
 def load_ons_research_config(repo_root: Path) -> ONSResearchConfig:
     return ONSResearchConfig.model_validate(_load_yaml(repo_root, "configs/derived/ons.yaml"))
 
@@ -496,6 +546,12 @@ __all__ = [
     "B3ResearchRoots",
     "B3ResearchSection",
     "B3TargetsConfig",
+    "CVMCalendarConfig",
+    "CVMDailyLongConfig",
+    "CVMFundReportsResearchConfig",
+    "CVMRegistryResearchConfig",
+    "CVMResearchConfig",
+    "CVMResearchSection",
     "EngineeringConfig",
     "FredCalendarConfig",
     "FredDailyLongConfig",
@@ -534,6 +590,7 @@ __all__ = [
     "load_b3_dataset_registry",
     "load_anbima_dataset_registry",
     "load_cvm_dataset_registry",
+    "load_cvm_research_config",
     "load_ons_dataset_registry",
     "load_tesouro_dataset_registry",
     "load_fred_dataset_registry",
