@@ -1,0 +1,28 @@
+ons_research:
+  calendar:
+    default: business_days_mon_fri
+    timezone: America/Sao_Paulo
+
+  hydro:
+    include_ear_subsystem: true
+    include_ena_subsystem: true
+
+  load_cmo:
+    include_load_daily: true
+    include_cmo_weekly: true
+
+  hourly_daily:
+    include_energy_balance_daily: true
+    include_interchange_daily: true
+    aggregation: daily_mean
+    min_hour_count: 1
+
+  asof:
+    include_state_asof_daily: true
+    max_features: 10000
+
+  daily_long:
+    include_hydro: true
+    include_load_cmo: true
+    include_energy_balance: true
+    include_interchange: true

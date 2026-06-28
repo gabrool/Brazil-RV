@@ -338,6 +338,69 @@ class FredResearchConfig(BaseModel):
     fred_research: FredResearchSection
 
 
+class ONSCalendarConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    default: str
+    timezone: str
+
+
+class ONSHydroResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_ear_subsystem: bool
+    include_ena_subsystem: bool
+
+
+class ONSLoadCMOResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_load_daily: bool
+    include_cmo_weekly: bool
+
+
+class ONSHourlyDailyResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_energy_balance_daily: bool
+    include_interchange_daily: bool
+    aggregation: str
+    min_hour_count: int
+
+
+class ONSAsofResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_state_asof_daily: bool
+    max_features: int
+
+
+class ONSDailyLongConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_hydro: bool
+    include_load_cmo: bool
+    include_energy_balance: bool
+    include_interchange: bool
+
+
+class ONSResearchSection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    calendar: ONSCalendarConfig
+    hydro: ONSHydroResearchConfig
+    load_cmo: ONSLoadCMOResearchConfig
+    hourly_daily: ONSHourlyDailyResearchConfig
+    asof: ONSAsofResearchConfig
+    daily_long: ONSDailyLongConfig
+
+
+class ONSResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ons_research: ONSResearchSection
+
+
 def _load_yaml(repo_root: Path, relative_path: str) -> dict[str, Any]:
     path = repo_root / relative_path
     if not path.exists():
@@ -415,6 +478,10 @@ def load_fred_research_config(repo_root: Path) -> FredResearchConfig:
     return FredResearchConfig.model_validate(_load_yaml(repo_root, "configs/derived/fred.yaml"))
 
 
+def load_ons_research_config(repo_root: Path) -> ONSResearchConfig:
+    return ONSResearchConfig.model_validate(_load_yaml(repo_root, "configs/derived/ons.yaml"))
+
+
 __all__ = [
     "BCBCalendarConfig",
     "BCBDailyLongConfig",
@@ -447,6 +514,14 @@ __all__ = [
     "PointInTimeConfig",
     "ProjectConfig",
     "ProjectSection",
+    "ONSAsofResearchConfig",
+    "ONSCalendarConfig",
+    "ONSDailyLongConfig",
+    "ONSHourlyDailyResearchConfig",
+    "ONSHydroResearchConfig",
+    "ONSLoadCMOResearchConfig",
+    "ONSResearchConfig",
+    "ONSResearchSection",
     "ResolvedPaths",
     "SleeveConfig",
     "TesouroCalendarConfig",
@@ -468,6 +543,7 @@ __all__ = [
     "load_ibge_dataset_registry",
     "load_ibge_research_config",
     "load_instruments_config",
+    "load_ons_research_config",
     "load_paths_config",
     "load_project_config",
     "load_b3_research_config",
