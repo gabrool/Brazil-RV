@@ -447,6 +447,73 @@ class ONSResearchConfig(BaseModel):
     ons_research: ONSResearchSection
 
 
+class ANPCalendarConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    default: str
+    timezone: str
+
+
+class ANPFuelPricesResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_station_observation: bool
+    include_group_observation: bool
+    group_by: list[str]
+    max_groups: int
+    aggregation: str
+
+
+class ANPFuelSalesResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_observation: bool
+    include_group_observation: bool
+    group_by: list[str]
+    max_groups: int
+
+
+class ANPOilGasResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_observation: bool
+    include_group_observation: bool
+    group_by: list[str]
+    max_groups: int
+
+
+class ANPAsofResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_state_asof_daily: bool
+    max_features: int
+
+
+class ANPDailyLongConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_fuel_prices: bool
+    include_fuel_sales: bool
+    include_oil_gas: bool
+
+
+class ANPResearchSection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    calendar: ANPCalendarConfig
+    fuel_prices: ANPFuelPricesResearchConfig
+    fuel_sales: ANPFuelSalesResearchConfig
+    oil_gas: ANPOilGasResearchConfig
+    asof: ANPAsofResearchConfig
+    daily_long: ANPDailyLongConfig
+
+
+class ANPResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    anp_research: ANPResearchSection
+
+
 def _load_yaml(repo_root: Path, relative_path: str) -> dict[str, Any]:
     path = repo_root / relative_path
     if not path.exists():
@@ -536,7 +603,19 @@ def load_ons_research_config(repo_root: Path) -> ONSResearchConfig:
     return ONSResearchConfig.model_validate(_load_yaml(repo_root, "configs/derived/ons.yaml"))
 
 
+def load_anp_research_config(repo_root: Path) -> ANPResearchConfig:
+    return ANPResearchConfig.model_validate(_load_yaml(repo_root, "configs/derived/anp.yaml"))
+
+
 __all__ = [
+    "ANPAsofResearchConfig",
+    "ANPCalendarConfig",
+    "ANPDailyLongConfig",
+    "ANPFuelPricesResearchConfig",
+    "ANPFuelSalesResearchConfig",
+    "ANPOilGasResearchConfig",
+    "ANPResearchConfig",
+    "ANPResearchSection",
     "BCBCalendarConfig",
     "BCBDailyLongConfig",
     "BCBFocusResearchConfig",
@@ -594,6 +673,7 @@ __all__ = [
     "load_b3_dataset_registry",
     "load_anbima_dataset_registry",
     "load_anp_dataset_registry",
+    "load_anp_research_config",
     "load_cvm_dataset_registry",
     "load_cvm_research_config",
     "load_ons_dataset_registry",
