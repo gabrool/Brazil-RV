@@ -31,24 +31,42 @@ def test_anp_price_pre_2023_generates_legacy_semester_resources(repo_root):
     ]
 
 
-def test_anp_price_2023_onward_generates_monthly_families(repo_root):
+def test_anp_price_january_2024_uses_2023_2025_monthly_patterns(repo_root):
     dataset = load_anp_dataset_registry(repo_root).get("anp_fuel_prices_weekly")
 
-    resources = anp_fuel_price_resources(dataset, date(2023, 1, 1), date(2023, 2, 28))
+    resources = anp_fuel_price_resources(dataset, date(2024, 1, 1), date(2024, 1, 31))
 
-    assert len(resources) == 6
-    assert [item.filename for item in resources[:3]] == [
+    assert [item.filename for item in resources] == [
         "precos-diesel-gnv-01.csv",
+        "precos-gasolina-etanol-01.csv",
+        "precos-glp-01.csv",
+    ]
+    assert [item.resource_family for item in resources] == [
+        "diesel_gnv_monthly_2023_2025",
+        "ethanol_gasoline_monthly_2023_2025",
+        "glp_monthly_2023_2025",
+    ]
+    assert [item.month for item in resources] == [1, 1, 1]
+    _assert_no_four_latest_weeks(resources)
+
+
+def test_anp_price_january_2026_uses_2026_onward_monthly_patterns(repo_root):
+    dataset = load_anp_dataset_registry(repo_root).get("anp_fuel_prices_weekly")
+
+    resources = anp_fuel_price_resources(dataset, date(2026, 1, 1), date(2026, 1, 31))
+
+    assert [item.filename for item in resources] == [
+        "01-dados-abertos-precos-diesel-gnv.csv",
         "01-dados-abertos-precos-gasolina-etanol.csv",
         "01-dados-abertos-precos-glp.csv",
     ]
-    assert {item.resource_family for item in resources} == {
-        "diesel_gnv_monthly",
-        "ethanol_gasoline_monthly",
-        "glp_monthly",
-    }
-    assert [item.month for item in resources] == [1, 1, 1, 2, 2, 2]
-    assert all("quatro" not in item.url.lower() for item in resources)
+    assert [item.resource_family for item in resources] == [
+        "diesel_gnv_monthly_2026_onward",
+        "ethanol_gasoline_monthly_2026_onward",
+        "glp_monthly_2026_onward",
+    ]
+    assert [item.month for item in resources] == [1, 1, 1]
+    _assert_no_four_latest_weeks(resources)
 
 
 def test_anp_price_2022_2023_boundary_uses_non_overlapping_split(repo_root):
@@ -59,10 +77,35 @@ def test_anp_price_2022_2023_boundary_uses_non_overlapping_split(repo_root):
     assert [(item.resource_family, item.year, item.month, item.semester) for item in resources] == [
         ("automotive_legacy_semester", 2022, None, 2),
         ("glp_legacy_semester", 2022, None, 2),
-        ("diesel_gnv_monthly", 2023, 1, None),
-        ("ethanol_gasoline_monthly", 2023, 1, None),
-        ("glp_monthly", 2023, 1, None),
+        ("diesel_gnv_monthly_2023_2025", 2023, 1, None),
+        ("ethanol_gasoline_monthly_2023_2025", 2023, 1, None),
+        ("glp_monthly_2023_2025", 2023, 1, None),
     ]
+    _assert_no_four_latest_weeks(resources)
+
+
+def test_anp_price_2025_2026_boundary_uses_non_overlapping_monthly_regimes(repo_root):
+    dataset = load_anp_dataset_registry(repo_root).get("anp_fuel_prices_weekly")
+
+    resources = anp_fuel_price_resources(dataset, date(2025, 12, 1), date(2026, 1, 31))
+
+    assert [(item.resource_family, item.year, item.month) for item in resources] == [
+        ("diesel_gnv_monthly_2023_2025", 2025, 12),
+        ("ethanol_gasoline_monthly_2023_2025", 2025, 12),
+        ("glp_monthly_2023_2025", 2025, 12),
+        ("diesel_gnv_monthly_2026_onward", 2026, 1),
+        ("ethanol_gasoline_monthly_2026_onward", 2026, 1),
+        ("glp_monthly_2026_onward", 2026, 1),
+    ]
+    assert [item.filename for item in resources] == [
+        "precos-diesel-gnv-12.csv",
+        "precos-gasolina-etanol-12.csv",
+        "precos-glp-12.csv",
+        "01-dados-abertos-precos-diesel-gnv.csv",
+        "01-dados-abertos-precos-gasolina-etanol.csv",
+        "01-dados-abertos-precos-glp.csv",
+    ]
+    _assert_no_four_latest_weeks(resources)
 
 
 def test_anp_price_inverted_window_raises(repo_root):
@@ -113,3 +156,10 @@ def test_anp_production_page_html_resolves_all_configured_links(repo_root):
         "natural_gas_available",
     ]
     assert all(item.url.endswith(".csv") for item in resources)
+
+
+def _assert_no_four_latest_weeks(resources) -> None:
+    forbidden_tokens = ("quatro", "ultimas", "semanas")
+    assert all(
+        token not in item.url.lower() for item in resources for token in forbidden_tokens
+    )

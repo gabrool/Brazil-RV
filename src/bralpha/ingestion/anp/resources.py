@@ -128,14 +128,16 @@ def _monthly_requests(
     end: date,
 ) -> list[ANPResourceRequest]:
     applies_from = _parse_date(family.get("applies_from")) or date.min
+    applies_until = _parse_date(family.get("applies_until")) or date.max
     range_start = max(start, applies_from)
-    if range_start > end:
+    range_end = min(end, applies_until)
+    if range_start > range_end:
         return []
 
     requests: list[ANPResourceRequest] = []
     year = range_start.year
     month = range_start.month
-    while (year, month) <= (end.year, end.month):
+    while (year, month) <= (range_end.year, range_end.month):
         requests.append(_price_request(dataset_config, family, year=year, month=month))
         month += 1
         if month == 13:

@@ -51,19 +51,47 @@ def test_anp_fuel_price_downloads_write_raw_files_and_manifest_only(repo_root, t
     assert len(results) == 3
     assert [request["url"].split("/")[-1] for request in client.requests] == [
         "precos-diesel-gnv-01.csv",
-        "01-dados-abertos-precos-gasolina-etanol.csv",
-        "01-dados-abertos-precos-glp.csv",
+        "precos-gasolina-etanol-01.csv",
+        "precos-glp-01.csv",
     ]
     assert all(result.raw_path is not None for result in results)
     assert not (tmp_path / "data" / "bronze").exists()
     manifest = tmp_path / "data" / "manifests" / "anp" / "downloads.jsonl"
     records = [json.loads(line) for line in manifest.read_text().splitlines()]
     assert [record["request_params"]["resource_family"] for record in records] == [
-        "diesel_gnv_monthly",
-        "ethanol_gasoline_monthly",
-        "glp_monthly",
+        "diesel_gnv_monthly_2023_2025",
+        "ethanol_gasoline_monthly_2023_2025",
+        "glp_monthly_2023_2025",
     ]
     assert all(record["success"] is True for record in records)
+
+
+def test_anp_fuel_price_downloads_use_2026_monthly_regime(repo_root, tmp_path):
+    shutil.copytree(repo_root / "configs", tmp_path / "configs")
+    client = MockANPClient()
+
+    results = download_anp_dataset(
+        tmp_path,
+        "anp_fuel_prices_weekly",
+        start=date(2026, 1, 1),
+        end=date(2026, 1, 31),
+        client=client,
+        downloaded_at=datetime(2026, 2, 5, 12, tzinfo=UTC),
+    )
+
+    assert len(results) == 3
+    assert [request["url"].split("/")[-1] for request in client.requests] == [
+        "01-dados-abertos-precos-diesel-gnv.csv",
+        "01-dados-abertos-precos-gasolina-etanol.csv",
+        "01-dados-abertos-precos-glp.csv",
+    ]
+    manifest = tmp_path / "data" / "manifests" / "anp" / "downloads.jsonl"
+    records = [json.loads(line) for line in manifest.read_text().splitlines()]
+    assert [record["request_params"]["resource_family"] for record in records] == [
+        "diesel_gnv_monthly_2026_onward",
+        "ethanol_gasoline_monthly_2026_onward",
+        "glp_monthly_2026_onward",
+    ]
 
 
 def test_anp_sales_download_discovers_page_link_and_resource(repo_root, tmp_path):

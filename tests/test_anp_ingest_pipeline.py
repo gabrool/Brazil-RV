@@ -78,6 +78,11 @@ def test_anp_pipeline_mocked_fuel_price_raw_to_bronze_to_silver_incremental(
 
     assert status == {"downloads": 3, "bronze_rows": 3, "silver_rows": 3}
     assert len(normalize_calls) == 3
+    assert normalize_calls == [
+        ("anp_fuel_prices_weekly", ["diesel_gnv_monthly_2023_2025"]),
+        ("anp_fuel_prices_weekly", ["ethanol_gasoline_monthly_2023_2025"]),
+        ("anp_fuel_prices_weekly", ["glp_monthly_2023_2025"]),
+    ]
     assert (
         tmp_path
         / "data"
@@ -97,6 +102,26 @@ def test_anp_pipeline_mocked_fuel_price_raw_to_bronze_to_silver_incremental(
     )
     assert silver.height == 3
     assert silver["sale_price"].to_list() == [5.1, 5.1, 5.1]
+
+
+def test_anp_pipeline_january_2026_uses_2026_monthly_resource_urls(repo_root, tmp_path):
+    shutil.copytree(repo_root / "configs", tmp_path / "configs")
+    client = MockANPPipelineClient()
+
+    status = run_anp_ingest(
+        repo_root=tmp_path,
+        dataset_id="anp_fuel_prices_weekly",
+        start=date(2026, 1, 1),
+        end=date(2026, 1, 31),
+        client=client,
+    )
+
+    assert status["downloads"] == 3
+    assert [request["url"].split("/")[-1] for request in client.requests] == [
+        "01-dados-abertos-precos-diesel-gnv.csv",
+        "01-dados-abertos-precos-gasolina-etanol.csv",
+        "01-dados-abertos-precos-glp.csv",
+    ]
 
 
 def test_anp_pipeline_mocked_sales_raw_to_bronze_to_silver(repo_root, tmp_path):
