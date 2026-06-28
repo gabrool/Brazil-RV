@@ -1,0 +1,361 @@
+source: ons
+free_access_default: true
+requires_auth_default: false
+point_in_time_required: true
+
+raw_storage:
+  path_template: data/raw/ons/{dataset_id}/{download_date}/
+  manifest_path: data/manifests/ons/downloads.jsonl
+
+bronze_storage:
+  path_template: data/bronze/ons/{dataset_id}/
+  format: parquet
+
+silver_storage:
+  path_template: data/silver/{dataset_id}/
+  format: parquet
+
+datasets:
+  - dataset_id: ons_ear_subsystem_daily
+    source: ons
+    priority: P0
+    frequency: daily
+    raw_format: csv_annual
+    canonical_table: ons_ear_subsystem_daily
+    partition_keys: [year]
+    primary_keys: [ref_date, subsystem]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+      - ref_date_not_null
+      - available_date_not_null
+      - available_date_on_or_after_ref_date
+    source_map_status: live_download
+    package_slug: ear-diario-por-subsistema
+    resource_name_prefix: EAR_Diario_por_Subsistema
+    direct_url_template: "https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/ear_subsistema_di/EAR_DIARIO_SUBSISTEMA_{year}.csv"
+    filename_template: "EAR_DIARIO_SUBSISTEMA_{year}.csv"
+    availability_policy: ons_conservative_next_business_day
+    license_note: CC-BY; cite ONS and the dataset/source.
+    notes: Daily stored energy by subsystem. Preserve official values only.
+
+  - dataset_id: ons_ena_subsystem_daily
+    source: ons
+    priority: P0
+    frequency: daily
+    raw_format: csv_annual
+    canonical_table: ons_ena_subsystem_daily
+    partition_keys: [year]
+    primary_keys: [ref_date, subsystem, ena_type]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+      - ref_date_not_null
+      - available_date_not_null
+      - available_date_on_or_after_ref_date
+    source_map_status: live_download
+    package_slug: ena-diario-por-subsistema
+    resource_name_prefix: ENA_Diario_por_Subsistema
+    direct_url_template: "https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/ena_subsistema_di/ENA_DIARIO_SUBSISTEMA_{year}.csv"
+    filename_template: "ENA_DIARIO_SUBSISTEMA_{year}.csv"
+    availability_policy: ons_conservative_next_business_day
+    license_note: CC-BY; cite ONS and the dataset/source.
+    notes: Daily natural inflow energy by subsystem. Preserve official raw type/value fields.
+
+  - dataset_id: ons_load_daily
+    source: ons
+    priority: P0
+    frequency: daily
+    raw_format: csv_annual
+    canonical_table: ons_load_daily
+    partition_keys: [year]
+    primary_keys: [ref_date, subsystem]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+      - ref_date_not_null
+      - available_date_not_null
+      - available_date_on_or_after_ref_date
+    source_map_status: live_download
+    package_slug: carga-energia
+    resource_name_prefix: Carga_Energia
+    direct_url_template: "https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/carga_energia_di/CARGA_ENERGIA_{year}.csv"
+    filename_template: "CARGA_ENERGIA_{year}.csv"
+    availability_policy: ons_conservative_next_business_day
+    license_note: CC-BY; cite ONS and the dataset/source.
+    notes: Daily subsystem load in MWmed; methodology changes are documented but values are not adjusted.
+
+  - dataset_id: ons_cmo_weekly
+    source: ons
+    priority: P0
+    frequency: weekly
+    raw_format: csv_annual
+    canonical_table: ons_cmo_weekly
+    partition_keys: [year]
+    primary_keys: [ref_date, subsystem, load_block]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+      - ref_date_not_null
+      - available_date_not_null
+      - available_date_on_or_after_ref_date
+    source_map_status: live_download
+    package_slug: cmo-semanal
+    resource_name_prefix: CMO_Semanal
+    direct_url_template: "https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/cmo_se/CMO_SEMANAL_{year}.csv"
+    filename_template: "CMO_SEMANAL_{year}.csv"
+    availability_policy: ons_conservative_next_business_day
+    license_note: CC-BY; cite ONS and the dataset/source.
+    notes: Weekly marginal operating cost by subsystem/load block. Preserve official weekly rows; do not daily-fill in ingestion.
+
+  - dataset_id: ons_energy_balance_subsystem
+    source: ons
+    priority: P0
+    frequency: hourly
+    raw_format: csv_annual
+    canonical_table: ons_energy_balance_subsystem
+    partition_keys: [year]
+    primary_keys: [ref_datetime, subsystem]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+      - available_date_not_null
+      - available_date_on_or_after_ref_date
+    source_map_status: live_download
+    package_slug: balanco-energia-subsistema
+    resource_name_prefix: Balanco_de_Energia_Subsistema
+    direct_url_template: "https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/balanco_energia_subsistema_ho/BALANCO_ENERGIA_SUBSISTEMA_{year}.csv"
+    filename_template: "BALANCO_ENERGIA_SUBSISTEMA_{year}.csv"
+    availability_policy: ons_conservative_next_business_day
+    license_note: CC-BY; cite ONS and the dataset/source.
+    notes: Hourly verified load and supply by source/subsystem. Preserve hourly rows; daily aggregation belongs in raw-to-research.
+
+  - dataset_id: ons_interchange_subsystem_hourly
+    source: ons
+    priority: P1
+    frequency: hourly
+    raw_format: csv_annual
+    canonical_table: ons_interchange_subsystem_hourly
+    partition_keys: [year]
+    primary_keys: [ref_datetime, source_subsystem, target_subsystem]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+      - available_date_not_null
+      - available_date_on_or_after_ref_date
+    source_map_status: live_download
+    package_slug: intercambio-nacional
+    resource_name_prefix: Intercambio_Nacional
+    direct_url_template: "https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/intercambio_nacional_ho/INTERCAMBIO_NACIONAL_{year}.csv"
+    filename_template: "INTERCAMBIO_NACIONAL_{year}.csv"
+    availability_policy: ons_conservative_next_business_day
+    license_note: CC-BY; cite ONS and the dataset/source.
+    notes: Hourly directional interchange between subsystems. Do not derive net interchange.
+
+  - dataset_id: ons_ear_reservoir_daily
+    source: ons
+    priority: P1
+    frequency: daily
+    raw_format: csv_annual
+    canonical_table: ons_ear_reservoir_daily
+    partition_keys: [year]
+    primary_keys: [ref_date, reservoir_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_high_cardinality
+    source_urls: []
+    notes: Useful later but high-cardinality. Do not implement in this PR.
+
+  - dataset_id: ons_ear_ree_daily
+    source: ons
+    priority: P1
+    frequency: daily
+    raw_format: csv_annual
+    canonical_table: ons_ear_ree_daily
+    partition_keys: [year]
+    primary_keys: [ref_date, ree_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_high_cardinality
+    source_urls: []
+    notes: Reservoir-equivalent detail is deferred to a dedicated dimensional PR.
+
+  - dataset_id: ons_ear_basin_daily
+    source: ons
+    priority: P1
+    frequency: daily
+    raw_format: csv_annual
+    canonical_table: ons_ear_basin_daily
+    partition_keys: [year]
+    primary_keys: [ref_date, basin_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_high_cardinality
+    source_urls: []
+    notes: Basin detail is useful later but not first-pass macro RV input.
+
+  - dataset_id: ons_ena_reservoir_daily
+    source: ons
+    priority: P1
+    frequency: daily
+    raw_format: csv_annual
+    canonical_table: ons_ena_reservoir_daily
+    partition_keys: [year]
+    primary_keys: [ref_date, reservoir_id, ena_type]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_high_cardinality
+    source_urls: []
+    notes: Reservoir-level ENA detail is deferred.
+
+  - dataset_id: ons_ena_ree_daily
+    source: ons
+    priority: P1
+    frequency: daily
+    raw_format: csv_annual
+    canonical_table: ons_ena_ree_daily
+    partition_keys: [year]
+    primary_keys: [ref_date, ree_id, ena_type]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_high_cardinality
+    source_urls: []
+    notes: REE-level ENA detail is deferred.
+
+  - dataset_id: ons_ena_basin_daily
+    source: ons
+    priority: P1
+    frequency: daily
+    raw_format: csv_annual
+    canonical_table: ons_ena_basin_daily
+    partition_keys: [year]
+    primary_keys: [ref_date, basin_id, ena_type]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_high_cardinality
+    source_urls: []
+    notes: Basin-level ENA detail is deferred.
+
+  - dataset_id: ons_reservoir_hydrology_daily
+    source: ons
+    priority: P1
+    frequency: daily
+    raw_format: csv_annual
+    canonical_table: ons_reservoir_hydrology_daily
+    partition_keys: [year]
+    primary_keys: [ref_date, reservoir_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_high_cardinality
+    source_urls: []
+    notes: Detailed reservoir hydrology is deferred.
+
+  - dataset_id: ons_reservoir_hydrology_hourly
+    source: ons
+    priority: P2
+    frequency: hourly
+    raw_format: csv_annual_large
+    canonical_table: ons_reservoir_hydrology_hourly
+    partition_keys: [year]
+    primary_keys: [ref_datetime, reservoir_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_large_high_cardinality
+    source_urls: []
+    notes: Hourly reservoir hydrology is too high-cardinality for the first ONS PR.
+
+  - dataset_id: ons_generation_by_plant_hourly
+    source: ons
+    priority: P2
+    frequency: hourly
+    raw_format: csv_annual_large
+    canonical_table: ons_generation_by_plant_hourly
+    partition_keys: [year]
+    primary_keys: [ref_datetime, plant_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_large_high_cardinality
+    source_urls: []
+    notes: Useful later for detailed generation/crowding; too large/high-cardinality for first ONS PR.
+
+  - dataset_id: ons_constrained_off_wind
+    source: ons
+    priority: P2
+    frequency: hourly
+    raw_format: csv_annual
+    canonical_table: ons_constrained_off_wind
+    partition_keys: [year]
+    primary_keys: [ref_datetime, plant_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_specialized
+    source_urls: []
+    notes: Useful later for renewable curtailment and grid stress. Defer.
+
+  - dataset_id: ons_constrained_off_solar
+    source: ons
+    priority: P2
+    frequency: hourly
+    raw_format: csv_annual
+    canonical_table: ons_constrained_off_solar
+    partition_keys: [year]
+    primary_keys: [ref_datetime, plant_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_specialized
+    source_urls: []
+    notes: Useful later for renewable curtailment and grid stress. Defer.
+
+  - dataset_id: ons_thermal_dispatch_reason
+    source: ons
+    priority: P2
+    frequency: event
+    raw_format: csv_annual
+    canonical_table: ons_thermal_dispatch_reason
+    partition_keys: [year]
+    primary_keys: [ref_datetime, plant_id, reason_code]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_specialized
+    source_urls: []
+    notes: Thermal dispatch reason is specialized and deferred.
+
+  - dataset_id: ons_installed_generation_capacity
+    source: ons
+    priority: P2
+    frequency: monthly_or_snapshot
+    raw_format: csv_annual
+    canonical_table: ons_installed_generation_capacity
+    partition_keys: [year]
+    primary_keys: [ref_date, source_type, subsystem]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_reference
+    source_urls: []
+    notes: Slower reference/stress data; defer.
+
+  - dataset_id: ons_generation_capacity_factor_wind_solar
+    source: ons
+    priority: P2
+    frequency: hourly_or_daily
+    raw_format: csv_annual
+    canonical_table: ons_generation_capacity_factor_wind_solar
+    partition_keys: [year]
+    primary_keys: [ref_datetime, source_type, subsystem]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_specialized
+    source_urls: []
+    notes: Useful later for renewable performance; defer.
+
+  - dataset_id: ons_reliability_indicators
+    source: ons
+    priority: P3
+    frequency: monthly_or_event
+    raw_format: mixed_pending
+    canonical_table: ons_reliability_indicators
+    partition_keys: [year]
+    primary_keys: [ref_date, indicator_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_low_priority
+    source_urls: []
+    notes: Slower reliability stress data; not first-pass daily RV input.
+
+  - dataset_id: ons_transmission_assets
+    source: ons
+    priority: P3
+    frequency: snapshot
+    raw_format: mixed_pending
+    canonical_table: ons_transmission_assets
+    partition_keys: [year]
+    primary_keys: [asset_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_low_priority
+    source_urls: []
+    notes: Transmission asset reference data; defer.

@@ -1,0 +1,41 @@
+source: ons
+portal:
+  name: ONS Dados Abertos
+  url: https://dados.ons.org.br/
+  license_note: CC-BY; cite ONS and the dataset/source.
+
+official_pages:
+  - name: ear_subsystem_daily
+    dataset_id: ons_ear_subsystem_daily
+    url: https://dados.ons.org.br/dataset/ear-diario-por-subsistema
+  - name: ena_subsystem_daily
+    dataset_id: ons_ena_subsystem_daily
+    url: https://dados.ons.org.br/dataset/ena-diario-por-subsistema
+  - name: load_daily
+    dataset_id: ons_load_daily
+    url: https://dados.ons.org.br/dataset/carga-energia
+  - name: cmo_weekly
+    dataset_id: ons_cmo_weekly
+    url: https://dados.ons.org.br/dataset/cmo-semanal
+  - name: energy_balance_subsystem
+    dataset_id: ons_energy_balance_subsystem
+    url: https://dados.ons.org.br/dataset/balanco-energia-subsistema
+  - name: interchange_subsystem_hourly
+    dataset_id: ons_interchange_subsystem_hourly
+    url: https://dados.ons.org.br/dataset/intercambio-nacional
+
+data_dictionaries:
+  ear_subsystem_daily: https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/ear_subsistema_di/DicionarioDados_EarPorSubsistema.json
+  ena_subsystem_daily: https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/ena_subsistema_di/DicionarioDados_EnaPorSubsistema.json
+  load_daily: https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/carga_energia_di/DicionarioDados_Carga_Energia_Diaria.json
+  cmo_weekly: https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/cmo_se/DicionarioDados_Cmo_Semanal.json
+  energy_balance_subsystem: https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/balanco_energia_subsistema_ho/DicionarioDados_Balanco_Energia_Subsistema.json
+  interchange_subsystem_hourly: https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/intercambio_nacional_ho/DicionarioDados_Intercambio_Nacional.json
+
+endpoint_policy:
+  live_download_requires:
+    - stable_direct_url_or_template
+    - no_login
+    - no_browser_automation
+    - fixture_test
+    - no_new_dependency
