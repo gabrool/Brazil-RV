@@ -1,0 +1,170 @@
+source: novo_caged
+free_access_default: true
+requires_auth_default: false
+point_in_time_required: true
+
+raw_storage:
+  path_template: data/raw/novo_caged/{dataset_id}/{download_date}/
+  manifest_path: data/manifests/novo_caged/downloads.jsonl
+
+bronze_storage:
+  path_template: data/bronze/novo_caged/{dataset_id}/
+  format: parquet
+
+silver_storage:
+  path_template: data/silver/{dataset_id}/
+  format: parquet
+
+datasets:
+  - dataset_id: novo_caged_movements_monthly
+    source: novo_caged
+    priority: P0
+    frequency: monthly
+    raw_format: 7z_txt
+    canonical_table: novo_caged_movement_record
+    partition_keys: [year]
+    primary_keys: [movement_record_id]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+      - ref_date_not_null
+      - available_date_not_null
+      - available_date_on_or_after_ref_date
+    source_map_status: live_download
+    availability_policy: novo_caged_conservative_next_month_end_plus_2bd
+    license_note: Brazilian federal open-data terms; cite MTE/PDET and dataset/source.
+    resource_families:
+      - name: movement_records
+        record_kind: movement
+        mode: monthly_7z
+        applies_from: "2020-01-01"
+        url_template: "https://ftp.mtps.gov.br/pdet/microdados/NOVO%20CAGED/{year}/{period}/CAGEDMOV{period}.7z"
+        filename_template: "CAGEDMOV{period}.7z"
+    notes: Monthly Novo CAGED movement microdata. Preserve official movement rows; do not aggregate in ingestion.
+
+  - dataset_id: novo_caged_release_calendar
+    source: novo_caged
+    priority: P0
+    frequency: annual_calendar
+    raw_format: html
+    canonical_table: novo_caged_release_calendar
+    partition_keys: [release_year]
+    primary_keys: [ref_date]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+      - ref_date_not_null
+      - available_date_not_null
+      - available_date_on_or_after_ref_date
+    source_map_status: live_download
+    availability_policy: novo_caged_official_release_calendar
+    license_note: Brazilian federal open-data terms; cite MTE/PDET and dataset/source.
+    source_urls:
+      - name: official_release_calendar
+        url_template: "https://www.gov.br/trabalho-e-emprego/pt-br/assuntos/estatisticas-trabalho/o-pdet/calendario-de-divulgacao-do-novo-caged"
+        filename_template: "novo_caged_release_calendar.html"
+    notes: Official release-calendar page. Current-year calendar only unless historical calendars are explicitly discoverable.
+
+  - dataset_id: novo_caged_late_declarations_monthly
+    source: novo_caged
+    priority: P1
+    frequency: monthly
+    raw_format: 7z_txt
+    canonical_table: novo_caged_late_declaration_record
+    partition_keys: [year]
+    primary_keys: [late_declaration_record_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_revision_files
+    source_urls: []
+    notes: Likely CAGEDFOR monthly archive family. Useful for revisions/late declarations; defer to revision-aware PR.
+
+  - dataset_id: novo_caged_exclusions_monthly
+    source: novo_caged
+    priority: P1
+    frequency: monthly
+    raw_format: 7z_txt
+    canonical_table: novo_caged_exclusion_record
+    partition_keys: [year]
+    primary_keys: [exclusion_record_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_revision_files
+    source_urls: []
+    notes: Likely CAGEDEXC monthly archive family. Useful for revisions/exclusions; defer to revision-aware PR.
+
+  - dataset_id: novo_caged_official_monthly_tables
+    source: novo_caged
+    priority: P1
+    frequency: monthly
+    raw_format: xlsx_google_drive_link
+    canonical_table: novo_caged_official_monthly_table
+    partition_keys: [year]
+    primary_keys: [ref_date, table_name, row_key]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_official_xlsx_crosscheck
+    source_urls: []
+    notes: Official monthly page links Tabelas.xlsx, often through Google Drive. Useful cross-check; defer until deterministic fetch is designed.
+
+  - dataset_id: novo_caged_reference_stock
+    source: novo_caged
+    priority: P2
+    frequency: annual_or_reference
+    raw_format: html_or_xlsx_pending
+    canonical_table: novo_caged_reference_stock
+    partition_keys: [year]
+    primary_keys: [reference_year, geography_key, sector_key]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_reference
+    source_urls: []
+    notes: Official reference-stock communication/data. Useful for level context; defer.
+
+  - dataset_id: rais_microdata
+    source: pdet
+    priority: P2
+    frequency: annual
+    raw_format: txt_archive_large
+    canonical_table: rais_microdata_record
+    partition_keys: [year]
+    primary_keys: [rais_record_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_separate_source
+    source_urls: []
+    notes: RAIS is structural annual labor-market data, not Novo CAGED ingestion.
+
+  - dataset_id: legacy_caged_microdata
+    source: pdet
+    priority: P2
+    frequency: monthly_historical
+    raw_format: txt_archive_large
+    canonical_table: legacy_caged_record
+    partition_keys: [year]
+    primary_keys: [legacy_caged_record_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_legacy_source
+    source_urls: []
+    notes: Pre-2020 CAGED history. Useful later for longer labor history; defer.
+
+  - dataset_id: pdet_powerbi_panel
+    source: pdet
+    priority: P3
+    frequency: dashboard
+    raw_format: powerbi
+    canonical_table: pdet_powerbi_snapshot
+    partition_keys: [snapshot_year]
+    primary_keys: [snapshot_date, panel_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_human_validation
+    source_urls: []
+    notes: Dashboard is useful for validation, not deterministic ingestion.
+
+  - dataset_id: pdet_online_queries
+    source: pdet
+    priority: P3
+    frequency: interactive_query
+    raw_format: web_query
+    canonical_table: pdet_online_query_snapshot
+    partition_keys: [snapshot_year]
+    primary_keys: [snapshot_date, query_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_human_validation
+    source_urls: []
+    notes: PDET online queries are useful for human validation, not deterministic ingestion.

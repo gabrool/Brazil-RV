@@ -1,0 +1,30 @@
+source: novo_caged
+portal:
+  name: Ministerio do Trabalho e Emprego / PDET
+  url: https://www.gov.br/trabalho-e-emprego/pt-br/assuntos/estatisticas-trabalho
+  license_note: Brazilian federal open-data terms; cite MTE/PDET and dataset/source.
+
+official_pages:
+  - name: pdet_home
+    url: https://www.gov.br/trabalho-e-emprego/pt-br/assuntos/estatisticas-trabalho
+  - name: what_is_novo_caged
+    dataset_id: novo_caged_movements_monthly
+    url: https://www.gov.br/trabalho-e-emprego/pt-br/assuntos/estatisticas-trabalho/o-pdet/o-que-e-o-novo-caged
+  - name: release_calendar
+    dataset_id: novo_caged_release_calendar
+    url: https://www.gov.br/trabalho-e-emprego/pt-br/assuntos/estatisticas-trabalho/o-pdet/calendario-de-divulgacao-do-novo-caged
+  - name: current_release_page
+    dataset_id: novo_caged_official_monthly_tables
+    url: https://www.gov.br/trabalho-e-emprego/pt-br/assuntos/estatisticas-trabalho/novo-caged
+  - name: microdata_page
+    dataset_id: novo_caged_movements_monthly
+    url: https://www.gov.br/trabalho-e-emprego/pt-br/assuntos/estatisticas-trabalho/microdados-rais-e-caged
+
+endpoint_policy:
+  live_download_requires:
+    - stable_direct_url_or_official_page_link_discovery
+    - no_login
+    - no_browser_automation
+    - fixture_test
+    - manifest_failure_on_404
+  dependency_note: py7zr is used only for official Novo CAGED .7z archive parsing.
