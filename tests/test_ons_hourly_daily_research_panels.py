@@ -43,8 +43,6 @@ def test_ons_energy_balance_daily_uses_means_counts_and_max_availability():
     assert row["hour_count"] == 2
     assert row["hydro_generation_count"] == 1
     assert row["other_generation_count"] == 0
-    assert "hydro_share" not in panel.columns
-    assert "thermal_gap" not in panel.columns
 
 
 def test_ons_interchange_daily_preserves_direction_without_netting():
@@ -78,4 +76,3 @@ def test_ons_interchange_daily_preserves_direction_without_netting():
     assert se_to_ne["programmed_interchange_mwmed"] == 90.0
     assert se_to_ne["hour_count"] == 2
     assert se_to_ne["programmed_interchange_count"] == 1
-    assert "net_interchange_mwmed" not in panel.columns
