@@ -255,18 +255,15 @@ def _movement_group_history(paths, config, end: date) -> pl.DataFrame | None:
 
 
 def _release_reference_history(paths, end: date) -> pl.DataFrame | None:
-    gold = read_gold_panel(paths, "release_calendar_reference", start=None, end=end)
-    if gold is not None:
-        return gold
     silver = read_silver_dataset(
         paths,
         "novo_caged_release_calendar",
         start=None,
         end=end,
     )
-    if silver is None:
-        return None
-    return build_release_calendar_reference(silver, start=None, end=end)
+    if silver is not None:
+        return build_release_calendar_reference(silver, start=None, end=end)
+    return read_gold_panel(paths, "release_calendar_reference", start=None, end=end)
 
 
 def _dependency(
