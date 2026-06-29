@@ -103,7 +103,7 @@ def test_sgs_config_covers_required_categories_with_lineage_metadata(repo_root):
         "activity",
         "credit",
         "fiscal",
-        "external",
+        "external_reserves",
     } <= categories
     for item in series:
         assert item.notes.strip()
@@ -118,13 +118,20 @@ def test_sgs_config_covers_required_categories_with_lineage_metadata(repo_root):
             assert item.availability_policy != "unknown"
             assert item.availability_basis != "unknown"
             assert item.revision_policy != "current_snapshot_reference_only"
+            assert item.source_reference_url
+            assert item.notes.strip()
+        else:
+            assert item.non_model_usable_reason
+            assert item.alternate_source_family
 
 
 def test_sgs_model_usable_categories_are_documented_subset(repo_root):
     series = load_sgs_series_config(repo_root)
     model_usable_categories = {item.category for item in series if item.model_usable}
+    model_usable_ids = {item.series_id for item in series if item.model_usable}
 
-    assert model_usable_categories == {"rates", "inflation"}
+    assert model_usable_categories == {"rates", "inflation", "external_reserves"}
+    assert model_usable_ids == {11, 432, 433, 13982}
 
 
 def test_sgs_live_configured_ids_resolve_through_official_api(repo_root):
@@ -153,6 +160,38 @@ def test_sgs_parser_reads_official_data_valor_keys(repo_root):
     assert bronze["data"].item() == "02/01/2024"
     assert bronze["valor"].item() == "11.65"
     assert bronze["ref_date"].item() == date(2024, 1, 2)
+
+
+@pytest.mark.parametrize(
+    ("series_id", "payload", "expected"),
+    [
+        (13982, b'[{"data":"02/01/2024","valor":"355000.50"}]', 355000.50),
+        (22701, b'[{"data":"31/01/2024","valor":"-4500.25"}]', -4500.25),
+        (27810, b'[{"data":"31/01/2024","valor":"6000000.00"}]', 6000000.00),
+    ],
+)
+def test_sgs_parser_handles_representative_official_series_shapes(
+    repo_root,
+    series_id,
+    payload,
+    expected,
+):
+    bronze = parse_sgs_bytes(
+        payload,
+        series_id=series_id,
+        source_dataset="bcb_sgs_series",
+        download_timestamp_utc=datetime(2024, 2, 1, 12, tzinfo=UTC),
+        raw_path=repo_root / "raw.json",
+        sha256="abc",
+    )
+
+    silver = normalize_sgs_to_silver(
+        bronze,
+        series_config=load_sgs_series_config(repo_root),
+    )
+
+    assert silver["series_id"].item() == series_id
+    assert silver["value"].item() == expected
 
 
 def test_sgs_bronze_writer_partitions_by_series_and_year(repo_root, tmp_path):
@@ -203,6 +242,52 @@ def test_sgs_normalizer_applies_availability_policy(repo_root):
     assert silver["availability_basis"].item() == "source_date_only"
     assert silver["revision_policy"].item() == "unrevised"
     assert silver["model_usable"].item() is True
+
+
+def test_sgs_reserves_use_next_business_day_availability(repo_root):
+    bronze = parse_sgs_bytes(
+        b'[{"data":"02/01/2024","valor":"355000.50"}]',
+        series_id=13982,
+        source_dataset="bcb_sgs_series",
+        download_timestamp_utc=datetime(2024, 1, 2, 12, tzinfo=UTC),
+        raw_path=repo_root / "raw.json",
+        sha256="abc",
+    )
+
+    silver = normalize_sgs_to_silver(
+        bronze,
+        series_config=load_sgs_series_config(repo_root),
+    )
+
+    assert silver["available_date"].item() == date(2024, 1, 3)
+    assert silver["availability_policy"].item() == "date_only_next_business_day"
+    assert silver["availability_basis"].item() == "source_date_only"
+    assert silver["revision_policy"].item() == "unrevised"
+    assert silver["model_usable"].item() is True
+
+
+def test_sgs_bop_four_week_policy_remains_reference_only(repo_root):
+    bronze = parse_sgs_bytes(
+        b'[{"data":"31/01/2024","valor":"-4500.25"}]',
+        series_id=22701,
+        source_dataset="bcb_sgs_series",
+        download_timestamp_utc=datetime(2024, 2, 1, 12, tzinfo=UTC),
+        raw_path=repo_root / "raw.json",
+        sha256="abc",
+    )
+
+    silver = normalize_sgs_to_silver(
+        bronze,
+        series_config=load_sgs_series_config(repo_root),
+    )
+
+    assert silver["available_date"].item() == date(2024, 2, 29)
+    assert silver["availability_policy"].item() == "bcb_tempestividade_up_to_4_weeks"
+    assert silver["availability_basis"].item() == "official_tempestividade_date_only"
+    assert silver["revision_policy"].item() == "current_snapshot_reference_only"
+    assert silver["model_usable"].item() is False
+    assert silver["non_model_usable_reason"].item()
+    assert silver["alternate_source_family"].item() == "bcb_focus_external_expectations"
 
 
 def test_sgs_unknown_availability_policy_is_not_model_usable(repo_root):

@@ -26,6 +26,9 @@ BCB_SGS_SILVER_COLUMNS = [
     "model_usable",
     "source_reference_url",
     "notes",
+    "non_model_usable_reason",
+    "alternate_source_family",
+    "reference_feature_family",
     "source",
     "source_dataset",
     "download_timestamp_utc",
@@ -66,6 +69,11 @@ def normalize_sgs_to_silver(
                 "model_usable": model_usable,
                 "source_reference_url": config.source_reference_url if config else None,
                 "notes": config.notes if config else None,
+                "non_model_usable_reason": (
+                    config.non_model_usable_reason if config else None
+                ),
+                "alternate_source_family": config.alternate_source_family if config else None,
+                "reference_feature_family": config.reference_feature_family if config else None,
                 "source": row.get("source", "bcb"),
                 "source_dataset": row.get("source_dataset", "bcb_sgs_series"),
                 "download_timestamp_utc": row.get("download_timestamp_utc"),
@@ -91,13 +99,15 @@ def _available_date(
 ) -> date | None:
     if config is None:
         return None
-    if config.availability_policy == "next_business_day":
+    if config.availability_policy in {"next_business_day", "date_only_next_business_day"}:
         return next_business_day(ref_date)
     if config.availability_policy == "configured_lag_days":
         lag_days = config.availability_lag_days
         if lag_days is None:
             return None
         return ref_date + timedelta(days=lag_days)
+    if config.availability_policy == "bcb_tempestividade_up_to_4_weeks":
+        return next_business_day(ref_date + timedelta(days=28))
     if config.availability_policy == "same_day":
         return ref_date
     return None

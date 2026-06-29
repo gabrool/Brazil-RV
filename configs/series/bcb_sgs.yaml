@@ -58,6 +58,9 @@ series:
     revision_policy: current_snapshot_reference_only
     model_usable: false
     source_reference_url: "https://dadosabertos.bcb.gov.br/dataset/27810-sgs"
+    non_model_usable_reason: no_sgs_vintage_or_release_calendar_for_historical_pit
+    alternate_source_family: market_liquidity_cvm_flows_b3_volume_oi
+    reference_feature_family: monetary_liquidity
     notes: Official BCB SGS code 27810 for M2 broad money. BCB catalog marks tempestividade as not applicable and notes methodological revision history, so this remains reference-only until a PIT availability rule is documented.
 
   - series_id: 27813
@@ -72,6 +75,9 @@ series:
     revision_policy: current_snapshot_reference_only
     model_usable: false
     source_reference_url: "https://dadosabertos.bcb.gov.br/dataset/27813-sgs"
+    non_model_usable_reason: no_sgs_vintage_or_release_calendar_for_historical_pit
+    alternate_source_family: market_liquidity_cvm_flows_b3_volume_oi
+    reference_feature_family: monetary_liquidity
     notes: Official BCB SGS code 27813 for M3 broad money. BCB catalog marks tempestividade as not applicable and notes methodological revision history, so this remains reference-only until a PIT availability rule is documented.
 
   - series_id: 27815
@@ -86,6 +92,9 @@ series:
     revision_policy: current_snapshot_reference_only
     model_usable: false
     source_reference_url: "https://dadosabertos.bcb.gov.br/dataset/27815-sgs"
+    non_model_usable_reason: no_sgs_vintage_or_release_calendar_for_historical_pit
+    alternate_source_family: market_liquidity_cvm_flows_b3_volume_oi
+    reference_feature_family: monetary_liquidity
     notes: Official BCB SGS code 27815 for M4 broad money. BCB catalog marks tempestividade as not applicable and notes methodological revision history, so this remains reference-only until a PIT availability rule is documented.
 
   - series_id: 4466
@@ -100,6 +109,9 @@ series:
     revision_policy: current_snapshot_reference_only
     model_usable: false
     source_reference_url: "https://dadosabertos.bcb.gov.br/dataset/4466-indice-nacional-de-precos-ao-consumidor-amplo-ipca---nucleo-medias-aparadas-com-suavizacao"
+    non_model_usable_reason: no_sgs_vintage_or_release_calendar_for_historical_pit
+    alternate_source_family: ibge_sidra_release_calendar
+    reference_feature_family: inflation_core
     notes: Official BCB SGS code 4466 verified; publication timing is not yet model-grade.
 
   - series_id: 24363
@@ -114,6 +126,9 @@ series:
     revision_policy: current_snapshot_reference_only
     model_usable: false
     source_reference_url: "https://dadosabertos.bcb.gov.br/dataset/24363-indice-de-atividade-economica-do-banco-central---ibc-br"
+    non_model_usable_reason: no_sgs_vintage_or_release_calendar_for_historical_pit
+    alternate_source_family: ibge_sidra_release_calendar
+    reference_feature_family: activity
     notes: Official BCB SGS code 24363 verified; current snapshot remains reference-only until timing and revision handling are documented.
 
   - series_id: 24364
@@ -128,6 +143,9 @@ series:
     revision_policy: current_snapshot_reference_only
     model_usable: false
     source_reference_url: "https://dadosabertos.bcb.gov.br/dataset/24364-indice-de-atividade-economica-do-banco-central-ibc-br---com-ajuste-sazonal"
+    non_model_usable_reason: no_sgs_vintage_or_release_calendar_for_historical_pit
+    alternate_source_family: ibge_sidra_release_calendar
+    reference_feature_family: activity
     notes: Official BCB SGS code 24364 verified; current snapshot remains reference-only until timing and revision handling are documented.
 
   - series_id: 20539
@@ -142,6 +160,9 @@ series:
     revision_policy: current_snapshot_reference_only
     model_usable: false
     source_reference_url: "https://dadosabertos.bcb.gov.br/dataset/20539-saldo-da-carteira-de-credito---total"
+    non_model_usable_reason: no_sgs_vintage_or_release_calendar_for_historical_pit
+    alternate_source_family: cvm_fund_flows_market_liquidity
+    reference_feature_family: credit
     notes: Official BCB SGS code 20539 verified; current snapshot remains reference-only until timing and revision handling are documented.
 
   - series_id: 20631
@@ -156,6 +177,9 @@ series:
     revision_policy: current_snapshot_reference_only
     model_usable: false
     source_reference_url: "https://dadosabertos.bcb.gov.br/dataset/20631-concessoes-de-credito---total"
+    non_model_usable_reason: no_sgs_vintage_or_release_calendar_for_historical_pit
+    alternate_source_family: cvm_fund_flows_market_liquidity
+    reference_feature_family: credit
     notes: Official BCB SGS code 20631 verified; current snapshot remains reference-only until timing and revision handling are documented.
 
   - series_id: 21082
@@ -170,6 +194,9 @@ series:
     revision_policy: current_snapshot_reference_only
     model_usable: false
     source_reference_url: "https://dadosabertos.bcb.gov.br/dataset/21082-inadimplencia-da-carteira-de-credito---total"
+    non_model_usable_reason: no_sgs_vintage_or_release_calendar_for_historical_pit
+    alternate_source_family: cvm_fund_flows_market_liquidity
+    reference_feature_family: credit
     notes: Official BCB SGS code 21082 verified; current snapshot remains reference-only until timing and revision handling are documented.
 
   - series_id: 4513
@@ -184,6 +211,9 @@ series:
     revision_policy: current_snapshot_reference_only
     model_usable: false
     source_reference_url: "https://dadosabertos.bcb.gov.br/dataset/4513-divida-liquida-do-setor-publico--pib---total---setor-publico-consolidado"
+    non_model_usable_reason: no_sgs_vintage_or_release_calendar_for_historical_pit
+    alternate_source_family: tesouro_receita
+    reference_feature_family: fiscal_debt
     notes: Official BCB SGS code 4513 verified; current snapshot remains reference-only until timing and revision handling are documented.
 
   - series_id: 4478
@@ -198,6 +228,9 @@ series:
     revision_policy: current_snapshot_reference_only
     model_usable: false
     source_reference_url: "https://dadosabertos.bcb.gov.br/dataset/4478-divida-liquida-do-setor-publico---saldos-em-rs-milhoes---total---setor-publico-consolidado"
+    non_model_usable_reason: no_sgs_vintage_or_release_calendar_for_historical_pit
+    alternate_source_family: tesouro_receita
+    reference_feature_family: fiscal_debt
     notes: Official BCB SGS code 4478 verified; current snapshot remains reference-only until timing and revision handling are documented.
 
   - series_id: 13762
@@ -212,6 +245,9 @@ series:
     revision_policy: current_snapshot_reference_only
     model_usable: false
     source_reference_url: "https://dadosabertos.bcb.gov.br/dataset/13762-divida-bruta-do-governo-geral--pib---metodologia-utilizada-a-partir-de-2008"
+    non_model_usable_reason: no_sgs_vintage_or_release_calendar_for_historical_pit
+    alternate_source_family: tesouro_receita
+    reference_feature_family: fiscal_debt
     notes: Official BCB SGS code 13762 verified; current snapshot remains reference-only until timing and revision handling are documented.
 
   - series_id: 4649
@@ -226,6 +262,9 @@ series:
     revision_policy: current_snapshot_reference_only
     model_usable: false
     source_reference_url: "https://dadosabertos.bcb.gov.br/dataset/4649-nfsp-sem-desvalorizacao-cambial---fluxo-mensal-corrente---resultado-primario---total---setor-p"
+    non_model_usable_reason: no_sgs_vintage_or_release_calendar_for_historical_pit
+    alternate_source_family: tesouro_receita
+    reference_feature_family: fiscal_debt
     notes: Official BCB SGS code 4649 verified; current snapshot remains reference-only until timing and revision handling are documented.
 
   - series_id: 4583
@@ -240,46 +279,55 @@ series:
     revision_policy: current_snapshot_reference_only
     model_usable: false
     source_reference_url: "https://dadosabertos.bcb.gov.br/dataset/4583-nfsp-sem-desvalorizacao-cambial---fluxo-mensal-corrente---resultado-nominal---total---setor-pu"
+    non_model_usable_reason: no_sgs_vintage_or_release_calendar_for_historical_pit
+    alternate_source_family: tesouro_receita
+    reference_feature_family: fiscal_debt
     notes: Official BCB SGS code 4583 verified; current snapshot remains reference-only until timing and revision handling are documented.
 
   - series_id: 22701
     slug: current_account_balance
     name: Current account balance
-    category: external
+    category: external_reserves
     frequency: monthly
     unit: usd_millions
-    availability_policy: unknown
+    availability_policy: bcb_tempestividade_up_to_4_weeks
     availability_lag_days: null
-    availability_basis: unknown
+    availability_basis: official_tempestividade_date_only
     revision_policy: current_snapshot_reference_only
     model_usable: false
     source_reference_url: "https://dadosabertos.bcb.gov.br/dataset/22701-transacoes-correntes---mensal---saldo"
-    notes: Official BCB SGS code 22701 verified; current snapshot remains reference-only until timing and revision handling are documented.
+    non_model_usable_reason: no_sgs_vintage_or_first_seen_history_for_historical_pit
+    alternate_source_family: bcb_focus_external_expectations
+    reference_feature_family: external_reserves
+    notes: Official BCB SGS code 22701. BCB metadata says Tempestividade is up to four weeks after the reference period, but SGS current snapshots remain reference-only until vintage or first-seen history exists.
 
   - series_id: 22707
     slug: trade_balance_bop
     name: Trade balance balance-of-payments basis
-    category: external
+    category: external_reserves
     frequency: monthly
     unit: usd_millions
-    availability_policy: unknown
+    availability_policy: bcb_tempestividade_up_to_4_weeks
     availability_lag_days: null
-    availability_basis: unknown
+    availability_basis: official_tempestividade_date_only
     revision_policy: current_snapshot_reference_only
     model_usable: false
     source_reference_url: "https://dadosabertos.bcb.gov.br/dataset/22707-balanca-comercial---balanco-de-pagamentos---mensal---saldo"
-    notes: Official BCB SGS code 22707 verified; current snapshot remains reference-only until timing and revision handling are documented.
+    non_model_usable_reason: no_sgs_vintage_or_first_seen_history_for_historical_pit
+    alternate_source_family: bcb_focus_external_expectations
+    reference_feature_family: external_reserves
+    notes: Official BCB SGS code 22707. BCB metadata says Tempestividade is up to four weeks after the reference period, but SGS current snapshots remain reference-only until vintage or first-seen history exists.
 
   - series_id: 13982
     slug: international_reserves_liquidity
     name: International reserves liquidity concept
-    category: external
+    category: external_reserves
     frequency: daily
     unit: usd_millions
-    availability_policy: unknown
+    availability_policy: date_only_next_business_day
     availability_lag_days: null
-    availability_basis: unknown
-    revision_policy: current_snapshot_reference_only
-    model_usable: false
+    availability_basis: source_date_only
+    revision_policy: unrevised
+    model_usable: true
     source_reference_url: "https://dadosabertos.bcb.gov.br/dataset/13982-reservas-internacionais---conceito-liquidez---total---diaria"
-    notes: Official BCB SGS code 13982 verified; current snapshot remains reference-only until timing and revision handling are documented.
+    notes: Official BCB SGS daily reserves series. Date-only SGS rows are conservatively usable next business day; no same-day use.

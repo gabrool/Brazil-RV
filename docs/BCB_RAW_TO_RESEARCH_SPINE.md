@@ -18,6 +18,7 @@ Gold outputs are written to:
 
 - `data/gold/bcb/sgs_observation_daily/`
 - `data/gold/bcb/sgs_asof_daily/`
+- `data/gold/bcb/sgs_feature_daily/`
 - `data/gold/bcb/ptax_selected_daily/`
 - `data/gold/bcb/focus_expectation_observation_daily/`
 - `data/gold/bcb/focus_expectation_asof_daily/`
@@ -35,7 +36,8 @@ preserve the source observation date and source availability date. As-of panels
 use `ref_date` as the model date, set `available_date = ref_date`, and carry the
 original source dates as `observation_ref_date` and `observation_available_date`.
 SGS rows also carry `availability_basis`, `revision_policy`, source reference
-URL, and notes from `configs/series/bcb_sgs.yaml`.
+URL, reference-only reasons, alternate source families, and notes from
+`configs/series/bcb_sgs.yaml`.
 
 As-of panels only use source rows where:
 
@@ -49,10 +51,15 @@ not create unavailable placeholder rows before first availability.
 SGS series with `availability_policy = unknown` or
 `revision_policy = current_snapshot_reference_only` are retained in source
 metadata but have `model_usable = false`, so they do not enter model-ready SGS
-observation, as-of, or daily-long panels when `include_model_usable_only` is on.
-The SGS expansion in PR #53 is therefore a reference/source-map coverage
-expansion. It does not claim to close the remaining model-ready SGS coverage
-blocker, which is tracked in #54.
+observation, as-of, feature, or daily-long panels when `include_model_usable_only`
+is on. The only SGS series promoted to model-ready after the original
+Selic/IPCA subset is `13982` international reserves liquidity, using
+date-only next-business-day availability.
+
+The `sgs_feature_daily` panel is built from `sgs_asof_daily`, not raw silver, so
+the feature rows inherit point-in-time availability. It emits model-ready long
+features for Selic levels/spreads/steps, IPCA trailing sums/annualized values,
+and international reserves levels/log changes/drawdowns.
 
 ## Focus availability limitation
 
@@ -65,20 +72,23 @@ keep this caveat visible.
 
 ## Transformer-aware feature rule
 
-The BCB research spine includes only structural preprocessing fields:
+The BCB research spine includes structural preprocessing fields and the
+explicit first-model SGS feature set documented in
+`docs/BCB_SGS_MODEL_READY_DECISIONS.md`:
 
 - source, series, currency, indicator, and expectation identifiers
 - observation and availability dates
 - raw official values from SGS, PTAX, and Focus
+- SGS model-ready Selic/IPCA/reserves features built from as-of panels
 - selected PTAX bulletin flags
 - missingness and availability flags
 - as-of latest observation values
 - `staleness_days`
 
-It intentionally excludes hand-crafted alpha features and model-stage
-transformations, including real rates, surprises, revisions, moving or rolling
-features, z-scores, PTAX mid/spread/basis features, policy text or NLP fields,
-stationarity transforms, classification labels, and portfolio/backtest logic.
+It intentionally excludes broader hand-crafted alpha features and model-stage
+transformations, including real rates, surprises, revision factors, z-scores,
+PTAX mid/spread/basis features, policy text or NLP fields, stationarity
+transforms, classification labels, and portfolio/backtest logic.
 
 ## CLI
 

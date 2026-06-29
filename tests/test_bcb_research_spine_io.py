@@ -139,13 +139,15 @@ def test_bcb_pipeline_writes_gold_outputs_from_silver(repo_root, tmp_path):
         repo_root=tmp_path,
         start=date(2024, 1, 1),
         end=date(2024, 1, 5),
-        panels=["sgs_observation_daily", "sgs_asof_daily"],
+        panels=["sgs_observation_daily", "sgs_asof_daily", "sgs_feature_daily"],
     )
 
     assert status["sgs_observation_daily"] == "written: 1 rows"
     assert status["sgs_asof_daily"] == "written: 4 rows"
+    assert status["sgs_feature_daily"] == "written: 4 rows"
     assert (tmp_path / "data" / "gold" / "bcb" / "sgs_observation_daily").exists()
     assert (tmp_path / "data" / "gold" / "bcb" / "sgs_asof_daily").exists()
+    assert (tmp_path / "data" / "gold" / "bcb" / "sgs_feature_daily").exists()
 
 
 def test_bcb_pipeline_sgs_asof_uses_pre_window_silver_history(repo_root, tmp_path):

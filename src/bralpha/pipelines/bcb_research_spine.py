@@ -21,11 +21,13 @@ from bralpha.derived.bcb.io import (
 from bralpha.derived.bcb.ptax import build_ptax_selected_daily
 from bralpha.derived.bcb.schemas import PANEL_PRIMARY_KEYS
 from bralpha.derived.bcb.sgs import build_sgs_asof_daily, build_sgs_observation_daily
+from bralpha.derived.bcb.sgs_features import build_sgs_feature_daily
 from bralpha.infra.config import load_bcb_research_config, load_paths_config, resolve_project_paths
 
 PANEL_ORDER = [
     "sgs_observation_daily",
     "sgs_asof_daily",
+    "sgs_feature_daily",
     "ptax_selected_daily",
     "focus_expectation_observation_daily",
     "focus_expectation_asof_daily",
@@ -107,6 +109,11 @@ def _build_panel(
         if observations is None:
             return None
         return build_sgs_asof_daily(observations, start=start, end=end)
+    if panel == "sgs_feature_daily":
+        asof = _dependency(paths, built, "sgs_asof_daily", start, end, required=required)
+        if asof is None:
+            return None
+        return build_sgs_feature_daily(asof)
     if panel == "ptax_selected_daily":
         ptax = read_silver_dataset(
             paths,
@@ -175,14 +182,16 @@ def _build_panel(
         return build_focus_reference_dates(refs)
     if panel == "daily_long":
         sgs = _dependency(paths, built, "sgs_asof_daily", start, end)
+        sgs_features = _dependency(paths, built, "sgs_feature_daily", start, end)
         ptax = _dependency(paths, built, "ptax_selected_daily", start, end)
         focus = _dependency(paths, built, "focus_expectation_asof_daily", start, end)
-        if sgs is None and ptax is None and focus is None:
+        if sgs is None and sgs_features is None and ptax is None and focus is None:
             if required:
                 raise BCBResearchInputMissingError("Missing daily_long source panels")
             return None
         return build_daily_long(
             sgs_asof_daily=sgs,
+            sgs_feature_daily=sgs_features,
             ptax_selected_daily=ptax,
             focus_expectation_asof_daily=focus,
             include_sgs=config.daily_long.include_sgs,

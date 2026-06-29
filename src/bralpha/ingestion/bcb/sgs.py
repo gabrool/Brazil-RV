@@ -39,6 +39,9 @@ class SgsSeriesConfig:
     revision_policy: str = REVISION_UNREVISED
     source_reference_url: str = ""
     notes: str = ""
+    non_model_usable_reason: str | None = None
+    alternate_source_family: str | None = None
+    reference_feature_family: str | None = None
 
 
 def load_sgs_series_config(repo_root: Path) -> list[SgsSeriesConfig]:
@@ -46,7 +49,9 @@ def load_sgs_series_config(repo_root: Path) -> list[SgsSeriesConfig]:
     with path.open("r", encoding="utf-8") as handle:
         data = yaml.safe_load(handle)
     rows = data.get("series", []) if isinstance(data, dict) else []
-    return [SgsSeriesConfig(**row) for row in rows]
+    series = [SgsSeriesConfig(**row) for row in rows]
+    _validate_sgs_series_config(series)
+    return series
 
 
 def download_sgs_series(
@@ -144,6 +149,42 @@ def _select_series(
     if missing:
         raise ValueError(f"Unknown configured SGS series_id(s): {missing}")
     return selected
+
+
+def _validate_sgs_series_config(series: list[SgsSeriesConfig]) -> None:
+    ids = [item.series_id for item in series]
+    duplicates = sorted({series_id for series_id in ids if ids.count(series_id) > 1})
+    if duplicates:
+        raise ValueError(f"Duplicate BCB SGS series_id(s): {duplicates}")
+    for item in series:
+        if item.model_usable:
+            missing = []
+            if item.availability_policy == "unknown":
+                missing.append("availability_policy")
+            if item.availability_basis == "unknown":
+                missing.append("availability_basis")
+            if item.revision_policy == "current_snapshot_reference_only":
+                missing.append("revision_policy")
+            if not item.source_reference_url.strip():
+                missing.append("source_reference_url")
+            if not item.notes.strip():
+                missing.append("notes")
+            if missing:
+                raise ValueError(
+                    f"Model-usable BCB SGS series {item.series_id} lacks "
+                    f"model-ready metadata: {', '.join(missing)}"
+                )
+        else:
+            if not item.non_model_usable_reason:
+                raise ValueError(
+                    f"Reference-only BCB SGS series {item.series_id} requires "
+                    "non_model_usable_reason"
+                )
+            if not item.alternate_source_family:
+                raise ValueError(
+                    f"Reference-only BCB SGS series {item.series_id} requires "
+                    "alternate_source_family"
+                )
 
 
 def _add_years(value: date, years: int) -> date:
