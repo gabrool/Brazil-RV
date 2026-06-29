@@ -20,7 +20,7 @@ def build_sgs_observation_daily(
     start: date | None = None,
     end: date | None = None,
 ) -> pl.DataFrame:
-    frame = silver
+    frame = _ensure_columns(silver, BCB_SGS_OBSERVATION_DAILY_COLUMNS)
     if start is not None:
         frame = frame.filter(pl.col("ref_date") >= start)
     if end is not None:
@@ -46,6 +46,7 @@ def build_sgs_asof_daily(
     if observations.is_empty() or not business_days_mon_fri(start, end):
         return _empty_asof()
 
+    observations = _ensure_columns(observations, BCB_SGS_OBSERVATION_DAILY_COLUMNS)
     obs = (
         observations.filter(pl.col("available_date").is_not_null())
         .rename(
@@ -94,3 +95,10 @@ def build_sgs_asof_daily(
 
 def _empty_asof() -> pl.DataFrame:
     return pl.DataFrame(schema={column: pl.Null for column in BCB_SGS_ASOF_DAILY_COLUMNS})
+
+
+def _ensure_columns(frame: pl.DataFrame, columns: list[str]) -> pl.DataFrame:
+    missing = [column for column in columns if column not in frame.columns]
+    if not missing:
+        return frame
+    return frame.with_columns([pl.lit(None).alias(column) for column in missing])

@@ -29,6 +29,18 @@ def test_bcb_source_map_lists_all_requested_datasets(repo_root):
         assert f"`{dataset_id}`" in text
 
 
+def test_bcb_source_map_scopes_sgs_reference_expansion(repo_root):
+    text = (repo_root / "docs" / "BCB_SOURCE_MAP.md").read_text(encoding="utf-8")
+    raw_to_research = (repo_root / "docs" / "BCB_RAW_TO_RESEARCH_SPINE.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "monetary/liquidity reference metadata" in text
+    assert "broader model-ready SGS coverage remains tracked in #54" in text
+    assert "BCB_LIVE_TESTS=1" in text
+    assert "reference/source-map coverage expansion" in " ".join(raw_to_research.split())
+
+
 def test_bcb_text_heavy_datasets_are_pending_or_raw_only(repo_root):
     registry = load_bcb_dataset_registry(repo_root)
 

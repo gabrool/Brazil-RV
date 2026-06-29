@@ -36,6 +36,10 @@ def test_daily_long_includes_sgs_ptax_and_focus_rows_and_drops_nulls():
     assert ptax_bid["ref_date"] == date(2024, 1, 3)
     assert ptax_bid["observation_ref_date"] == date(2024, 1, 2)
     assert ptax_bid["observation_available_date"] == date(2024, 1, 3)
+    sgs = panel.filter(pl.col("source_family") == "sgs").row(0, named=True)
+    assert sgs["model_usable"] is True
+    assert sgs["availability_basis"] == "source_date_only"
+    assert sgs["revision_policy"] == "unrevised"
 
 
 def test_daily_long_uses_long_primary_key_and_does_not_pivot_wide():
@@ -72,7 +76,30 @@ def _sgs_asof() -> pl.DataFrame:
                 "is_observed_on_ref_date": False,
                 "staleness_days": 0,
                 "availability_policy": "next_business_day",
+                "availability_basis": "source_date_only",
+                "revision_policy": "unrevised",
                 "model_usable": True,
+                "source_version": "v0",
+            },
+            {
+                "ref_date": date(2024, 1, 2),
+                "available_date": date(2024, 1, 3),
+                "series_id": 27810,
+                "series_slug": "m2_new",
+                "series_name": "M2",
+                "category": "monetary_liquidity",
+                "frequency": "monthly",
+                "observation_ref_date": date(2024, 1, 1),
+                "observation_available_date": date(2024, 1, 2),
+                "value": 1000.0,
+                "unit": "brl_thousands",
+                "is_available": True,
+                "is_observed_on_ref_date": False,
+                "staleness_days": 0,
+                "availability_policy": "unknown",
+                "availability_basis": "unknown",
+                "revision_policy": "current_snapshot_reference_only",
+                "model_usable": False,
                 "source_version": "v0",
             }
         ]

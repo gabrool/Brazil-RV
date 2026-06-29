@@ -48,32 +48,40 @@ def build_daily_long(
 
 
 def _sgs_rows(frame: pl.DataFrame) -> pl.DataFrame:
-    return frame.with_columns(
-        source_family=pl.lit("sgs"),
-        feature_id=pl.concat_str(
-            [
-                pl.lit("sgs:"),
-                pl.coalesce([pl.col("series_slug"), pl.col("series_id").cast(pl.Utf8)]),
-            ]
-        ),
-        value_name=pl.lit("value"),
-        value=pl.col("value").cast(pl.Float64),
-    ).select(BCB_DAILY_LONG_COLUMNS)
+    frame = _ensure_columns(frame, BCB_DAILY_LONG_COLUMNS)
+    return (
+        frame.filter(pl.col("model_usable").fill_null(False))
+        .with_columns(
+            source_family=pl.lit("sgs"),
+            feature_id=pl.concat_str(
+                [
+                    pl.lit("sgs:"),
+                    pl.coalesce([pl.col("series_slug"), pl.col("series_id").cast(pl.Utf8)]),
+                ]
+            ),
+            value_name=pl.lit("value"),
+            value=pl.col("value").cast(pl.Float64),
+        )
+        .select(BCB_DAILY_LONG_COLUMNS)
+    )
 
 
 def _ptax_rows(frame: pl.DataFrame) -> list[pl.DataFrame]:
     return [
-        frame.with_columns(
-            source_family=pl.lit("ptax"),
-            feature_id=pl.concat_str([pl.lit("ptax:"), pl.col("currency_code")]),
-            value_name=pl.lit(column),
-            value=pl.col(column).cast(pl.Float64),
-            unit=pl.lit(None, dtype=pl.Utf8),
-            observation_ref_date=pl.col("ref_date"),
-            observation_available_date=pl.col("available_date"),
-            ref_date=pl.col("available_date"),
-            is_available=pl.col("has_quote"),
-            staleness_days=pl.lit(0, dtype=pl.Int64),
+        _ensure_columns(
+            frame.with_columns(
+                source_family=pl.lit("ptax"),
+                feature_id=pl.concat_str([pl.lit("ptax:"), pl.col("currency_code")]),
+                value_name=pl.lit(column),
+                value=pl.col(column).cast(pl.Float64),
+                unit=pl.lit(None, dtype=pl.Utf8),
+                observation_ref_date=pl.col("ref_date"),
+                observation_available_date=pl.col("available_date"),
+                ref_date=pl.col("available_date"),
+                is_available=pl.col("has_quote"),
+                staleness_days=pl.lit(0, dtype=pl.Int64),
+            ),
+            BCB_DAILY_LONG_COLUMNS,
         ).select(BCB_DAILY_LONG_COLUMNS)
         for column in PTAX_VALUE_COLUMNS
     ]
@@ -81,12 +89,15 @@ def _ptax_rows(frame: pl.DataFrame) -> list[pl.DataFrame]:
 
 def _focus_rows(frame: pl.DataFrame) -> list[pl.DataFrame]:
     return [
-        frame.with_columns(
-            source_family=pl.lit("focus"),
-            feature_id=pl.concat_str([pl.lit("focus:"), pl.col("expectation_key")]),
-            value_name=pl.lit(column),
-            value=pl.col(column).cast(pl.Float64),
-            unit=pl.lit(None, dtype=pl.Utf8),
+        _ensure_columns(
+            frame.with_columns(
+                source_family=pl.lit("focus"),
+                feature_id=pl.concat_str([pl.lit("focus:"), pl.col("expectation_key")]),
+                value_name=pl.lit(column),
+                value=pl.col(column).cast(pl.Float64),
+                unit=pl.lit(None, dtype=pl.Utf8),
+            ),
+            BCB_DAILY_LONG_COLUMNS,
         ).select(BCB_DAILY_LONG_COLUMNS)
         for column in FOCUS_VALUE_COLUMNS
     ]
@@ -94,3 +105,10 @@ def _focus_rows(frame: pl.DataFrame) -> list[pl.DataFrame]:
 
 def _empty() -> pl.DataFrame:
     return pl.DataFrame(schema={column: pl.Null for column in BCB_DAILY_LONG_COLUMNS})
+
+
+def _ensure_columns(frame: pl.DataFrame, columns: list[str]) -> pl.DataFrame:
+    missing = [column for column in columns if column not in frame.columns]
+    if not missing:
+        return frame
+    return frame.with_columns([pl.lit(None).alias(column) for column in missing])

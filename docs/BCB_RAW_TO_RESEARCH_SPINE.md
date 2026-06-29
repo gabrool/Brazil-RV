@@ -34,6 +34,8 @@ Every model-usable daily row has `ref_date` and `available_date`.
 preserve the source observation date and source availability date. As-of panels
 use `ref_date` as the model date, set `available_date = ref_date`, and carry the
 original source dates as `observation_ref_date` and `observation_available_date`.
+SGS rows also carry `availability_basis`, `revision_policy`, source reference
+URL, and notes from `configs/series/bcb_sgs.yaml`.
 
 As-of panels only use source rows where:
 
@@ -43,6 +45,14 @@ observation_available_date <= ref_date
 
 The first pass emits as-of rows only after an observation is available. It does
 not create unavailable placeholder rows before first availability.
+
+SGS series with `availability_policy = unknown` or
+`revision_policy = current_snapshot_reference_only` are retained in source
+metadata but have `model_usable = false`, so they do not enter model-ready SGS
+observation, as-of, or daily-long panels when `include_model_usable_only` is on.
+The SGS expansion in PR #53 is therefore a reference/source-map coverage
+expansion. It does not claim to close the remaining model-ready SGS coverage
+blocker, which is tracked in #54.
 
 ## Focus availability limitation
 

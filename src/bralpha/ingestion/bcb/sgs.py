@@ -8,6 +8,10 @@ import yaml
 
 from bralpha.infra.http import HttpClient
 from bralpha.metadata.datasets import DatasetConfig
+from bralpha.timing.vintages import (
+    AVAILABILITY_SOURCE_DATE_ONLY,
+    REVISION_UNREVISED,
+)
 
 from .common import (
     BcbDownloadResult,
@@ -31,6 +35,10 @@ class SgsSeriesConfig:
     availability_policy: str
     model_usable: bool
     availability_lag_days: int | None = None
+    availability_basis: str = AVAILABILITY_SOURCE_DATE_ONLY
+    revision_policy: str = REVISION_UNREVISED
+    source_reference_url: str = ""
+    notes: str = ""
 
 
 def load_sgs_series_config(repo_root: Path) -> list[SgsSeriesConfig]:
