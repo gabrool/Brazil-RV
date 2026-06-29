@@ -7,6 +7,7 @@ import pytest
 
 from bralpha.derived.anp.daily_long import build_anp_daily_long, build_anp_state_asof_daily
 from bralpha.derived.anp.schemas import PANEL_PRIMARY_KEYS
+from bralpha.timing.vintages import AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE
 
 
 def test_anp_state_asof_uses_pre_window_history_and_latest_available_missing_values():
@@ -120,6 +121,70 @@ def test_anp_daily_long_includes_group_families_drops_null_values_and_keeps_long
     }
     assert "station_cnpj" not in daily_long.columns
     assert "municipality" not in daily_long.columns
+
+
+def test_anp_daily_long_excludes_non_model_usable_current_snapshots():
+    state = build_anp_state_asof_daily(
+        fuel_prices=_price_group().with_columns(
+            availability_basis=pl.lit(AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE),
+            model_usable=pl.lit(False),
+        ),
+        start=date(2024, 2, 1),
+        end=date(2024, 2, 1),
+        max_features=100,
+    )
+
+    daily_long = build_anp_daily_long(
+        state_asof_daily=state,
+        include_fuel_prices=True,
+        include_fuel_sales=False,
+        include_oil_gas=False,
+    )
+
+    assert daily_long.is_empty()
+
+
+def test_anp_state_asof_uses_revised_snapshot_only_after_later_available_date():
+    prices = pl.DataFrame(
+        {
+            "ref_date": [date(2024, 1, 1), date(2024, 1, 1)],
+            "available_date": [date(2024, 1, 2), date(2024, 1, 5)],
+            "availability_policy": [
+                "anp_weekly_price_survey_conservative_7d_next_business_day",
+                "anp_weekly_price_survey_conservative_7d_next_business_day",
+            ],
+            "group_type": ["all", "all"],
+            "group_value": ["all", "all"],
+            "product": ["GASOLINA C", "GASOLINA C"],
+            "feature_id": ["anp_fuel_price|all|all|gasolina_c"] * 2,
+            "sale_price": [5.0, 6.0],
+            "purchase_price": [None, None],
+            "station_count": [1, 1],
+            "sale_price_count": [1, 1],
+            "purchase_price_count": [0, 0],
+            "unit": ["BRL/l", "BRL/l"],
+            "vintage_id": ["v1", "v2"],
+            "revision_sequence": [0, 1],
+            "source_version": ["v0", "v0"],
+        }
+    )
+
+    state = build_anp_state_asof_daily(
+        fuel_prices=prices,
+        start=date(2024, 1, 2),
+        end=date(2024, 1, 5),
+        max_features=100,
+    )
+    sale = state.filter(pl.col("value_name") == "sale_price").sort("ref_date")
+
+    assert sale["ref_date"].to_list() == [
+        date(2024, 1, 2),
+        date(2024, 1, 3),
+        date(2024, 1, 4),
+        date(2024, 1, 5),
+    ]
+    assert sale["value"].to_list() == [5.0, 5.0, 5.0, 6.0]
+    assert sale["vintage_id"].to_list() == ["v1", "v1", "v1", "v2"]
 
 
 def _price_group() -> pl.DataFrame:

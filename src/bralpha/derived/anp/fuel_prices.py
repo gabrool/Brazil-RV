@@ -4,6 +4,7 @@ from datetime import date
 
 import polars as pl
 
+from bralpha.derived.anp.pit import anp_pit_aggregations, ensure_anp_pit_columns
 from bralpha.derived.anp.quality import validate_panel
 from bralpha.derived.anp.schemas import (
     ANP_FUEL_PRICE_GROUP_OBSERVATION_COLUMNS,
@@ -24,7 +25,7 @@ def build_fuel_price_station_observation(
     if silver.is_empty():
         return _empty(ANP_FUEL_PRICE_STATION_OBSERVATION_COLUMNS)
 
-    frame = silver
+    frame = ensure_anp_pit_columns(silver)
     if start is not None:
         frame = frame.filter(pl.col("ref_date") >= start)
     if end is not None:
@@ -117,17 +118,24 @@ def _aggregate_group(frame: pl.DataFrame, group_type: str) -> pl.DataFrame:
         ),
     )
     return (
-        working.group_by(["ref_date", "group_type", "group_value", "product"])
+        working.group_by(["ref_date", "group_type", "group_value", "product", "vintage_id"])
         .agg(
-            available_date=pl.col("available_date").max(),
-            availability_policy=pl.col("availability_policy").drop_nulls().first(),
-            sale_price=pl.col("sale_price").mean(),
-            purchase_price=pl.col("purchase_price").mean(),
-            station_count=pl.len().cast(pl.Int64),
-            sale_price_count=pl.col("sale_price").is_not_null().sum().cast(pl.Int64),
-            purchase_price_count=pl.col("purchase_price").is_not_null().sum().cast(pl.Int64),
-            unit=pl.col("unit").drop_nulls().first(),
-            source_version=pl.col("source_version").drop_nulls().first(),
+            [
+                pl.col("available_date").max(),
+                pl.col("availability_policy").drop_nulls().first(),
+                *anp_pit_aggregations(),
+                pl.col("sale_price").mean(),
+                pl.col("purchase_price").mean(),
+                pl.len().cast(pl.Int64).alias("station_count"),
+                pl.col("sale_price").is_not_null().sum().cast(pl.Int64).alias(
+                    "sale_price_count"
+                ),
+                pl.col("purchase_price").is_not_null().sum().cast(pl.Int64).alias(
+                    "purchase_price_count"
+                ),
+                pl.col("unit").drop_nulls().first(),
+                pl.col("source_version").drop_nulls().first(),
+            ]
         )
         .with_columns(
             feature_id=pl.struct(["group_type", "group_value", "product"]).map_elements(

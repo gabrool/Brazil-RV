@@ -5,12 +5,14 @@ from datetime import date
 import polars as pl
 
 from bralpha.derived.anp.calendar import business_day_frame, business_days_mon_fri
+from bralpha.derived.anp.pit import ensure_anp_pit_columns
 from bralpha.derived.anp.quality import validate_asof_panel
 from bralpha.derived.anp.schemas import (
     ANP_DAILY_LONG_COLUMNS,
     ANP_STATE_ASOF_DAILY_COLUMNS,
     PANEL_PRIMARY_KEYS,
 )
+from bralpha.timing.vintages import AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE
 
 STATE_KEY_COLUMNS = ["source_family", "feature_id", "value_name"]
 
@@ -68,7 +70,17 @@ def build_anp_state_asof_daily(
 
     obs = (
         observations.filter(pl.col("observation_available_date").is_not_null())
-        .sort([*STATE_KEY_COLUMNS, "observation_available_date", "observation_ref_date"])
+        .sort(
+            [
+                *STATE_KEY_COLUMNS,
+                "observation_available_date",
+                "first_seen_timestamp_utc",
+                "source_last_modified_utc",
+                "revision_sequence",
+                "vintage_id",
+                "observation_ref_date",
+            ]
+        )
         .unique(
             subset=[*STATE_KEY_COLUMNS, "observation_available_date"],
             keep="last",
@@ -138,6 +150,8 @@ def build_anp_daily_long(
 
     frame = (
         state_asof_daily.filter(pl.col("source_family").is_in(families))
+        .filter(pl.col("model_usable").fill_null(False))
+        .filter(pl.col("availability_basis") != AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE)
         .filter(pl.col("value").is_not_null())
         .select(ANP_DAILY_LONG_COLUMNS)
         .unique(subset=PANEL_PRIMARY_KEYS["daily_long"], keep="last", maintain_order=True)
@@ -158,6 +172,7 @@ def _state_rows(
 ) -> pl.DataFrame | None:
     if frame is None or frame.is_empty():
         return None
+    frame = ensure_anp_pit_columns(frame)
     rows: list[pl.DataFrame] = []
     for metric, fixed_unit in metrics:
         unit_expr = pl.lit(fixed_unit) if fixed_unit is not None else pl.col("unit")
@@ -169,6 +184,17 @@ def _state_rows(
                     pl.lit(metric).alias("value_name"),
                     pl.col("ref_date").alias("observation_ref_date"),
                     pl.col("available_date").alias("observation_available_date"),
+                    pl.col("availability_policy"),
+                    pl.col("availability_basis"),
+                    pl.col("revision_policy"),
+                    pl.col("release_date"),
+                    pl.col("source_publication_datetime_utc"),
+                    pl.col("source_last_modified_utc"),
+                    pl.col("first_seen_timestamp_utc"),
+                    pl.col("vintage_id"),
+                    pl.col("revision_sequence"),
+                    pl.col("model_usable"),
+                    pl.col("model_usable_reason"),
                     pl.col(metric).cast(pl.Float64).alias("value"),
                     unit_expr.alias("unit"),
                     pl.col("source_version"),
