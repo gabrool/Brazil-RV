@@ -41,7 +41,12 @@ def test_fred_dataset_registry_loads(repo_root):
 
     assert registry.raw_storage.manifest_path == "data/manifests/fred/downloads.jsonl"
     assert dataset.source_map_status == "live_download"
-    assert dataset.primary_keys == ["series_id", "ref_date"]
+    assert dataset.primary_keys == [
+        "series_id",
+        "ref_date",
+        "vintage_date",
+        "vintage_request_mode",
+    ]
     assert dataset.partition_keys == ["series_id", "year"]
     assert (dataset.model_extra or {})["api_key_env"] == "FRED_API_KEY"
     assert dataset.first_source_url().url_template == (

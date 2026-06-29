@@ -9,7 +9,7 @@ from bralpha.derived.fred.observations import (
     build_fred_asof_daily,
     build_fred_observation,
 )
-from bralpha.ingestion.fred.common import FredSeriesConfig
+from bralpha.ingestion.fred.common import FRED_VINTAGE_REQUEST, FredSeriesConfig
 
 
 def test_fred_observation_preserves_fields_and_filters_configured_rows():
@@ -162,6 +162,134 @@ def test_fred_asof_carries_monthly_series_with_staleness():
     assert panel["staleness_days"].to_list() == [0, 1, 2, 3]
 
 
+def test_fred_asof_uses_latest_available_vintage_only_after_revision_date():
+    observations = build_fred_observation(
+        pl.DataFrame(
+            [
+                _silver_row(
+                    "PCOPPUSDM",
+                    date(2024, 1, 31),
+                    date(2024, 2, 16),
+                    8400.0,
+                    "8400",
+                    "ok",
+                    frequency="monthly",
+                    unit="usd_per_metric_ton",
+                    vintage_date=date(2024, 2, 15),
+                    vintage_id="fred:fred_series_observations:first",
+                    vintage_policy="fred_realtime_vintages_required",
+                    revision_policy="revised_use_vintages",
+                ),
+                _silver_row(
+                    "PCOPPUSDM",
+                    date(2024, 1, 31),
+                    date(2024, 3, 18),
+                    8450.0,
+                    "8450",
+                    "ok",
+                    frequency="monthly",
+                    unit="usd_per_metric_ton",
+                    vintage_date=date(2024, 3, 15),
+                    vintage_id="fred:fred_series_observations:second",
+                    vintage_policy="fred_realtime_vintages_required",
+                    revision_policy="revised_use_vintages",
+                ),
+            ]
+        ),
+        series_config=_series_config(),
+        include_model_usable_only=True,
+        include_priorities=["P1"],
+    )
+
+    panel = build_fred_asof_daily(
+        observations,
+        start=date(2024, 3, 15),
+        end=date(2024, 3, 19),
+        max_dense_series=5000,
+    ).sort("ref_date")
+
+    assert panel["ref_date"].to_list() == [
+        date(2024, 3, 15),
+        date(2024, 3, 18),
+        date(2024, 3, 19),
+    ]
+    assert panel["value"].to_list() == [8400.0, 8450.0, 8450.0]
+    assert panel["vintage_date"].to_list() == [
+        date(2024, 2, 15),
+        date(2024, 3, 15),
+        date(2024, 3, 15),
+    ]
+
+
+def test_fred_asof_same_available_date_selects_latest_observation_and_vintage():
+    observations = build_fred_observation(
+        pl.DataFrame(
+            [
+                _silver_row(
+                    "PCOPPUSDM",
+                    date(2024, 1, 31),
+                    date(2024, 2, 19),
+                    8400.0,
+                    "8400",
+                    "ok",
+                    frequency="monthly",
+                    unit="usd_per_metric_ton",
+                    vintage_date=date(2024, 2, 16),
+                    vintage_id="fred:fred_series_observations:first",
+                    vintage_policy="fred_realtime_vintages_required",
+                    revision_policy="revised_use_vintages",
+                    vintage_request_mode=FRED_VINTAGE_REQUEST,
+                ),
+                _silver_row(
+                    "PCOPPUSDM",
+                    date(2024, 1, 31),
+                    date(2024, 2, 19),
+                    8450.0,
+                    "8450",
+                    "ok",
+                    frequency="monthly",
+                    unit="usd_per_metric_ton",
+                    vintage_date=date(2024, 2, 17),
+                    vintage_id="fred:fred_series_observations:second",
+                    vintage_policy="fred_realtime_vintages_required",
+                    revision_policy="revised_use_vintages",
+                    vintage_request_mode=FRED_VINTAGE_REQUEST,
+                ),
+                _silver_row(
+                    "PCOPPUSDM",
+                    date(2024, 2, 15),
+                    date(2024, 2, 19),
+                    8500.0,
+                    "8500",
+                    "ok",
+                    frequency="monthly",
+                    unit="usd_per_metric_ton",
+                    vintage_date=date(2024, 2, 17),
+                    vintage_id="fred:fred_series_observations:third",
+                    vintage_policy="fred_realtime_vintages_required",
+                    revision_policy="revised_use_vintages",
+                    vintage_request_mode=FRED_VINTAGE_REQUEST,
+                ),
+            ]
+        ),
+        series_config=_series_config(),
+        include_model_usable_only=True,
+        include_priorities=["P1"],
+    )
+
+    panel = build_fred_asof_daily(
+        observations,
+        start=date(2024, 2, 19),
+        end=date(2024, 2, 19),
+        max_dense_series=5000,
+    )
+    row = panel.row(0, named=True)
+
+    assert row["observation_ref_date"] == date(2024, 2, 15)
+    assert row["vintage_date"] == date(2024, 2, 17)
+    assert row["value"] == 8500.0
+
+
 def test_fred_asof_max_dense_series_raises():
     observations = build_fred_observation(
         pl.DataFrame(
@@ -195,7 +323,13 @@ def _silver_row(
     frequency: str = "daily",
     unit: str = "percent",
     model_usable: bool = True,
+    vintage_date: date | None = None,
+    vintage_id: str | None = None,
+    vintage_policy: str = "latest_snapshot_allowed",
+    revision_policy: str = "unrevised",
+    vintage_request_mode: str = "latest_snapshot",
 ) -> dict[str, object]:
+    vintage_date = vintage_date or ref_date
     return {
         "series_id": series_id,
         "series_name": series_id,
@@ -203,13 +337,20 @@ def _silver_row(
         "frequency": frequency,
         "unit": unit,
         "ref_date": ref_date,
+        "vintage_date": vintage_date,
+        "vintage_id": vintage_id or f"fred:fred_series_observations:{series_id}:{ref_date}",
         "available_date": available_date,
         "availability_policy": "date_only_next_business_day",
+        "availability_basis": "source_date_only",
+        "series_kind": "market_daily",
+        "vintage_policy": vintage_policy,
+        "vintage_request_mode": vintage_request_mode,
+        "revision_policy": revision_policy,
         "value": value,
         "raw_value": raw_value,
         "value_status": value_status,
-        "realtime_start": ref_date,
-        "realtime_end": ref_date,
+        "realtime_start": vintage_date,
+        "realtime_end": vintage_date,
         "model_usable": model_usable,
         "source_version": "v0",
     }

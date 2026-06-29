@@ -24,6 +24,8 @@ from bralpha.metadata.datasets import DatasetConfig
 from bralpha.metadata.manifest import ManifestRecord, ManifestWriter
 
 FRED_API_KEY_ENV = "FRED_API_KEY"
+FRED_LATEST_SNAPSHOT_REQUEST = "latest_snapshot"
+FRED_VINTAGE_REQUEST = "fred_vintage_request"
 
 
 class FredApiKeyMissingError(RuntimeError):
@@ -47,6 +49,13 @@ class FredSeriesConfig:
     priority: str
     model_usable: bool
     availability_policy: str
+    series_kind: str = "market_daily"
+    vintage_policy: str = "latest_snapshot_allowed"
+    vintage_request_mode: str = FRED_LATEST_SNAPSHOT_REQUEST
+    realtime_start: date | str | None = None
+    realtime_end: date | str | None = None
+    vintage_dates: list[date | str] | None = None
+    model_usable_without_vintage: bool = True
     notes: str = ""
 
 
@@ -83,7 +92,10 @@ def load_fred_series_config(repo_root: Path) -> list[FredSeriesConfig]:
     with path.open("r", encoding="utf-8") as handle:
         data = yaml.safe_load(handle)
     rows = data.get("series", []) if isinstance(data, dict) else []
-    series = [FredSeriesConfig(**row) for row in rows]
+    defaults = data.get("defaults", {}) if isinstance(data, dict) else {}
+    if not isinstance(defaults, dict):
+        defaults = {}
+    series = [FredSeriesConfig(**{**defaults, **row}) for row in rows]
     seen: set[str] = set()
     duplicates: set[str] = set()
     for item in series:

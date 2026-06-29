@@ -15,6 +15,11 @@ def test_fred_series_reference_preserves_config_metadata(repo_root):
     assert dgs10["priority"] == "P0"
     assert dgs10["model_usable"] is True
     assert dgs10["availability_policy"] == "date_only_next_business_day"
+    assert dgs10["vintage_policy"] == "latest_snapshot_allowed"
+    assert dgs10["vintage_request_mode"] == "latest_snapshot"
     assert copper["priority"] == "P1"
+    assert copper["vintage_policy"] == "fred_realtime_vintages_required"
+    assert copper["vintage_request_mode"] == "fred_vintage_request"
+    assert copper["model_usable_without_vintage"] is False
     assert "IMF" in copper["notes"]
     assert panel["series_id"].n_unique() == panel.height

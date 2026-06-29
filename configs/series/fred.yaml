@@ -1,3 +1,9 @@
+defaults:
+  series_kind: market_daily
+  vintage_policy: latest_snapshot_allowed
+  vintage_request_mode: latest_snapshot
+  model_usable_without_vintage: true
+
 series:
   - series_id: DGS2
     name: Market Yield on U.S. Treasury Securities at 2-Year Constant Maturity
@@ -268,4 +274,8 @@ series:
     priority: P1
     model_usable: true
     availability_policy: date_only_next_business_day
+    series_kind: revised_macro
+    vintage_policy: fred_realtime_vintages_required
+    vintage_request_mode: fred_vintage_request
+    model_usable_without_vintage: false
     notes: Verified on FRED; IMF copyright/citation terms apply.

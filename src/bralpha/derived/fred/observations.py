@@ -31,7 +31,10 @@ def build_fred_observation(
     if metadata.is_empty():
         return _empty_observation()
 
-    frame = silver.with_columns(pl.col("series_id").cast(pl.Utf8).str.to_uppercase())
+    frame = _ensure_columns(
+        silver.with_columns(pl.col("series_id").cast(pl.Utf8).str.to_uppercase()),
+        FRED_OBSERVATION_COLUMNS,
+    )
     frame = frame.join(metadata, on="series_id", how="inner")
     if start is not None:
         frame = frame.filter(pl.col("ref_date") >= start)
@@ -66,6 +69,7 @@ def build_fred_asof_daily(
     if observations.is_empty() or not business_days_mon_fri(start, end):
         return _empty_asof()
 
+    observations = _ensure_columns(observations, FRED_OBSERVATION_COLUMNS)
     obs = (
         observations.filter(pl.col("available_date").is_not_null() & pl.col("model_usable"))
         .rename(
@@ -74,9 +78,16 @@ def build_fred_asof_daily(
                 "available_date": "observation_available_date",
             }
         )
-        .sort(["feature_id", "observation_available_date", "observation_ref_date"])
+        .sort(
+            [
+                "feature_id",
+                "observation_available_date",
+                "observation_ref_date",
+                "vintage_date",
+            ]
+        )
         .unique(
-            subset=["feature_id", "observation_available_date"],
+            subset=["feature_id", "observation_available_date", "observation_ref_date"],
             keep="last",
             maintain_order=True,
         )
@@ -150,6 +161,13 @@ def _series_metadata(
 
 def _feature_id_expr() -> pl.Expr:
     return pl.col("series_id").map_elements(fred_feature_id, return_dtype=pl.Utf8)
+
+
+def _ensure_columns(frame: pl.DataFrame, columns: list[str]) -> pl.DataFrame:
+    missing = [column for column in columns if column not in frame.columns]
+    if not missing:
+        return frame
+    return frame.with_columns([pl.lit(None).alias(column) for column in missing])
 
 
 def _empty_observation() -> pl.DataFrame:
