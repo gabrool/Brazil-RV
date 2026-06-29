@@ -1,9 +1,23 @@
 from __future__ import annotations
 
+RECEITA_PIT_COLUMNS = [
+    "availability_basis",
+    "revision_policy",
+    "release_date",
+    "source_publication_datetime_utc",
+    "source_last_modified_utc",
+    "first_seen_timestamp_utc",
+    "vintage_id",
+    "revision_sequence",
+    "model_usable",
+    "model_usable_reason",
+]
+
 RECEITA_TAX_COLLECTION_OBSERVATION_COLUMNS = [
     "ref_date",
     "available_date",
     "availability_policy",
+    *RECEITA_PIT_COLUMNS,
     "year",
     "month",
     "collection_scope",
@@ -24,6 +38,7 @@ RECEITA_TAX_COLLECTION_FEATURE_OBSERVATION_COLUMNS = [
     "ref_date",
     "available_date",
     "availability_policy",
+    *RECEITA_PIT_COLUMNS,
     "collection_scope",
     "revenue_category",
     "revenue_subcategory",
@@ -46,6 +61,8 @@ RECEITA_STATE_ASOF_DAILY_COLUMNS = [
     "feature_id",
     "observation_ref_date",
     "observation_available_date",
+    "availability_policy",
+    *RECEITA_PIT_COLUMNS,
     "value_name",
     "value",
     "unit",
@@ -65,6 +82,8 @@ RECEITA_DAILY_LONG_COLUMNS = [
     "unit",
     "observation_ref_date",
     "observation_available_date",
+    "availability_policy",
+    *RECEITA_PIT_COLUMNS,
     "is_available",
     "staleness_days",
     "source_version",
@@ -78,8 +97,9 @@ PANEL_PRIMARY_KEYS = {
         "revenue_code",
         "revenue_key",
         "table_kind",
+        "vintage_id",
     ],
-    "tax_collection_feature_observation": ["ref_date", "feature_id"],
+    "tax_collection_feature_observation": ["ref_date", "feature_id", "vintage_id"],
     "state_asof_daily": ["ref_date", "source_family", "feature_id", "value_name"],
     "daily_long": ["ref_date", "source_family", "feature_id", "value_name"],
 }

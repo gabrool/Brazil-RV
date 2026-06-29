@@ -23,7 +23,7 @@ datasets:
     raw_format: official_structured_tabular
     canonical_table: receita_tax_collection_monthly
     partition_keys: [year]
-    primary_keys: [ref_date, collection_scope, revenue_category, revenue_code, revenue_key, table_kind]
+    primary_keys: [ref_date, collection_scope, revenue_category, revenue_code, revenue_key, table_kind, vintage_id]
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys
@@ -31,7 +31,7 @@ datasets:
       - available_date_not_null
       - available_date_on_or_after_ref_date
     source_map_status: live_download
-    availability_policy: receita_monthly_collection_conservative_next_month_end_plus_5bd
+    availability_policy: receita_conservative_heuristic_plus_first_seen
     license_note: Brazilian federal open-data terms; cite Receita Federal/RFB and the official dataset/source.
     source_page_url: "https://dados.gov.br/dados/conjuntos-dados/resultado-da-arrecadacao"
     resource_discovery:

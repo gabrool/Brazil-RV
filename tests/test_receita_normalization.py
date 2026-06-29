@@ -7,8 +7,15 @@ import pytest
 
 from bralpha.normalization.receita_revenue import (
     RECEITA_COLLECTION_AVAILABILITY_POLICY,
+    RECEITA_COLLECTION_REFERENCE_ONLY_POLICY,
+    RECEITA_HEURISTIC_SNAPSHOT_BASIS,
     ReceitaNormalizationError,
     normalize_receita_tax_collection_monthly,
+)
+from bralpha.timing.vintages import (
+    AVAILABILITY_CONSERVATIVE_HEURISTIC,
+    REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY,
+    REVISION_REVISED_USE_FIRST_SEEN,
 )
 
 
@@ -17,8 +24,11 @@ def test_receita_long_layout_maps_fields_and_conservative_availability():
 
     row = silver.to_dicts()[0]
     assert row["ref_date"] == date(2024, 1, 31)
-    assert row["available_date"] == date(2024, 3, 7)
+    assert row["available_date"] == date(2024, 3, 8)
     assert row["availability_policy"] == RECEITA_COLLECTION_AVAILABILITY_POLICY
+    assert row["availability_basis"] == RECEITA_HEURISTIC_SNAPSHOT_BASIS
+    assert row["revision_policy"] == REVISION_REVISED_USE_FIRST_SEEN
+    assert row["model_usable"] is True
     assert row["collection_scope"] == "federal_total"
     assert row["revenue_category"] == "Imposto de Renda"
     assert row["revenue_code"] == "001"
@@ -26,6 +36,30 @@ def test_receita_long_layout_maps_fields_and_conservative_availability():
     assert row["collection_amount_brl"] == 10.5
     assert row["unit"] == "BRL"
     assert row["download_timestamp_utc"] == datetime(2024, 3, 8, 12)
+
+
+def test_receita_first_seen_before_heuristic_still_uses_heuristic_date():
+    silver = normalize_receita_tax_collection_monthly(
+        _long_bronze().with_columns(download_timestamp_utc=pl.lit(datetime(2024, 3, 1, 12)))
+    )
+
+    row = silver.to_dicts()[0]
+
+    assert row["available_date"] == date(2024, 3, 7)
+    assert row["availability_policy"] == RECEITA_COLLECTION_AVAILABILITY_POLICY
+    assert row["model_usable"] is True
+
+
+def test_receita_heuristic_only_rows_are_reference_only():
+    silver = normalize_receita_tax_collection_monthly(_long_bronze().drop("download_timestamp_utc"))
+
+    row = silver.to_dicts()[0]
+
+    assert row["available_date"] == date(2024, 3, 7)
+    assert row["availability_policy"] == RECEITA_COLLECTION_REFERENCE_ONLY_POLICY
+    assert row["availability_basis"] == AVAILABILITY_CONSERVATIVE_HEURISTIC
+    assert row["revision_policy"] == REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY
+    assert row["model_usable"] is False
 
 
 def test_receita_wide_layout_unpivots_month_columns_to_long_rows():

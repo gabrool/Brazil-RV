@@ -4,6 +4,7 @@ from datetime import date
 
 import polars as pl
 
+from bralpha.derived.receita.pit import ensure_receita_pit_columns
 from bralpha.derived.receita.quality import validate_panel
 from bralpha.derived.receita.schemas import (
     PANEL_PRIMARY_KEYS,
@@ -22,7 +23,7 @@ def build_tax_collection_observation(
     if silver.is_empty():
         return _empty(RECEITA_TAX_COLLECTION_OBSERVATION_COLUMNS)
 
-    frame = silver
+    frame = ensure_receita_pit_columns(silver)
     if start is not None:
         frame = frame.filter(pl.col("ref_date") >= start)
     if end is not None:
@@ -58,7 +59,7 @@ def build_tax_collection_feature_observation(
     if observations.is_empty():
         return _empty(RECEITA_TAX_COLLECTION_FEATURE_OBSERVATION_COLUMNS)
 
-    frame = observations
+    frame = ensure_receita_pit_columns(observations)
     if start is not None:
         frame = frame.filter(pl.col("ref_date") >= start)
     if end is not None:

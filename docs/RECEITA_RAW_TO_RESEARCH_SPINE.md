@@ -20,9 +20,18 @@ or read raw/bronze data. Source-specific silver remains immutable.
 ## Point-In-Time Policy
 
 Observation panels use Receita collection month-end as `ref_date` and inherit
-`available_date` from silver. That silver date is produced under
-`receita_monthly_collection_conservative_next_month_end_plus_5bd`; download
-timestamps are never used as historical availability.
+`available_date` from silver. Receita does not publish a machine-readable
+release calendar for this dataset, so the next-month-end-plus-5BD rule remains
+a conservative heuristic. Model-ready rows require a source/first-seen snapshot
+timestamp as well as the heuristic date:
+
+```text
+available_date = max(heuristic_available_date, snapshot_available_date)
+```
+
+| dataset_id | official timing source | availability_policy | availability_basis | revision_policy | model_usable default | what happens for current snapshots | what happens for first-seen snapshots |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `receita_tax_collection_monthly` | Receita open-data page, with no precise release calendar | `receita_conservative_heuristic_plus_first_seen` | `conservative_heuristic+first_seen_download_timestamp` | `revised_use_first_seen_snapshots` | true only with source/first-seen timestamp | Heuristic-only rows use `receita_monthly_collection_conservative_next_month_end_plus_5bd_reference_only`, remain non-model-usable, and are excluded from daily-long. | Rows become usable on the later of the heuristic usable date and snapshot usable date. |
 
 Daily as-of rows use the model date as `ref_date`, set `available_date =
 ref_date`, and carry the source observation dates as:
@@ -32,7 +41,8 @@ ref_date`, and carry the source observation dates as:
 
 As-of panels only use observations where `observation_available_date <=
 ref_date`. They emit rows only after the first available observation and carry
-monthly observations forward with `staleness_days`.
+monthly observations forward with `staleness_days`. `daily_long` keeps only
+`model_usable = true` rows and excludes current-snapshot/reference-only rows.
 
 ## Panel Semantics
 
