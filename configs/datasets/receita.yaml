@@ -1,0 +1,172 @@
+source: receita
+free_access_default: true
+requires_auth_default: false
+point_in_time_required: true
+
+raw_storage:
+  path_template: data/raw/receita/{dataset_id}/{download_date}/
+  manifest_path: data/manifests/receita/downloads.jsonl
+
+bronze_storage:
+  path_template: data/bronze/receita/{dataset_id}/
+  format: parquet
+
+silver_storage:
+  path_template: data/silver/{dataset_id}/
+  format: parquet
+
+datasets:
+  - dataset_id: receita_tax_collection_monthly
+    source: receita
+    priority: P0
+    frequency: monthly
+    raw_format: official_structured_tabular
+    canonical_table: receita_tax_collection_monthly
+    partition_keys: [year]
+    primary_keys: [ref_date, collection_scope, revenue_category, revenue_code, revenue_key, table_kind]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+      - ref_date_not_null
+      - available_date_not_null
+      - available_date_on_or_after_ref_date
+    source_map_status: live_download
+    availability_policy: receita_monthly_collection_conservative_next_month_end_plus_5bd
+    license_note: Brazilian federal open-data terms; cite Receita Federal/RFB and the official dataset/source.
+    source_page_url: "https://dados.gov.br/dados/conjuntos-dados/resultado-da-arrecadacao"
+    receita_category_page_url: "https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/dados-abertos/arrecadacao"
+    link_text_contains_any:
+      - "arrecadação"
+      - "arrecadacao"
+      - "receitas federais"
+      - "collection"
+      - "resultado da arrecadação"
+      - "resultado da arrecadacao"
+    accepted_extensions: [".csv", ".txt", ".zip", ".xlsx", ".xls", ".ods"]
+    source_urls:
+      - name: official_dados_gov_dataset_page
+        url_template: "https://dados.gov.br/dados/conjuntos-dados/resultado-da-arrecadacao"
+        filename_template: "resultado-da-arrecadacao.html"
+    notes: Official Receita tax-collection structured data discovered from Receita/gov.br or dados.gov.br pages. PDFs are ignored; no inflation adjustment, growth rates, ratios, surprises, rolling features, or labels are produced in ingestion.
+
+  - dataset_id: receita_tax_collection_by_state_monthly
+    source: receita
+    priority: P1
+    frequency: monthly_or_annual
+    raw_format: official_structured_tabular_pending
+    canonical_table: receita_tax_collection_by_state_monthly
+    partition_keys: [year]
+    primary_keys: [ref_date, state, revenue_category, revenue_code]
+    quality_checks:
+      - required_columns_present
+      - no_duplicate_primary_keys
+      - ref_date_not_null
+      - available_date_not_null
+      - available_date_on_or_after_ref_date
+    source_map_status: source_map_only_unless_fixture_verified
+    source_urls: []
+    notes: Useful regional fiscal/activity context, but federal tax attribution can be noisy and no deterministic official structured state file is fixture-verified in this PR.
+
+  - dataset_id: receita_tax_expenditures_annual
+    source: receita
+    priority: P1
+    frequency: annual
+    raw_format: structured_or_report_pending
+    canonical_table: receita_tax_expenditure_annual
+    partition_keys: [year]
+    primary_keys: [ref_year, tax_benefit_name, tax_or_sector]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_slow_fiscal
+    source_urls: []
+    notes: Tax expenditures and fiscal benefits are useful for fiscal-policy regime and revenue risk, but are slower/report-like and deferred.
+
+  - dataset_id: receita_fiscal_benefits_reports
+    source: receita
+    priority: P1
+    frequency: annual_or_irregular
+    raw_format: pdf_or_xlsx_pending
+    canonical_table: receita_fiscal_benefits_report
+    partition_keys: [year]
+    primary_keys: [report_year, report_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_report
+    source_urls: []
+    notes: Fiscal-benefit reports are useful but report-like; no PDF parsing in this PR.
+
+  - dataset_id: receita_tax_burden_annual
+    source: receita
+    priority: P2
+    frequency: annual
+    raw_format: structured_or_report_pending
+    canonical_table: receita_tax_burden_annual
+    partition_keys: [year]
+    primary_keys: [ref_year, government_level, tax_base_or_category]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_structural
+    source_urls: []
+    notes: Annual structural tax-burden context. Defer to a slower fiscal context PR.
+
+  - dataset_id: receita_monthly_collection_reports_pdf
+    source: receita
+    priority: P2
+    frequency: monthly
+    raw_format: pdf
+    canonical_table: receita_monthly_collection_report_metadata
+    partition_keys: [year]
+    primary_keys: [ref_date, report_url]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_pdf_metadata
+    source_urls: []
+    notes: Narrative monthly collection reports are useful for audit/release context but are not parsed here.
+
+  - dataset_id: receita_cnpj_open_data_reference
+    source: receita
+    priority: P2
+    frequency: snapshot_or_monthly
+    raw_format: zip_csv_large
+    canonical_table: receita_cnpj_reference
+    partition_keys: [snapshot_year]
+    primary_keys: [cnpj_root]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_reference
+    source_urls: []
+    notes: Entity/reference data for future joins, not tax-collection ingestion.
+
+  - dataset_id: receita_simples_nacional_collection
+    source: receita
+    priority: P2
+    frequency: monthly
+    raw_format: structured_pending
+    canonical_table: receita_simples_nacional_collection
+    partition_keys: [year]
+    primary_keys: [ref_date, state, municipality_or_scope, revenue_category]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_specialized
+    source_urls: []
+    notes: Useful SME/tax-regime context later; deferred to a dedicated source-semantics PR.
+
+  - dataset_id: receita_refis_installment_programs
+    source: receita
+    priority: P3
+    frequency: event_or_monthly
+    raw_format: mixed_pending
+    canonical_table: receita_refis_installment_programs
+    partition_keys: [year]
+    primary_keys: [ref_date, program_id]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_policy_events
+    source_urls: []
+    notes: Tax-settlement/installment programs are policy-event context and deferred.
+
+  - dataset_id: receita_customs_trade_tax_collection
+    source: receita
+    priority: P3
+    frequency: monthly
+    raw_format: structured_pending
+    canonical_table: receita_customs_trade_tax_collection
+    partition_keys: [year]
+    primary_keys: [ref_date, tax_or_customs_category]
+    quality_checks: [required_columns_present, no_duplicate_primary_keys]
+    source_map_status: source_map_only_specialized
+    source_urls: []
+    notes: Potential external-sector/customs fiscal context; deferred because Comex/BCB cover first-pass trade context.
