@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date
 from typing import Any
 
 import polars as pl
 
 from bralpha.derived.b3.quality import validate_panel
 from bralpha.derived.b3.schemas import FUTURES_CONTRACT_DAILY_COLUMNS, PANEL_PRIMARY_KEYS
+from bralpha.domain.b3_calendar import business_days_between
 from bralpha.domain.b3_contracts import build_b3_contract_id
 from bralpha.domain.b3_month_codes import parse_b3_maturity_code
 from bralpha.domain.instruments import asset_class_for_root
@@ -19,9 +20,15 @@ def build_futures_contract_daily(
     open_interest: pl.DataFrame | None = None,
     trade_summary: pl.DataFrame | None = None,
     contract_master: pl.DataFrame | None = None,
+    holiday_calendar: pl.DataFrame | None = None,
+    holidays: set[date] | None = None,
     start: date | None = None,
     end: date | None = None,
 ) -> pl.DataFrame:
+    holiday_dates, calendar_source = _calendar_inputs(
+        holiday_calendar=holiday_calendar,
+        holidays=holidays,
+    )
     buckets: dict[tuple[date, str, str, str], dict[str, Any]] = {}
     seen_source_keys: set[tuple[str, date, str, str, str]] = set()
 
@@ -48,7 +55,7 @@ def build_futures_contract_daily(
     for key, bucket in buckets.items():
         master = master_by_contract.get(key[3], {})
         _merge_master(bucket, master)
-        _finalize_bucket(bucket)
+        _finalize_bucket(bucket, holidays=holiday_dates, calendar_source=calendar_source)
 
     rows = list(buckets.values())
     _assign_contract_ranks(rows)
@@ -127,6 +134,7 @@ def _base_bucket(row: dict[str, Any]) -> dict[str, Any]:
         "maturity_date": None,
         "days_to_maturity_calendar": None,
         "business_days_to_maturity": None,
+        "calendar_source": None,
         "contract_rank_by_maturity": None,
         "settlement": None,
         "previous_settlement": None,
@@ -200,14 +208,21 @@ def _merge_master(bucket: dict[str, Any], master: dict[str, Any]) -> None:
     bucket["_source_versions"].add(str(master.get("source_version") or "v0"))
 
 
-def _finalize_bucket(bucket: dict[str, Any]) -> None:
+def _finalize_bucket(
+    bucket: dict[str, Any],
+    *,
+    holidays: set[date] | None,
+    calendar_source: str,
+) -> None:
     maturity_date = _optional_date(bucket.get("maturity_date"))
     bucket["maturity_date"] = maturity_date
+    bucket["calendar_source"] = calendar_source
     if maturity_date is not None:
         bucket["days_to_maturity_calendar"] = (maturity_date - bucket["ref_date"]).days
-        bucket["business_days_to_maturity"] = _business_days_between(
+        bucket["business_days_to_maturity"] = business_days_between(
             bucket["ref_date"],
             maturity_date,
+            holidays=holidays,
         )
     bucket["has_settlement"] = bucket.get("settlement") is not None
     bucket["has_volume"] = bucket.get("volume") is not None
@@ -252,6 +267,23 @@ def _contract_master_by_id(frame: pl.DataFrame | None) -> dict[str, dict[str, An
     return rows
 
 
+def _calendar_inputs(
+    *,
+    holiday_calendar: pl.DataFrame | None,
+    holidays: set[date] | None,
+) -> tuple[set[date] | None, str]:
+    if holidays is not None:
+        return holidays, "configured_holidays"
+    if holiday_calendar is None or holiday_calendar.is_empty():
+        return None, "weekday_fallback"
+    rows = holiday_calendar.to_dicts()
+    return {
+        _as_date(row["ref_date"])
+        for row in rows
+        if not bool(row.get("is_business_day", False))
+    }, "b3_holiday_calendar"
+
+
 def _is_tradeable(row: dict[str, Any]) -> bool:
     days = row.get("days_to_maturity_calendar")
     if days is not None and days < 0:
@@ -261,18 +293,6 @@ def _is_tradeable(row: dict[str, Any]) -> bool:
     volume = row.get("volume")
     open_interest = row.get("open_interest")
     return (volume is None or volume > 0) or (open_interest is None or open_interest > 0)
-
-
-def _business_days_between(start: date, end: date) -> int:
-    if end <= start:
-        return 0
-    count = 0
-    current = start + timedelta(days=1)
-    while current <= end:
-        if current.weekday() < 5:
-            count += 1
-        current += timedelta(days=1)
-    return count
 
 
 def _coalesce(bucket: dict[str, Any], row: dict[str, Any], column: str) -> None:

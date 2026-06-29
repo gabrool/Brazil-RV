@@ -5,9 +5,21 @@ from datetime import date
 import pytest
 from pydantic import ValidationError
 
-from bralpha.domain.b3_calendar import is_business_day, next_business_day, previous_business_day
+from bralpha.domain.b3_calendar import (
+    add_business_days,
+    business_days_between,
+    is_business_day,
+    next_business_day,
+    previous_business_day,
+)
 from bralpha.domain.b3_contracts import build_b3_contract_id
 from bralpha.domain.b3_month_codes import MONTH_CODES, parse_b3_maturity_code
+from bralpha.domain.di_futures import (
+    annual_rate_from_pu,
+    discount_factor_from_pu,
+    log_discount_factor_from_pu,
+    pu_from_annual_rate,
+)
 from bralpha.domain.instruments import InstrumentRegistry, asset_class_for_root
 from bralpha.infra.config import (
     load_b3_dataset_registry,
@@ -90,3 +102,21 @@ def test_calendar_helpers_handle_weekends_and_holidays():
     assert not is_business_day(date(2024, 1, 1), holidays)
     assert next_business_day(date(2023, 12, 29), holidays) == date(2024, 1, 2)
     assert previous_business_day(date(2024, 1, 2), holidays) == date(2023, 12, 29)
+    assert add_business_days(date(2023, 12, 29), 2, holidays) == date(2024, 1, 3)
+    assert business_days_between(date(2023, 12, 29), date(2024, 1, 3), holidays) == 2
+
+
+def test_di_futures_pu_rate_helpers_round_trip():
+    pu = 100_000 / ((1 + 0.13) ** (252 / 252))
+
+    assert annual_rate_from_pu(pu, 252) == pytest.approx(0.13)
+    assert pu_from_annual_rate(0.13, 252) == pytest.approx(pu)
+    assert discount_factor_from_pu(pu) == pytest.approx(pu / 100_000)
+    assert log_discount_factor_from_pu(pu) is not None
+
+
+def test_di_futures_helpers_reject_invalid_inputs():
+    assert discount_factor_from_pu(0) is None
+    assert annual_rate_from_pu(-1, 252) is None
+    assert annual_rate_from_pu(99_000, 0) is None
+    assert pu_from_annual_rate(-1.0, 252) is None

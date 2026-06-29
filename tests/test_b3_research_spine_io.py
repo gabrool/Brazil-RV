@@ -155,6 +155,74 @@ def test_missing_inputs_skip_full_pipeline_but_selected_panel_raises(repo_root, 
         )
 
 
+def test_futures_contract_pipeline_uses_holidays_beyond_research_end(repo_root, tmp_path):
+    shutil.copytree(repo_root / "configs", tmp_path / "configs")
+    paths = resolve_project_paths(tmp_path, load_paths_config(repo_root))
+    start = date(2024, 1, 2)
+    end = date(2024, 1, 3)
+    write_source_partitioned(
+        pl.DataFrame(
+            [
+                {
+                    "ref_date": start,
+                    "available_date": start,
+                    "source_dataset": "b3_futures_settlements",
+                    "commodity": "DI1",
+                    "maturity_code": "F24",
+                    "contract_id": "DI1_F24",
+                    "settlement": 98_000.0,
+                    "source_version": "settle-v0",
+                }
+            ]
+        ),
+        paths.silver / "b3_futures_settlements",
+        primary_keys=["ref_date", "contract_id"],
+    )
+    write_source_partitioned(
+        pl.DataFrame(
+            [
+                {
+                    "ref_date": start,
+                    "contract_id": "DI1_F24",
+                    "maturity_date": date(2024, 1, 5),
+                    "source_version": "master-v0",
+                }
+            ]
+        ),
+        paths.silver / "b3_futures_contract_master",
+        primary_keys=["ref_date", "contract_id"],
+    )
+    write_source_partitioned(
+        pl.DataFrame(
+            [
+                {
+                    "ref_date": date(2024, 1, 4),
+                    "calendar_id": "B3",
+                    "is_business_day": False,
+                    "holiday_name": "Fixture holiday after research end",
+                    "source_dataset": "b3_holiday_calendar",
+                    "source_version": "cal-v0",
+                }
+            ]
+        ),
+        paths.silver / "b3_holiday_calendar",
+        primary_keys=["ref_date", "calendar_id"],
+    )
+
+    status = run_b3_research_spine(
+        repo_root=tmp_path,
+        start=start,
+        end=end,
+        panels=["futures_contract_daily"],
+    )
+
+    assert status["futures_contract_daily"] == "written: 1 rows"
+    panel = io_module.read_parquet_root(gold_panel_root(paths, "futures_contract_daily"))
+    row = panel.row(0, named=True)
+    assert row["calendar_source"] == "b3_holiday_calendar"
+    assert row["business_days_to_maturity"] == 2
+
+
 def test_partitioned_parquet_read_prunes_unrelated_years(tmp_path, monkeypatch):
     root = tmp_path / "silver" / "b3_cotahist_yearly"
     _write_partition(root, 2023, "OLD")

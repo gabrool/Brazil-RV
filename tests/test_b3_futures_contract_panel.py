@@ -117,6 +117,40 @@ def test_contract_master_availability_and_lineage_when_fields_are_used():
     assert row["quote_convention"] == "price"
 
 
+def test_contract_business_days_use_b3_holiday_calendar_when_available():
+    settlements = pl.DataFrame(
+        [_source_row("b3_futures_settlements", "DI1", "F24", settlement=98_000.0)]
+    )
+    contract_master = pl.DataFrame(
+        [
+            {
+                "contract_id": "DI1_F24",
+                "maturity_date": date(2024, 1, 5),
+                "source_version": "master-v1",
+            }
+        ]
+    )
+    holiday_calendar = pl.DataFrame(
+        [
+            {
+                "calendar_id": "B3",
+                "ref_date": date(2024, 1, 3),
+                "is_business_day": False,
+            }
+        ]
+    )
+
+    panel = build_futures_contract_daily(
+        settlements=settlements,
+        contract_master=contract_master,
+        holiday_calendar=holiday_calendar,
+    )
+    row = panel.row(0, named=True)
+
+    assert row["business_days_to_maturity"] == 2
+    assert row["calendar_source"] == "b3_holiday_calendar"
+
+
 def test_contract_master_without_contributing_fields_does_not_add_lineage():
     settlements = pl.DataFrame(
         [_source_row("b3_futures_settlements", "DI1", "F26", settlement=10.0)]

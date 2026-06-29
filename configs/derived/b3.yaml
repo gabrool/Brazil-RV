@@ -20,7 +20,7 @@ b3_research:
   di_curve:
     source_roots:
       - DI1
-    tenor_days:
+    tenor_business_days:
       - 21
       - 42
       - 63
@@ -30,7 +30,7 @@ b3_research:
       - 756
       - 1008
       - 1260
-    interpolation: linear_by_days_to_maturity
+    interpolation: log_discount_factor_by_business_days
 
   targets:
     horizons:
@@ -40,3 +40,5 @@ b3_research:
     target_types:
       - quote_diff
       - quote_pct_change
+      - rate_bp_change
+      - discount_factor_log_change

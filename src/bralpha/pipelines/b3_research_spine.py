@@ -107,6 +107,7 @@ def _build_panel(
             open_interest=_silver(paths, "b3_derivatives_open_interest", start, end),
             trade_summary=_silver(paths, "b3_derivatives_trade_summary", start, end),
             contract_master=read_silver_dataset(paths, "b3_futures_contract_master"),
+            holiday_calendar=_holiday_calendar(paths),
             start=start,
             end=end,
         )
@@ -163,7 +164,7 @@ def _build_panel(
             return None
         return build_di_curve_grid_daily(
             curve_contracts,
-            tenor_days=config.di_curve.tenor_days,
+            tenor_business_days=config.di_curve.configured_tenor_business_days,
             interpolation_method=config.di_curve.interpolation,
             start=start,
             end=end,
@@ -225,6 +226,13 @@ def _build_panel(
 
 def _silver(paths, dataset_id: str, start: date, end: date, *, required: bool = False):
     return read_silver_dataset(paths, dataset_id, required=required, start=start, end=end)
+
+
+def _holiday_calendar(paths) -> pl.DataFrame | None:
+    calendar = read_silver_dataset(paths, "b3_holiday_calendar")
+    if calendar is not None:
+        return calendar
+    return read_silver_dataset(paths, "reference_calendar")
 
 
 def _dependency(
