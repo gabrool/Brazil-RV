@@ -192,6 +192,7 @@ def _gold_row(*, value: float, source_dataset: str) -> dict[str, object]:
     return {
         "series_id": "DGS10",
         "ref_date": date(2024, 1, 2),
+        "vintage_id": "fred:fred_series_observations:test",
         "value": value,
         "source_dataset": source_dataset,
     }

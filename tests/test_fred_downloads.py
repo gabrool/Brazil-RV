@@ -8,7 +8,7 @@ import pytest
 
 from bralpha.infra.config import load_fred_dataset_registry
 from bralpha.infra.http import HttpResponse
-from bralpha.ingestion.fred.common import FredApiKeyMissingError
+from bralpha.ingestion.fred.common import FRED_VINTAGE_REQUEST, FredApiKeyMissingError
 from bralpha.ingestion.fred.downloads import (
     build_fred_observations_request,
     download_fred_series_observations,
@@ -47,8 +47,8 @@ def test_fred_url_construction_uses_official_parameters(repo_root):
     url, params, filename = build_fred_observations_request(
         dataset,
         series_id="DGS10",
-        start=date(2024, 1, 2),
-        end=date(2024, 1, 31),
+        observation_start=date(2024, 1, 2),
+        observation_end=date(2024, 1, 31),
         api_key="test-key",
     )
 
@@ -62,6 +62,49 @@ def test_fred_url_construction_uses_official_parameters(repo_root):
         "sort_order": "asc",
     }
     assert filename == "fred_DGS10_20240102_20240131.json"
+
+
+def test_fred_vintage_request_supports_separate_observation_and_realtime_windows(repo_root):
+    dataset = load_fred_dataset_registry(repo_root).get("fred_series_observations")
+
+    url, params, filename = build_fred_observations_request(
+        dataset,
+        series_id="PCOPPUSDM",
+        observation_start=date(2024, 1, 1),
+        observation_end=date(2024, 3, 31),
+        api_key="test-key",
+        vintage_request_mode=FRED_VINTAGE_REQUEST,
+        realtime_start=date(2024, 1, 15),
+        realtime_end=date(2024, 6, 30),
+    )
+
+    assert url == "https://api.stlouisfed.org/fred/series/observations"
+    assert params["observation_start"] == "2024-01-01"
+    assert params["observation_end"] == "2024-03-31"
+    assert params["output_type"] == "2"
+    assert params["realtime_start"] == "2024-01-15"
+    assert params["realtime_end"] == "2024-06-30"
+    assert "vintage_dates" not in params
+    assert filename == "fred_PCOPPUSDM_20240101_20240331_vintages.json"
+
+
+def test_fred_vintage_request_accepts_explicit_vintage_dates(repo_root):
+    dataset = load_fred_dataset_registry(repo_root).get("fred_series_observations")
+
+    _, params, _ = build_fred_observations_request(
+        dataset,
+        series_id="PCOPPUSDM",
+        observation_start=date(2024, 1, 1),
+        observation_end=date(2024, 3, 31),
+        api_key="test-key",
+        vintage_request_mode=FRED_VINTAGE_REQUEST,
+        vintage_dates=[date(2024, 2, 15), date(2024, 3, 15)],
+    )
+
+    assert params["output_type"] == "2"
+    assert params["vintage_dates"] == "2024-02-15,2024-03-15"
+    assert "realtime_start" not in params
+    assert "realtime_end" not in params
 
 
 def test_fred_missing_api_key_raises_before_data_writes(repo_root, tmp_path, monkeypatch):
@@ -113,6 +156,31 @@ def test_fred_mocked_download_writes_raw_file_and_manifest(repo_root, tmp_path):
         "api_key=%3Credacted%3E" in records[0]["source_url"]
         or "api_key=<redacted>" in records[0]["source_url"]
     )
+
+
+def test_fred_configured_vintage_series_download_uses_vintage_mode(repo_root, tmp_path):
+    shutil.copytree(repo_root / "configs", tmp_path / "configs")
+    client = MockFredClient(content=_fred_payload("PCOPPUSDM").encode())
+
+    results = download_fred_series_observations(
+        tmp_path,
+        start=date(2024, 1, 1),
+        end=date(2024, 3, 31),
+        realtime_start=date(2024, 2, 1),
+        realtime_end=date(2024, 6, 30),
+        series_ids=["PCOPPUSDM"],
+        api_key="test-key",
+        client=client,
+        downloaded_at=datetime(2024, 4, 1, 12, tzinfo=UTC),
+    )
+
+    assert len(results) == 1
+    assert client.requests[0]["params"]["output_type"] == "2"
+    assert client.requests[0]["params"]["observation_start"] == "2024-01-01"
+    assert client.requests[0]["params"]["observation_end"] == "2024-03-31"
+    assert client.requests[0]["params"]["realtime_start"] == "2024-02-01"
+    assert client.requests[0]["params"]["realtime_end"] == "2024-06-30"
+    assert results[0].record.request_params["output_type"] == "2"
 
 
 def test_fred_http_failure_writes_failure_manifest_without_raw(repo_root, tmp_path):

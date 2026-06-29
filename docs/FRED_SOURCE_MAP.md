@@ -16,6 +16,13 @@ copyright/citation terms.
 |---|---:|---|---|---|---|---|---|
 | fred_series_observations | P0 | live_download | https://api.stlouisfed.org/fred/series/observations | json | mixed | data/silver/fred_series_observations/ | Requires `FRED_API_KEY`; date-only next-business-day availability; underlying source terms and series-specific history limits apply. |
 
+For ingestion, `--start` and `--end` are observation-date bounds. Vintage-mode
+requests can set separate FRED realtime/vintage bounds with `--realtime-start`
+and `--realtime-end`; when those are omitted, the request starts vintages at the
+observation start and carries `realtime_end` through the run date. Bronze rows
+store requested observation bounds separately from requested realtime or
+explicit `vintage_dates` bounds.
+
 ## Included Series Groups
 
 - Treasury nominal yields: `DGS2`, `DGS5`, `DGS10`, `DGS30`

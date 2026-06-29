@@ -17,6 +17,7 @@ def build_fred_daily_long(
     if not include_observations or asof_daily is None or asof_daily.is_empty():
         return _empty()
 
+    asof_daily = _ensure_columns(asof_daily, FRED_DAILY_LONG_COLUMNS)
     frame = (
         asof_daily.with_columns(
             source_family=pl.lit("fred"),
@@ -37,3 +38,10 @@ def build_fred_daily_long(
 
 def _empty() -> pl.DataFrame:
     return pl.DataFrame(schema={column: pl.Null for column in FRED_DAILY_LONG_COLUMNS})
+
+
+def _ensure_columns(frame: pl.DataFrame, columns: list[str]) -> pl.DataFrame:
+    missing = [column for column in columns if column not in frame.columns]
+    if not missing:
+        return frame
+    return frame.with_columns([pl.lit(None).alias(column) for column in missing])
