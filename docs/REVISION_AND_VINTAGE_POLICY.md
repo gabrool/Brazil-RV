@@ -21,7 +21,11 @@ Use the shared values in `bralpha.timing.vintages`:
 
 - `exact_source_timestamp`: the source publishes an exact release timestamp.
 - `source_date_only`: the source publishes only a release or vintage date, so the project applies the configured decision cutoff.
+- `source_last_modified`: the source or transport metadata exposes a last-modified timestamp.
 - `first_seen_download_timestamp`: the source lacks official vintage timing, and the project has persisted first-seen snapshots.
+- `official_release_calendar`: the source publishes a release calendar date.
+- `official_lag_policy`: the source documents a lag rule without row-level timestamps.
+- `conservative_heuristic`: the project uses a documented conservative fallback, not an official source timing fact.
 - `current_snapshot_no_vintage`: the source is a mutable current snapshot with no vintage or first-seen lineage.
 - `unknown`: timing is not established.
 

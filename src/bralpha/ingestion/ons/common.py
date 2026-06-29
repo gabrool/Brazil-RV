@@ -18,7 +18,7 @@ from bralpha.infra.http import HttpClient, HttpResponse
 from bralpha.infra.paths import ResolvedPaths
 from bralpha.infra.raw_store import RawStore
 from bralpha.metadata.datasets import DatasetConfig
-from bralpha.metadata.manifest import ManifestRecord, ManifestWriter
+from bralpha.metadata.manifest import ManifestRecord, ManifestWriter, response_manifest_metadata
 
 
 @dataclass(frozen=True)
@@ -205,6 +205,11 @@ def _manifest_from_response(
         download_timestamp_utc=timestamp,
         http_status=response.status_code,
         content_type=response.headers.get("content-type"),
+        **response_manifest_metadata(
+            source_url=response.url,
+            headers=response.headers,
+            request_params=request_params,
+        ),
         file_size_bytes=len(response.content),
         sha256=content_hash,
         raw_path=str(raw_path) if raw_path is not None else None,
@@ -231,6 +236,11 @@ def _failure_record(
         download_timestamp_utc=timestamp,
         http_status=response.status_code if response is not None else None,
         content_type=response.headers.get("content-type") if response is not None else None,
+        **response_manifest_metadata(
+            source_url=url,
+            headers=response.headers if response is not None else {},
+            request_params=request_params,
+        ),
         file_size_bytes=len(response.content) if response is not None else 0,
         sha256=sha256_bytes(response.content) if response is not None else None,
         raw_path=None,
