@@ -32,9 +32,20 @@ preserve the silver `available_date`. As-of panels use `ref_date` as the model
 date, set `available_date = ref_date`, and only use observations with
 `observation_available_date <= ref_date`.
 
-`download_timestamp_utc` is never used as historical availability. The pipeline
-reads observation history through the requested `end` date and emits as-of rows
-only within `[start, end]`.
+ANP has official/conservative first-release timing for the live datasets. Source
+last-modified and first-seen timestamps are preserved for revision audit and
+snapshot IDs, but they do not delay old observations inside large historical
+files when the official lag policy is defensible.
+
+| dataset_id | official timing source | availability_policy | availability_basis | revision_policy | model_usable default | what happens for current snapshots | what happens for first-seen snapshots |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `anp_fuel_prices_weekly` | ANP weekly fuel-price survey CSV page | `anp_weekly_price_survey_conservative_7d_next_business_day` | `conservative_heuristic` | `official_lag_no_revisions` | true | Stored with source snapshot lineage; official 7-calendar-day lag remains the model-ready timing. | `first_seen_timestamp_utc` is preserved in silver/research for audit and `vintage_id` construction. |
+| `anp_fuel_sales_monthly` | ANP page states monthly updates up to the last day after the reference month | `anp_monthly_official_next_month_end_next_business_day` | `official_lag_policy` | `official_lag_no_revisions` | true | Stored with source snapshot lineage; last-day-following-month timing remains model-ready. | `first_seen_timestamp_utc` is preserved for revision audit without over-delaying official-lag rows. |
+| `anp_oil_gas_production_monthly` | ANP page states monthly updates up to the last day after the reference month | `anp_monthly_official_next_month_end_next_business_day` | `official_lag_policy` | `official_lag_no_revisions` | true | Stored with source snapshot lineage; last-day-following-month timing remains model-ready. | `first_seen_timestamp_utc` is preserved for revision audit without over-delaying official-lag rows. |
+
+The pipeline reads observation history through the requested `end` date and
+emits as-of rows only within `[start, end]`. Daily-long outputs keep only rows
+where `model_usable = true` and exclude `current_snapshot_no_vintage`.
 
 ## Aggregation Rules
 

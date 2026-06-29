@@ -11,17 +11,40 @@ import polars as pl
 from bralpha.ingestion.anp.common import write_partitioned_frame
 from bralpha.parsing.common import normalize_column_name, parse_decimal
 from bralpha.timing.availability import usable_date_from_date_only
+from bralpha.timing.vintages import (
+    AVAILABILITY_CONSERVATIVE_HEURISTIC,
+    AVAILABILITY_OFFICIAL_LAG_POLICY,
+    REVISION_OFFICIAL_LAG_NO_REVISIONS,
+    choose_model_usable,
+    make_vintage_id,
+)
 
 ANP_WEEKLY_PRICE_AVAILABILITY_POLICY = (
     "anp_weekly_price_survey_conservative_7d_next_business_day"
 )
-ANP_MONTHLY_AVAILABILITY_POLICY = "anp_monthly_next_month_end_next_business_day"
+ANP_MONTHLY_AVAILABILITY_POLICY = (
+    "anp_monthly_official_next_month_end_next_business_day"
+)
+
+ANP_PIT_COLUMNS = [
+    "availability_basis",
+    "revision_policy",
+    "release_date",
+    "source_publication_datetime_utc",
+    "source_last_modified_utc",
+    "first_seen_timestamp_utc",
+    "vintage_id",
+    "revision_sequence",
+    "model_usable",
+    "model_usable_reason",
+]
 
 ANP_FUEL_PRICES_WEEKLY_COLUMNS = [
     "observation_id",
     "ref_date",
     "available_date",
     "availability_policy",
+    *ANP_PIT_COLUMNS,
     "region",
     "state",
     "municipality",
@@ -50,6 +73,7 @@ ANP_FUEL_SALES_MONTHLY_COLUMNS = [
     "ref_date",
     "available_date",
     "availability_policy",
+    *ANP_PIT_COLUMNS,
     "year",
     "month",
     "region",
@@ -69,6 +93,7 @@ ANP_OIL_GAS_PRODUCTION_MONTHLY_COLUMNS = [
     "ref_date",
     "available_date",
     "availability_policy",
+    *ANP_PIT_COLUMNS,
     "year",
     "month",
     "region",
@@ -144,6 +169,11 @@ def normalize_anp_fuel_prices_weekly(
             _existing_or_literal(bronze, "download_timestamp_utc", None).alias(
                 "download_timestamp_utc"
             ),
+            _existing_or_literal(bronze, "source_publication_datetime_utc", None).alias(
+                "source_publication_datetime_utc"
+            ),
+            _source_last_modified_expr(bronze).alias("source_last_modified_utc"),
+            _first_seen_expr(bronze).alias("first_seen_timestamp_utc"),
             _existing_or_literal(bronze, "raw_path", None).alias("raw_path"),
             _existing_or_literal(bronze, "sha256", None).alias("sha256"),
             pl.lit(source_version).alias("source_version"),
@@ -152,9 +182,20 @@ def normalize_anp_fuel_prices_weekly(
     frame = frame.with_columns(
         [
             pl.col("ref_date")
-            .map_elements(_weekly_available_date, return_dtype=pl.Date)
+            .map_elements(_weekly_release_date, return_dtype=pl.Date)
+            .alias("release_date"),
+        ]
+    )
+    frame = frame.with_columns(
+        [
+            pl.col("release_date")
+            .map_elements(_usable_date_from_release_date, return_dtype=pl.Date)
             .alias("available_date"),
             pl.lit(ANP_WEEKLY_PRICE_AVAILABILITY_POLICY).alias("availability_policy"),
+            pl.lit(AVAILABILITY_CONSERVATIVE_HEURISTIC).alias("availability_basis"),
+            pl.lit(REVISION_OFFICIAL_LAG_NO_REVISIONS).alias("revision_policy"),
+            pl.lit(0).alias("revision_sequence"),
+            pl.lit(REVISION_OFFICIAL_LAG_NO_REVISIONS).alias("model_usable_reason"),
         ]
     )
     id_columns = [
@@ -174,6 +215,33 @@ def normalize_anp_fuel_prices_weekly(
         .map_elements(_observation_id, return_dtype=pl.Utf8)
         .alias("observation_id")
     )
+    frame = frame.with_columns(
+        pl.struct(
+            [
+                "source_dataset",
+                "resource_family",
+                "resource_name",
+                "raw_path",
+                "release_date",
+                "first_seen_timestamp_utc",
+                "sha256",
+            ]
+        )
+        .map_elements(_snapshot_vintage_id, return_dtype=pl.Utf8)
+        .alias("vintage_id")
+    ).with_columns(
+        pl.struct(
+            [
+                "availability_basis",
+                "revision_policy",
+                "available_date",
+                "vintage_id",
+                "first_seen_timestamp_utc",
+            ]
+        )
+        .map_elements(_model_usable, return_dtype=pl.Boolean)
+        .alias("model_usable")
+    )
     return frame.select(ANP_FUEL_PRICES_WEEKLY_COLUMNS)
 
 
@@ -187,11 +255,24 @@ def normalize_anp_fuel_sales_monthly(
         year = _int(_field(row, "ano", "year"))
         month = _month_number(_field(row, "mes", "month"))
         ref_date = _month_end(year, month)
+        release_date = _monthly_release_date(ref_date)
+        available_date = _usable_date_from_release_date(release_date)
+        pit = _pit_fields(
+            row,
+            dataset_id="anp_fuel_sales_monthly",
+            resource_family=_text(row.get("resource_family")),
+            resource_name=_text(row.get("resource_name")),
+            ref_date=ref_date,
+            release_date=release_date,
+            available_date=available_date,
+            availability_basis=AVAILABILITY_OFFICIAL_LAG_POLICY,
+        )
         rows.append(
             {
                 "ref_date": ref_date,
-                "available_date": _monthly_available_date(ref_date),
+                "available_date": available_date,
                 "availability_policy": ANP_MONTHLY_AVAILABILITY_POLICY,
+                **pit,
                 "year": year,
                 "month": month,
                 "region": _text(_field(row, "grande_regiao", "region")),
@@ -216,11 +297,24 @@ def normalize_anp_oil_gas_production_monthly(
         month = _month_number(_field(row, "mes", "month"))
         ref_date = _month_end(year, month)
         resource_family = _text(row.get("resource_family"))
+        release_date = _monthly_release_date(ref_date)
+        available_date = _usable_date_from_release_date(release_date)
+        pit = _pit_fields(
+            row,
+            dataset_id="anp_oil_gas_production_monthly",
+            resource_family=resource_family,
+            resource_name=_text(row.get("resource_name")),
+            ref_date=ref_date,
+            release_date=release_date,
+            available_date=available_date,
+            availability_basis=AVAILABILITY_OFFICIAL_LAG_POLICY,
+        )
         rows.append(
             {
                 "ref_date": ref_date,
-                "available_date": _monthly_available_date(ref_date),
+                "available_date": available_date,
                 "availability_policy": ANP_MONTHLY_AVAILABILITY_POLICY,
+                **pit,
                 "year": year,
                 "month": month,
                 "region": _text(_field(row, "grande_regiao", "region")),
@@ -286,6 +380,33 @@ def _existing_or_literal(frame: pl.DataFrame, column: str, value: object) -> pl.
     return pl.lit(value)
 
 
+def _source_last_modified_expr(frame: pl.DataFrame) -> pl.Expr:
+    exprs = [
+        pl.col(column)
+        for column in (
+            "resource_last_modified",
+            "ckan_resource_last_modified",
+            "http_last_modified",
+            "resource_updated_at",
+        )
+        if column in frame.columns
+    ]
+    if not exprs:
+        return pl.lit(None)
+    return pl.coalesce(exprs)
+
+
+def _first_seen_expr(frame: pl.DataFrame) -> pl.Expr:
+    exprs = [
+        pl.col(column)
+        for column in ("first_seen_timestamp_utc", "download_timestamp_utc")
+        if column in frame.columns
+    ]
+    if not exprs:
+        return pl.lit(None)
+    return pl.coalesce(exprs)
+
+
 def _field(row: dict[str, object], *aliases: str) -> object:
     for alias in aliases:
         normalized = normalize_column_name(alias)
@@ -306,19 +427,116 @@ def _lineage(row: dict[str, object], *, source_version: str) -> dict[str, object
     }
 
 
-def _weekly_available_date(value: date | None) -> date | None:
+def _weekly_release_date(value: date | None) -> date | None:
     if value is None:
         return None
-    return usable_date_from_date_only(value + timedelta(days=7))
+    return value + timedelta(days=7)
 
 
-def _monthly_available_date(ref_date: date | None) -> date | None:
+def _monthly_release_date(ref_date: date | None) -> date | None:
     if ref_date is None:
         return None
     next_month_year = ref_date.year + (1 if ref_date.month == 12 else 0)
     next_month = 1 if ref_date.month == 12 else ref_date.month + 1
-    release_date = _month_end(next_month_year, next_month)
+    return _month_end(next_month_year, next_month)
+
+
+def _usable_date_from_release_date(release_date: date | None) -> date | None:
+    if release_date is None:
+        return None
     return usable_date_from_date_only(release_date)
+
+
+def _pit_fields(
+    row: dict[str, object],
+    *,
+    dataset_id: str,
+    resource_family: str | None,
+    resource_name: str | None,
+    ref_date: date | None,
+    release_date: date | None,
+    available_date: date | None,
+    availability_basis: str,
+) -> dict[str, object]:
+    source_publication = row.get("source_publication_datetime_utc")
+    source_last_modified = _source_last_modified(row)
+    first_seen = row.get("first_seen_timestamp_utc") or row.get("download_timestamp_utc")
+    vintage_id = _snapshot_vintage_id(
+        {
+            "source_dataset": row.get("source_dataset") or dataset_id,
+            "resource_family": resource_family,
+            "resource_name": resource_name,
+            "raw_path": row.get("raw_path"),
+            "release_date": release_date,
+            "first_seen_timestamp_utc": first_seen,
+            "sha256": row.get("sha256"),
+        }
+    )
+    model_usable = choose_model_usable(
+        configured_model_usable=True,
+        availability_basis=availability_basis,
+        revision_policy=REVISION_OFFICIAL_LAG_NO_REVISIONS,
+        available_date=available_date,
+        vintage_id=vintage_id,
+        first_seen_timestamp_utc=first_seen,
+    )
+    return {
+        "availability_basis": availability_basis,
+        "revision_policy": REVISION_OFFICIAL_LAG_NO_REVISIONS,
+        "release_date": release_date,
+        "source_publication_datetime_utc": source_publication,
+        "source_last_modified_utc": source_last_modified,
+        "first_seen_timestamp_utc": first_seen,
+        "vintage_id": vintage_id,
+        "revision_sequence": 0,
+        "model_usable": model_usable,
+        "model_usable_reason": REVISION_OFFICIAL_LAG_NO_REVISIONS,
+    }
+
+
+def _source_last_modified(row: dict[str, object]) -> object:
+    for column in (
+        "resource_last_modified",
+        "ckan_resource_last_modified",
+        "http_last_modified",
+        "resource_updated_at",
+    ):
+        value = row.get(column)
+        if value is not None:
+            return value
+    return None
+
+
+def _snapshot_vintage_id(values: dict[str, object]) -> str:
+    dataset_id = _text(values.get("source_dataset")) or "anp"
+    resource_id = (
+        _text(values.get("resource_family"))
+        or _text(values.get("resource_name"))
+        or _text(values.get("raw_path"))
+        or dataset_id
+    )
+    content_hash = _text(values.get("sha256"))
+    return make_vintage_id(
+        source="anp",
+        dataset_id=dataset_id,
+        resource_id=resource_id,
+        publication_timestamp=values.get("release_date"),
+        first_seen_timestamp_utc=(
+            None if content_hash else values.get("first_seen_timestamp_utc")
+        ),
+        content_hash=content_hash,
+    )
+
+
+def _model_usable(values: dict[str, object]) -> bool:
+    return choose_model_usable(
+        configured_model_usable=True,
+        availability_basis=_text(values.get("availability_basis")),
+        revision_policy=_text(values.get("revision_policy")) or "",
+        available_date=values.get("available_date"),
+        vintage_id=_text(values.get("vintage_id")),
+        first_seen_timestamp_utc=values.get("first_seen_timestamp_utc"),
+    )
 
 
 def _production_unit(resource_family: str | None) -> str | None:

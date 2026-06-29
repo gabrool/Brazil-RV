@@ -23,7 +23,7 @@ datasets:
     raw_format: mixed_csv_zip
     canonical_table: anp_fuel_price_observation
     partition_keys: [year]
-    primary_keys: [observation_id]
+    primary_keys: [observation_id, vintage_id]
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys
@@ -94,7 +94,7 @@ datasets:
     raw_format: csv
     canonical_table: anp_fuel_sales_monthly
     partition_keys: [year]
-    primary_keys: [ref_date, state, product]
+    primary_keys: [ref_date, state, product, vintage_id]
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys
@@ -102,7 +102,7 @@ datasets:
       - available_date_not_null
       - available_date_on_or_after_ref_date
     source_map_status: live_download
-    availability_policy: anp_monthly_next_month_end_next_business_day
+    availability_policy: anp_monthly_official_next_month_end_next_business_day
     source_page_url: "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/vendas-de-derivados-de-petroleo-e-biocombustiveis"
     link_text_contains: "Vendas de derivados petróleo e etanol"
     notes: Monthly distributor sales volumes of petroleum derivatives and hydrated ethanol in cubic meters; discover the current official linked CSV from the source page.
@@ -114,7 +114,7 @@ datasets:
     raw_format: csv_multi_resource
     canonical_table: anp_oil_gas_production_monthly
     partition_keys: [year]
-    primary_keys: [ref_date, state, location, metric_type]
+    primary_keys: [ref_date, state, location, metric_type, vintage_id]
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys
@@ -122,7 +122,7 @@ datasets:
       - available_date_not_null
       - available_date_on_or_after_ref_date
     source_map_status: live_download
-    availability_policy: anp_monthly_next_month_end_next_business_day
+    availability_policy: anp_monthly_official_next_month_end_next_business_day
     source_page_url: "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/producao-de-petroleo-e-gas-natural-por-estado-e-localizacao"
     resource_link_texts:
       petroleum_production: "Produção de petróleo"

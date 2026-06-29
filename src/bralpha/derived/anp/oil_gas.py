@@ -4,6 +4,7 @@ from datetime import date
 
 import polars as pl
 
+from bralpha.derived.anp.pit import anp_pit_aggregations, ensure_anp_pit_columns
 from bralpha.derived.anp.quality import validate_panel
 from bralpha.derived.anp.schemas import (
     ANP_OIL_GAS_GROUP_OBSERVATION_COLUMNS,
@@ -24,7 +25,7 @@ def build_oil_gas_production_observation(
     if silver.is_empty():
         return _empty(ANP_OIL_GAS_PRODUCTION_OBSERVATION_COLUMNS)
 
-    frame = silver
+    frame = ensure_anp_pit_columns(silver)
     if start is not None:
         frame = frame.filter(pl.col("ref_date") >= start)
     if end is not None:
@@ -121,16 +122,31 @@ def _aggregate_group(frame: pl.DataFrame, group_type: str) -> pl.DataFrame:
     )
     return (
         working.group_by(
-            ["ref_date", "group_type", "group_value", "location", "product", "metric_type"]
+            [
+                "ref_date",
+                "group_type",
+                "group_value",
+                "location",
+                "product",
+                "metric_type",
+                "vintage_id",
+            ]
         )
         .agg(
-            available_date=pl.col("available_date").max(),
-            availability_policy=pl.col("availability_policy").drop_nulls().first(),
-            metric_value=_null_aware_sum("metric_value"),
-            metric_value_count=pl.col("metric_value").is_not_null().sum().cast(pl.Int64),
-            state_count=pl.col("state").n_unique().cast(pl.Int64),
-            unit=pl.col("unit").drop_nulls().first(),
-            source_version=pl.col("source_version").drop_nulls().first(),
+            [
+                pl.col("available_date").max(),
+                pl.col("availability_policy").drop_nulls().first(),
+                *anp_pit_aggregations(),
+                _null_aware_sum("metric_value"),
+                pl.col("metric_value")
+                .is_not_null()
+                .sum()
+                .cast(pl.Int64)
+                .alias("metric_value_count"),
+                pl.col("state").n_unique().cast(pl.Int64).alias("state_count"),
+                pl.col("unit").drop_nulls().first(),
+                pl.col("source_version").drop_nulls().first(),
+            ]
         )
         .with_columns(
             feature_id=pl.struct(

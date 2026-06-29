@@ -11,6 +11,11 @@ from bralpha.normalization.anp_fuels import (
     normalize_anp_fuel_sales_monthly,
     normalize_anp_oil_gas_production_monthly,
 )
+from bralpha.timing.vintages import (
+    AVAILABILITY_CONSERVATIVE_HEURISTIC,
+    AVAILABILITY_OFFICIAL_LAG_POLICY,
+    REVISION_OFFICIAL_LAG_NO_REVISIONS,
+)
 
 
 def test_anp_fuel_price_normalization_maps_official_fields_and_availability():
@@ -52,9 +57,18 @@ def test_anp_fuel_price_normalization_maps_official_fields_and_availability():
     assert silver["sale_price"].to_list() == [5.1, 4.5]
     assert silver["purchase_price"].to_list() == [4.9, None]
     assert silver["available_date"].to_list()[0] == date(2024, 1, 15)
+    assert silver["release_date"].to_list()[0] == date(2024, 1, 12)
     assert silver["availability_policy"].unique().to_list() == [
         ANP_WEEKLY_PRICE_AVAILABILITY_POLICY
     ]
+    assert silver["availability_basis"].unique().to_list() == [
+        AVAILABILITY_CONSERVATIVE_HEURISTIC
+    ]
+    assert silver["revision_policy"].unique().to_list() == [
+        REVISION_OFFICIAL_LAG_NO_REVISIONS
+    ]
+    assert silver["model_usable"].to_list() == [True, True]
+    assert silver["vintage_id"].str.starts_with("anp:anp_fuel_prices_weekly:").all()
     assert silver["observation_id"].to_list() == silver_again["observation_id"].to_list()
 
 
@@ -104,6 +118,8 @@ def test_anp_fuel_sales_normalization_maps_monthly_volume_without_shares():
             "source": ["anp"],
             "source_dataset": ["anp_fuel_sales_monthly"],
             "download_timestamp_utc": [datetime(2024, 3, 1)],
+            "resource_last_modified": [datetime(2024, 6, 10)],
+            "first_seen_timestamp_utc": [datetime(2024, 6, 10)],
             "raw_path": ["sales.csv"],
             "sha256": ["abc"],
         }
@@ -113,7 +129,12 @@ def test_anp_fuel_sales_normalization_maps_monthly_volume_without_shares():
 
     assert silver["ref_date"].to_list() == [date(2024, 1, 31)]
     assert silver["available_date"].to_list() == [date(2024, 3, 1)]
+    assert silver["release_date"].to_list() == [date(2024, 2, 29)]
     assert silver["availability_policy"].to_list() == [ANP_MONTHLY_AVAILABILITY_POLICY]
+    assert silver["availability_basis"].to_list() == [AVAILABILITY_OFFICIAL_LAG_POLICY]
+    assert silver["source_last_modified_utc"].to_list() == [datetime(2024, 6, 10)]
+    assert silver["first_seen_timestamp_utc"].to_list() == [datetime(2024, 6, 10)]
+    assert silver["model_usable"].to_list() == [True]
     assert silver["month"].to_list() == [1]
     assert silver["sales_volume_m3"].to_list() == [1234.5]
     assert silver["unit"].to_list() == ["m3"]
@@ -145,6 +166,12 @@ def test_anp_production_normalization_maps_metric_family_and_units():
 
     assert silver["ref_date"].to_list() == [date(2024, 2, 29), date(2024, 2, 29)]
     assert silver["available_date"].to_list() == [date(2024, 4, 1), date(2024, 4, 1)]
+    assert silver["release_date"].to_list() == [date(2024, 3, 31), date(2024, 3, 31)]
+    assert silver["availability_basis"].to_list() == [
+        AVAILABILITY_OFFICIAL_LAG_POLICY,
+        AVAILABILITY_OFFICIAL_LAG_POLICY,
+    ]
+    assert silver["model_usable"].to_list() == [True, True]
     assert silver["metric_type"].to_list() == [
         "petroleum_production",
         "natural_gas_production",
