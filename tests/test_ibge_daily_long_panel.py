@@ -31,6 +31,9 @@ def test_daily_long_includes_only_sidra_value_rows_and_drops_nulls():
     assert row["value_name"] == "value"
     assert row["value"] == 0.42
     assert row["observation_available_date"] == date(2024, 2, 9)
+    assert row["availability_basis"] == "exact_source_timestamp"
+    assert row["revision_policy"] == "unrevised"
+    assert row["vintage_id"] == "ibge:ibge_release_calendar:test"
     assert row["is_available"] is True
     assert row["has_value"] is True
 
@@ -99,6 +102,12 @@ def _sidra_asof_row(
         "release_date": date(2024, 2, 9),
         "available_datetime_local": datetime(2024, 2, 9, 9),
         "available_datetime_utc": datetime(2024, 2, 9, 12),
+        "availability_policy": "exact_timestamp_cutoff",
+        "availability_basis": "exact_source_timestamp",
+        "revision_policy": "unrevised",
+        "vintage_id": "ibge:ibge_release_calendar:test",
+        "first_seen_timestamp_utc": datetime(2024, 2, 9, 12),
+        "source_publication_datetime_utc": datetime(2024, 2, 9, 12),
         "geography_level": "N1",
         "geography_id": "1",
         "geography_name": "Brasil",

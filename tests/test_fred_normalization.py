@@ -35,6 +35,7 @@ def test_fred_normalizer_joins_metadata_and_maps_values(repo_root):
     assert first["vintage_policy"] == "latest_snapshot_allowed"
     assert first["vintage_request_mode"] == "latest_snapshot"
     assert first["revision_policy"] == "unrevised"
+    assert first["first_seen_timestamp_utc"] == datetime(2024, 1, 10, 12)
     assert first["available_date"] != date(2024, 1, 10)
     assert second["value"] is None
     assert second["raw_value"] == "."

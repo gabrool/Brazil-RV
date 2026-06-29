@@ -181,11 +181,23 @@ def test_sidra_normalizer_preserves_missing_symbols_and_calendar_availability(re
     assert matched["ref_period_start"] == date(2024, 1, 1)
     assert matched["ref_period_end"] == date(2024, 1, 31)
     assert matched["available_date"] == date(2024, 2, 9)
+    assert matched["availability_basis"] == "exact_source_timestamp"
+    assert matched["revision_policy"] == "unrevised"
+    assert matched["vintage_id"].startswith("ibge:ibge_release_calendar:")
+    assert matched["source_publication_datetime_utc"] == datetime(2024, 2, 9, 12)
     assert matched["model_usable"] is True
     assert matched["value"] == 0.42
     assert matched["value_status"] == "ok"
     assert silver["value_status"].to_list()[1:] == ["missing", "withheld"]
     assert silver["model_usable"].to_list()[1:] == [False, False]
+    assert silver["availability_basis"].to_list()[1:] == [
+        "current_snapshot_no_vintage",
+        "current_snapshot_no_vintage",
+    ]
+    assert silver["revision_policy"].to_list()[1:] == [
+        "current_snapshot_reference_only",
+        "current_snapshot_reference_only",
+    ]
     assert silver["availability_policy"].to_list()[1:] == [
         "unmatched_release_calendar",
         "unmatched_release_calendar",
@@ -234,6 +246,7 @@ def test_sidra_unverified_release_product_id_is_not_model_usable(repo_root):
     assert row["available_date"] == date(2024, 2, 9)
     assert row["model_usable"] is False
     assert row["availability_note"] == "release calendar product id is not verified"
+    assert row["revision_policy"] == "current_snapshot_reference_only"
 
 
 def test_sidra_normalizer_parses_quarterly_and_moving_quarter_periods(repo_root):
@@ -329,6 +342,8 @@ def test_ibge_sidra_pipeline_uses_calendar_and_upserts_silver(repo_root, tmp_pat
     assert status["downloads"] == 1
     assert silver.height == 1
     assert silver["available_date"].item() == date(2024, 2, 12)
+    assert silver["availability_basis"].item() == "official_release_calendar"
+    assert silver["revision_policy"].item() == "unrevised"
     assert silver["model_usable"].item() is True
     assert (tmp_path / "data" / "manifests" / "ibge" / "downloads.jsonl").exists()
 
