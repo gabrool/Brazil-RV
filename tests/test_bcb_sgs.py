@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 from datetime import UTC, date, datetime
+from urllib.request import urlopen
 
 import polars as pl
+import pytest
 
 from bralpha.infra.config import load_bcb_dataset_registry
 from bralpha.infra.http import HttpResponse
@@ -12,6 +15,7 @@ from bralpha.ingestion.bcb.sgs import (
     SgsSeriesConfig,
     build_sgs_request,
     download_sgs_series,
+    load_sgs_series_config,
     sgs_date_windows,
 )
 from bralpha.normalization.bcb_sgs import normalize_sgs_to_silver
@@ -86,6 +90,56 @@ def test_sgs_downloader_writes_series_id_to_manifest(repo_root, tmp_path):
     assert "data/raw/bcb/bcb_sgs_series" in str(results[0].raw_path).replace("\\", "/")
 
 
+def test_sgs_config_covers_required_categories_with_lineage_metadata(repo_root):
+    series = load_sgs_series_config(repo_root)
+    ids = [item.series_id for item in series]
+    categories = {item.category for item in series}
+
+    assert len(ids) == len(set(ids))
+    assert {
+        "rates",
+        "inflation",
+        "monetary_liquidity",
+        "activity",
+        "credit",
+        "fiscal",
+        "external",
+    } <= categories
+    for item in series:
+        assert item.notes.strip()
+        assert item.source_reference_url.startswith("https://")
+        assert str(item.series_id) in item.source_reference_url
+        assert item.availability_policy
+        assert item.availability_basis
+        assert item.revision_policy
+        if item.availability_policy == "unknown":
+            assert item.model_usable is False
+        if item.model_usable:
+            assert item.availability_policy != "unknown"
+            assert item.availability_basis != "unknown"
+            assert item.revision_policy != "current_snapshot_reference_only"
+
+
+def test_sgs_model_usable_categories_are_documented_subset(repo_root):
+    series = load_sgs_series_config(repo_root)
+    model_usable_categories = {item.category for item in series if item.model_usable}
+
+    assert model_usable_categories == {"rates", "inflation"}
+
+
+def test_sgs_live_configured_ids_resolve_through_official_api(repo_root):
+    if os.environ.get("BCB_LIVE_TESTS") != "1":
+        pytest.skip("Set BCB_LIVE_TESTS=1 to verify configured SGS IDs against BCB API")
+
+    for item in load_sgs_series_config(repo_root):
+        with urlopen(  # noqa: S310
+            f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.{item.series_id}/dados/ultimos/1?formato=json",
+            timeout=15,
+        ) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        assert isinstance(payload, list), item.series_id
+
+
 def test_sgs_parser_reads_official_data_valor_keys(repo_root):
     bronze = parse_sgs_bytes(
         b'[{"data":"02/01/2024","valor":"11.65"}]',
@@ -146,6 +200,8 @@ def test_sgs_normalizer_applies_availability_policy(repo_root):
     assert silver["ref_date"].item() == date(2024, 1, 2)
     assert silver["available_date"].item() == date(2024, 1, 3)
     assert silver["value"].item() == 11.65
+    assert silver["availability_basis"].item() == "source_date_only"
+    assert silver["revision_policy"].item() == "unrevised"
     assert silver["model_usable"].item() is True
 
 
@@ -167,11 +223,17 @@ def test_sgs_unknown_availability_policy_is_not_model_usable(repo_root):
             frequency="monthly",
             unit="index",
             availability_policy="unknown",
+            availability_basis="unknown",
+            revision_policy="current_snapshot_reference_only",
             model_usable=True,
+            source_reference_url="https://api.bcb.gov.br/dados/serie/bcdata.sgs.999/dados?formato=json",
+            notes="test",
         )
     ]
 
     silver = normalize_sgs_to_silver(bronze, series_config=config)
 
     assert silver["available_date"].item() is None
+    assert silver["availability_basis"].item() == "unknown"
+    assert silver["revision_policy"].item() == "current_snapshot_reference_only"
     assert silver["model_usable"].item() is False

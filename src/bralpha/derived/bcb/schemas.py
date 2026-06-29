@@ -11,7 +11,11 @@ BCB_SGS_OBSERVATION_DAILY_COLUMNS = [
     "value",
     "unit",
     "availability_policy",
+    "availability_basis",
+    "revision_policy",
     "model_usable",
+    "source_reference_url",
+    "notes",
     "source_version",
 ]
 
@@ -31,7 +35,11 @@ BCB_SGS_ASOF_DAILY_COLUMNS = [
     "is_observed_on_ref_date",
     "staleness_days",
     "availability_policy",
+    "availability_basis",
+    "revision_policy",
     "model_usable",
+    "source_reference_url",
+    "notes",
     "source_version",
 ]
 
@@ -129,6 +137,10 @@ BCB_DAILY_LONG_COLUMNS = [
     "unit",
     "observation_ref_date",
     "observation_available_date",
+    "availability_policy",
+    "availability_basis",
+    "revision_policy",
+    "model_usable",
     "is_available",
     "staleness_days",
     "source_version",
