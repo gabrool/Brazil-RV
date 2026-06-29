@@ -8,6 +8,7 @@ from typing import Any
 
 import polars as pl
 
+from bralpha.domain.b3_calendar import add_business_days
 from bralpha.ingestion.tesouro.common import write_partitioned_frame
 from bralpha.normalization.tesouro_fiscal import (
     FISCAL_SILVER_COLUMNS_BY_DATASET,
@@ -16,9 +17,19 @@ from bralpha.normalization.tesouro_fiscal import (
 from bralpha.parsing.common import normalize_column_name, parse_decimal, parse_int
 from bralpha.timing.availability import usable_date_from_date_only
 
+TESOURO_DATE_ONLY_NEXT_BUSINESS_DAY_POLICY = "date_only_next_business_day"
+TESOURO_DIRETO_SALES_OFFICIAL_2BD_POLICY = "tesouro_direto_sales_official_2bd"
+TESOURO_DIRETO_REDEMPTIONS_CONSERVATIVE_2BD_POLICY = (
+    "tesouro_direto_redemptions_conservative_2bd"
+)
+TESOURO_DIRETO_STOCK_CONSERVATIVE_30D_POLICY = "tesouro_direto_stock_conservative_30d"
+TESOURO_CONFIGURED_HOLIDAY_AVAILABILITY_BASIS = "configured_holiday_calendar"
+TESOURO_WEEKDAY_FALLBACK_AVAILABILITY_BASIS = "weekday_fallback"
+
 TESOURO_DIRETO_PRICES_RATES_COLUMNS = [
     "ref_date",
     "available_date",
+    "availability_policy",
     "security_name",
     "security_type",
     "maturity_date",
@@ -38,6 +49,8 @@ TESOURO_DIRETO_PRICES_RATES_COLUMNS = [
 TESOURO_DIRETO_SALES_COLUMNS = [
     "ref_date",
     "available_date",
+    "availability_policy",
+    "availability_basis",
     "security_name",
     "security_type",
     "maturity_date",
@@ -56,6 +69,8 @@ TESOURO_DIRETO_SALES_COLUMNS = [
 TESOURO_DIRETO_REDEMPTIONS_COLUMNS = [
     "ref_date",
     "available_date",
+    "availability_policy",
+    "availability_basis",
     "redemption_type",
     "security_name",
     "security_type",
@@ -74,6 +89,7 @@ TESOURO_DIRETO_REDEMPTIONS_COLUMNS = [
 TESOURO_DIRETO_STOCK_COLUMNS = [
     "ref_date",
     "available_date",
+    "availability_policy",
     "security_name",
     "security_type",
     "maturity_date",
@@ -107,13 +123,22 @@ def normalize_tesouro_to_silver(
     bronze: pl.DataFrame,
     *,
     source_version: str = "v0",
+    holidays: set[date] | None = None,
 ) -> pl.DataFrame:
     if dataset_id == "tesouro_direto_prices_rates":
         return normalize_prices_rates_to_silver(bronze, source_version=source_version)
     if dataset_id == "tesouro_direto_sales":
-        return normalize_sales_to_silver(bronze, source_version=source_version)
+        return normalize_sales_to_silver(
+            bronze,
+            source_version=source_version,
+            holidays=holidays,
+        )
     if dataset_id == "tesouro_direto_redemptions":
-        return normalize_redemptions_to_silver(bronze, source_version=source_version)
+        return normalize_redemptions_to_silver(
+            bronze,
+            source_version=source_version,
+            holidays=holidays,
+        )
     if dataset_id == "tesouro_direto_stock":
         return normalize_tesouro_direto_stock_to_silver(bronze, source_version=source_version)
     if dataset_id == "tesouro_dpf_stock":
@@ -134,6 +159,7 @@ def normalize_prices_rates_to_silver(
             {
                 "ref_date": ref_date,
                 "available_date": _available_date(ref_date),
+                "availability_policy": TESOURO_DATE_ONLY_NEXT_BUSINESS_DAY_POLICY,
                 "security_name": security_name,
                 "security_type": _security_type(security_name),
                 "maturity_date": _date_field(row, "maturity_date", "data_vencimento", "vencimento"),
@@ -174,6 +200,7 @@ def normalize_sales_to_silver(
     bronze: pl.DataFrame,
     *,
     source_version: str = "v0",
+    holidays: set[date] | None = None,
 ) -> pl.DataFrame:
     rows = []
     for row in bronze.to_dicts():
@@ -182,7 +209,13 @@ def normalize_sales_to_silver(
         rows.append(
             {
                 "ref_date": ref_date,
-                "available_date": _available_date(ref_date),
+                "available_date": _business_day_lag_available_date(
+                    ref_date,
+                    days=2,
+                    holidays=holidays,
+                ),
+                "availability_policy": TESOURO_DIRETO_SALES_OFFICIAL_2BD_POLICY,
+                "availability_basis": _business_day_lag_availability_basis(holidays),
                 "security_name": security_name,
                 "security_type": _security_type(security_name),
                 "maturity_date": _date_field(
@@ -206,6 +239,7 @@ def normalize_redemptions_to_silver(
     bronze: pl.DataFrame,
     *,
     source_version: str = "v0",
+    holidays: set[date] | None = None,
 ) -> pl.DataFrame:
     rows = []
     for row in bronze.to_dicts():
@@ -221,7 +255,13 @@ def normalize_redemptions_to_silver(
         rows.append(
             {
                 "ref_date": ref_date,
-                "available_date": _available_date(ref_date),
+                "available_date": _business_day_lag_available_date(
+                    ref_date,
+                    days=2,
+                    holidays=holidays,
+                ),
+                "availability_policy": TESOURO_DIRETO_REDEMPTIONS_CONSERVATIVE_2BD_POLICY,
+                "availability_basis": _business_day_lag_availability_basis(holidays),
                 "redemption_type": _redemption_type(row),
                 "security_name": security_name,
                 "security_type": _security_type(security_name),
@@ -254,6 +294,7 @@ def normalize_tesouro_direto_stock_to_silver(
             {
                 "ref_date": ref_date,
                 "available_date": _lagged_available_date(ref_date, days=30),
+                "availability_policy": TESOURO_DIRETO_STOCK_CONSERVATIVE_30D_POLICY,
                 "security_name": security_name,
                 "security_type": _security_type(security_name),
                 "maturity_date": _date_field(
@@ -355,6 +396,21 @@ def _month_end(year: int, month: int) -> date:
 
 def _available_date(ref_date: date | None) -> date | None:
     return usable_date_from_date_only(ref_date) if ref_date is not None else None
+
+
+def _business_day_lag_available_date(
+    ref_date: date | None,
+    *,
+    days: int,
+    holidays: set[date] | None,
+) -> date | None:
+    return add_business_days(ref_date, days, holidays) if ref_date is not None else None
+
+
+def _business_day_lag_availability_basis(holidays: set[date] | None) -> str:
+    if holidays is None:
+        return TESOURO_WEEKDAY_FALLBACK_AVAILABILITY_BASIS
+    return TESOURO_CONFIGURED_HOLIDAY_AVAILABILITY_BASIS
 
 
 def _lagged_available_date(ref_date: date | None, *, days: int) -> date | None:

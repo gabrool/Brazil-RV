@@ -9,6 +9,15 @@ import polars as pl
 
 from bralpha.ingestion.ibge.sidra import SidraSeriesConfig
 from bralpha.parsing.common import parse_decimal, write_source_partitioned
+from bralpha.timing.vintages import (
+    AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE,
+    AVAILABILITY_EXACT_SOURCE_TIMESTAMP,
+    AVAILABILITY_OFFICIAL_RELEASE_CALENDAR,
+    REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY,
+    REVISION_UNREVISED,
+    make_vintage_id,
+    model_usable_from_revision_policy,
+)
 
 IBGE_SIDRA_SILVER_COLUMNS = [
     "dataset_slug",
@@ -26,6 +35,11 @@ IBGE_SIDRA_SILVER_COLUMNS = [
     "available_datetime_utc",
     "available_date",
     "availability_policy",
+    "availability_basis",
+    "revision_policy",
+    "vintage_id",
+    "first_seen_timestamp_utc",
+    "source_publication_datetime_utc",
     "availability_note",
     "model_usable",
     "geography_level",
@@ -62,16 +76,27 @@ def normalize_sidra_to_silver(
         value, value_status = _value_and_status(row.get("raw_value"))
         release = _release_match(calendar, config, period_start, period_end)
         availability_policy = "unmatched_release_calendar"
+        availability_basis = AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE
+        revision_policy = REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY
         availability_note = None
         model_usable = False
+        vintage_id = None
         if period_start is None or period_end is None:
             availability_policy = "unparsed_period"
             availability_note = "period_code could not be mapped to dates"
         elif release is not None and release.get("available_date") is not None:
             availability_policy = str(release.get("availability_policy"))
+            availability_basis = _availability_basis(release)
+            revision_policy = REVISION_UNREVISED
+            vintage_id = _vintage_id(row, release)
             if config and config.model_usable and _release_calendar_product_is_verified(config):
-                model_usable = True
+                model_usable = model_usable_from_revision_policy(
+                    configured_model_usable=config.model_usable,
+                    revision_policy=revision_policy,
+                    vintage_id=vintage_id,
+                )
             elif config and config.model_usable:
+                revision_policy = REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY
                 availability_note = "release calendar product id is not verified"
         rows.append(
             {
@@ -94,6 +119,13 @@ def normalize_sidra_to_silver(
                 ),
                 "available_date": release.get("available_date") if release else None,
                 "availability_policy": availability_policy,
+                "availability_basis": availability_basis,
+                "revision_policy": revision_policy,
+                "vintage_id": vintage_id,
+                "first_seen_timestamp_utc": row.get("download_timestamp_utc"),
+                "source_publication_datetime_utc": (
+                    release.get("available_datetime_utc") if release else None
+                ),
                 "availability_note": availability_note,
                 "model_usable": model_usable,
                 "geography_level": row.get("geography_level"),
@@ -176,6 +208,26 @@ def _release_calendar_product_is_verified(config: SidraSeriesConfig) -> bool:
     return (
         config.release_calendar_product_id is not None
         and config.release_calendar_product_id_status == "verified"
+    )
+
+
+def _availability_basis(release: dict[str, Any]) -> str:
+    if release.get("available_datetime_utc") is not None:
+        return AVAILABILITY_EXACT_SOURCE_TIMESTAMP
+    return AVAILABILITY_OFFICIAL_RELEASE_CALENDAR
+
+
+def _vintage_id(row: dict[str, Any], release: dict[str, Any]) -> str:
+    publication_timestamp = release.get("available_datetime_utc") or release.get("release_date")
+    event_id = release.get("event_id")
+    resource_id = f"{row.get('dataset_slug')}:{event_id or 'release_calendar'}"
+    return make_vintage_id(
+        source="ibge",
+        dataset_id="ibge_release_calendar",
+        resource_id=resource_id,
+        publication_timestamp=publication_timestamp,
+        first_seen_timestamp_utc=row.get("download_timestamp_utc"),
+        content_hash=str(row.get("sha256") or ""),
     )
 
 

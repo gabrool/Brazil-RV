@@ -49,9 +49,37 @@ def test_fred_parser_preserves_observations_and_metadata(repo_root):
     assert bronze["series_id"].to_list() == ["DGS10", "DGS10"]
     assert bronze["ref_date"].to_list() == [date(2024, 1, 2), date(2024, 1, 3)]
     assert bronze["raw_value"].to_list() == ["4.25", "."]
+    assert bronze["vintage_date"].to_list() == [date(2024, 1, 4), date(2024, 1, 5)]
+    assert bronze["vintage_request_mode"].to_list() == ["latest_snapshot", "latest_snapshot"]
+    assert bronze["request_observation_start"].to_list() == [None, None]
+    assert bronze["request_observation_end"].to_list() == [None, None]
+    assert bronze["request_realtime_start"].to_list() == [None, None]
     assert bronze["realtime_start"].to_list() == ["2024-01-04", "2024-01-05"]
     assert bronze["count"].to_list() == [2, 2]
     assert bronze["limit"].to_list() == [100000, 100000]
+
+
+def test_fred_parser_records_vintage_request_provenance(repo_root):
+    bronze = parse_fred_observations_bytes(
+        FRED_JSON,
+        series_id="PCOPPUSDM",
+        source_dataset="fred_series_observations",
+        download_timestamp_utc=datetime(2024, 1, 10, 12, tzinfo=UTC),
+        raw_path=repo_root / "raw.json",
+        sha256="abc",
+        vintage_request_mode="fred_vintage_request",
+        request_observation_start=date(2024, 1, 1),
+        request_observation_end=date(2024, 1, 31),
+        request_realtime_start=date(2024, 1, 1),
+        request_realtime_end=date(2024, 3, 31),
+    )
+
+    first = bronze.row(0, named=True)
+    assert first["vintage_request_mode"] == "fred_vintage_request"
+    assert first["request_observation_start"] == "2024-01-01"
+    assert first["request_observation_end"] == "2024-01-31"
+    assert first["request_realtime_start"] == "2024-01-01"
+    assert first["request_realtime_end"] == "2024-03-31"
 
 
 def test_fred_bronze_writer_partitions_by_series_and_year(repo_root, tmp_path):

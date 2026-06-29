@@ -78,10 +78,13 @@ def _value_rows(
     value_columns: list[str],
 ) -> list[pl.DataFrame]:
     return [
-        frame.with_columns(
-            source_family=pl.lit(source_family),
-            value_name=pl.lit(column),
-            value=pl.col(column).cast(pl.Float64),
+        _ensure_columns(
+            frame.with_columns(
+                source_family=pl.lit(source_family),
+                value_name=pl.lit(column),
+                value=pl.col(column).cast(pl.Float64),
+            ),
+            TESOURO_DAILY_LONG_COLUMNS,
         ).select(TESOURO_DAILY_LONG_COLUMNS)
         for column in value_columns
     ]
@@ -89,12 +92,15 @@ def _value_rows(
 
 def _flow_rows(frame: pl.DataFrame) -> list[pl.DataFrame]:
     return [
-        frame.with_columns(
-            source_family=pl.lit("tesouro_direto_flows"),
-            value_name=pl.lit(column),
-            value=pl.col(column).cast(pl.Float64),
-            is_available=pl.lit(True),
-            staleness_days=pl.lit(0, dtype=pl.Int64),
+        _ensure_columns(
+            frame.with_columns(
+                source_family=pl.lit("tesouro_direto_flows"),
+                value_name=pl.lit(column),
+                value=pl.col(column).cast(pl.Float64),
+                is_available=pl.lit(True),
+                staleness_days=pl.lit(0, dtype=pl.Int64),
+            ),
+            TESOURO_DAILY_LONG_COLUMNS,
         ).select(TESOURO_DAILY_LONG_COLUMNS)
         for column in FLOW_VALUE_COLUMNS
     ]
@@ -102,3 +108,10 @@ def _flow_rows(frame: pl.DataFrame) -> list[pl.DataFrame]:
 
 def _empty() -> pl.DataFrame:
     return pl.DataFrame(schema={column: pl.Null for column in TESOURO_DAILY_LONG_COLUMNS})
+
+
+def _ensure_columns(frame: pl.DataFrame, columns: list[str]) -> pl.DataFrame:
+    missing = [column for column in columns if column not in frame.columns]
+    if not missing:
+        return frame
+    return frame.with_columns([pl.lit(None).alias(column) for column in missing])

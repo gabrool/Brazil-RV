@@ -23,7 +23,7 @@ datasets:
     raw_format: json
     canonical_table: fred_observation
     partition_keys: [series_id, year]
-    primary_keys: [series_id, ref_date]
+    primary_keys: [series_id, ref_date, vintage_date, vintage_request_mode]
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys

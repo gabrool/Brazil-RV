@@ -52,6 +52,9 @@ available_date = ref_date
 ```
 
 Flow rows are never forward-filled.
+Sales use the official two-business-day lag from Tesouro Transparente CKAN
+metadata. Redemptions use a conservative two-business-day lag unless a future
+official metadata review documents a faster timing.
 
 ## Transformer-Aware Feature Rule
 
