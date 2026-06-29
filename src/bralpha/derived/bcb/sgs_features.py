@@ -12,7 +12,12 @@ from bralpha.derived.bcb.schemas import BCB_SGS_FEATURE_DAILY_COLUMNS, PANEL_PRI
 SOURCE_FAMILY = "bcb_sgs_feature"
 
 
-def build_sgs_feature_daily(sgs_asof_daily: pl.DataFrame) -> pl.DataFrame:
+def build_sgs_feature_daily(
+    sgs_asof_daily: pl.DataFrame,
+    *,
+    start: date | None = None,
+    end: date | None = None,
+) -> pl.DataFrame:
     if sgs_asof_daily.is_empty():
         return _empty()
     frame = _ensure_columns(
@@ -52,6 +57,13 @@ def build_sgs_feature_daily(sgs_asof_daily: pl.DataFrame) -> pl.DataFrame:
         .unique(subset=PANEL_PRIMARY_KEYS["sgs_feature_daily"], keep="last")
         .sort(["ref_date", "feature_id", "value_name"])
     )
+    if start is not None:
+        output = output.filter(pl.col("ref_date") >= start)
+    if end is not None:
+        output = output.filter(pl.col("ref_date") <= end)
+    if output.is_empty():
+        return _empty()
+
     validate_asof_panel(
         output,
         required_columns=BCB_SGS_FEATURE_DAILY_COLUMNS,

@@ -59,7 +59,11 @@ date-only next-business-day availability.
 The `sgs_feature_daily` panel is built from `sgs_asof_daily`, not raw silver, so
 the feature rows inherit point-in-time availability. It emits model-ready long
 features for Selic levels/spreads/steps, IPCA trailing sums/annualized values,
-and international reserves levels/log changes/drawdowns.
+and international reserves levels/log changes/drawdowns. The pipeline builds
+SGS features from a pre-window as-of history before filtering back to the
+requested output dates, so rolling IPCA and reserves features remain populated
+for sliced backfills and live inference windows when enough historical
+observations are available.
 
 ## Focus availability limitation
 

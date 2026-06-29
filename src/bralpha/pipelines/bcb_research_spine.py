@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import argparse
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import polars as pl
@@ -22,7 +22,11 @@ from bralpha.derived.bcb.ptax import build_ptax_selected_daily
 from bralpha.derived.bcb.schemas import PANEL_PRIMARY_KEYS
 from bralpha.derived.bcb.sgs import build_sgs_asof_daily, build_sgs_observation_daily
 from bralpha.derived.bcb.sgs_features import build_sgs_feature_daily
+from bralpha.domain.b3_calendar import previous_business_day
 from bralpha.infra.config import load_bcb_research_config, load_paths_config, resolve_project_paths
+
+SGS_FEATURE_WARMUP_BUSINESS_DAYS = 252
+SGS_FEATURE_WARMUP_CALENDAR_DAYS = 425
 
 PANEL_ORDER = [
     "sgs_observation_daily",
@@ -110,10 +114,10 @@ def _build_panel(
             return None
         return build_sgs_asof_daily(observations, start=start, end=end)
     if panel == "sgs_feature_daily":
-        asof = _dependency(paths, built, "sgs_asof_daily", start, end, required=required)
+        asof = _sgs_feature_asof_history(paths, config, start, end, required=required)
         if asof is None:
             return None
-        return build_sgs_feature_daily(asof)
+        return build_sgs_feature_daily(asof, start=start, end=end)
     if panel == "ptax_selected_daily":
         ptax = read_silver_dataset(
             paths,
@@ -216,6 +220,35 @@ def _sgs_observation_history(paths, config, end: date, *, required: bool) -> pl.
             "Missing SGS observation history from bcb_sgs_series or sgs_observation_daily"
         )
     return gold
+
+
+def _sgs_feature_asof_history(
+    paths,
+    config,
+    start: date,
+    end: date,
+    *,
+    required: bool,
+) -> pl.DataFrame | None:
+    warmup_start = _sgs_feature_warmup_start(start)
+    observations = _sgs_observation_history(paths, config, end, required=False)
+    if observations is not None:
+        return build_sgs_asof_daily(observations, start=warmup_start, end=end)
+
+    asof = read_gold_panel(paths, "sgs_asof_daily", start=warmup_start, end=end)
+    if asof is None and required:
+        raise BCBResearchInputMissingError(
+            "Missing SGS history from bcb_sgs_series, sgs_observation_daily, or sgs_asof_daily"
+        )
+    return asof
+
+
+def _sgs_feature_warmup_start(start: date) -> date:
+    candidate = start
+    for _ in range(SGS_FEATURE_WARMUP_BUSINESS_DAYS):
+        candidate = previous_business_day(candidate)
+    monthly_candidate = start - timedelta(days=SGS_FEATURE_WARMUP_CALENDAR_DAYS)
+    return min(candidate, monthly_candidate)
 
 
 def _focus_observation_history(paths, config, end: date, *, required: bool) -> pl.DataFrame | None:
