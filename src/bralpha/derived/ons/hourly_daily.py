@@ -5,6 +5,7 @@ from datetime import date
 import polars as pl
 
 from bralpha.derived.ons.hydro import ons_feature_id
+from bralpha.derived.ons.pit import ensure_ons_pit_columns, ons_pit_aggregations
 from bralpha.derived.ons.quality import validate_panel
 from bralpha.derived.ons.schemas import (
     ONS_ENERGY_BALANCE_DAILY_OBSERVATION_COLUMNS,
@@ -38,7 +39,7 @@ def build_energy_balance_daily_observation(
     if silver.is_empty():
         return _empty_energy_balance()
 
-    frame = silver
+    frame = ensure_ons_pit_columns(silver)
     if start is not None:
         frame = frame.filter(pl.col("ref_date") >= start)
     if end is not None:
@@ -49,11 +50,12 @@ def build_energy_balance_daily_observation(
     metric_cols = [metric for metric, _ in ENERGY_BALANCE_METRICS]
     frame = frame.with_columns([pl.col(column).cast(pl.Float64) for column in metric_cols])
     aggregated = (
-        frame.group_by(["ref_date", "subsystem_id", "subsystem"])
+        frame.group_by(["ref_date", "subsystem_id", "subsystem", "vintage_id"])
         .agg(
             [
                 pl.col("available_date").max().alias("available_date"),
                 pl.col("availability_policy").max().alias("availability_policy"),
+                *ons_pit_aggregations(),
                 pl.len().cast(pl.Int64).alias("hour_count"),
                 pl.col("unit").max().alias("unit"),
                 pl.col("source_version").max().alias("source_version"),
@@ -101,7 +103,7 @@ def build_interchange_daily_observation(
     if silver.is_empty():
         return _empty_interchange()
 
-    frame = silver
+    frame = ensure_ons_pit_columns(silver)
     if start is not None:
         frame = frame.filter(pl.col("ref_date") >= start)
     if end is not None:
@@ -119,12 +121,14 @@ def build_interchange_daily_observation(
                 "source_subsystem",
                 "target_subsystem_id",
                 "target_subsystem",
+                "vintage_id",
             ]
         )
         .agg(
             [
                 pl.col("available_date").max().alias("available_date"),
                 pl.col("availability_policy").max().alias("availability_policy"),
+                *ons_pit_aggregations(),
                 pl.len().cast(pl.Int64).alias("hour_count"),
                 pl.col("unit").max().alias("unit"),
                 pl.col("source_version").max().alias("source_version"),

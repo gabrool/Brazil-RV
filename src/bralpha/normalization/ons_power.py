@@ -8,9 +8,34 @@ import polars as pl
 
 from bralpha.ingestion.ons.common import write_partitioned_frame
 from bralpha.parsing.common import normalize_column_name, parse_decimal
-from bralpha.timing.availability import usable_date_from_date_only
+from bralpha.timing.vintages import (
+    AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE,
+    AVAILABILITY_FIRST_SEEN_DOWNLOAD_TIMESTAMP,
+    AVAILABILITY_SOURCE_LAST_MODIFIED,
+    REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY,
+    REVISION_REVISED_USE_FIRST_SEEN,
+    available_date_from_first_seen,
+    available_date_from_source_datetime,
+    choose_model_usable,
+    make_vintage_id,
+)
 
-ONS_AVAILABILITY_POLICY = "ons_conservative_next_business_day"
+ONS_SOURCE_LAST_MODIFIED_POLICY = "ons_source_last_modified_snapshot"
+ONS_FIRST_SEEN_POLICY = "ons_first_seen_snapshot"
+ONS_CURRENT_SNAPSHOT_POLICY = "ons_current_snapshot_reference_only"
+
+ONS_PIT_COLUMNS = [
+    "availability_basis",
+    "revision_policy",
+    "release_date",
+    "source_publication_datetime_utc",
+    "source_last_modified_utc",
+    "first_seen_timestamp_utc",
+    "vintage_id",
+    "revision_sequence",
+    "model_usable",
+    "model_usable_reason",
+]
 
 ONS_LINEAGE_COLUMNS = [
     "source",
@@ -26,6 +51,7 @@ ONS_EAR_SUBSYSTEM_DAILY_COLUMNS = [
     "ref_date",
     "available_date",
     "availability_policy",
+    *ONS_PIT_COLUMNS,
     "subsystem_id",
     "subsystem",
     "stored_energy_mwmes",
@@ -42,6 +68,7 @@ ONS_ENA_SUBSYSTEM_DAILY_COLUMNS = [
     "ref_date",
     "available_date",
     "availability_policy",
+    *ONS_PIT_COLUMNS,
     "subsystem_id",
     "subsystem",
     "ena_type",
@@ -55,6 +82,7 @@ ONS_LOAD_DAILY_COLUMNS = [
     "ref_date",
     "available_date",
     "availability_policy",
+    *ONS_PIT_COLUMNS,
     "subsystem_id",
     "subsystem",
     "load_mwmed",
@@ -68,6 +96,7 @@ ONS_CMO_WEEKLY_COLUMNS = [
     "ref_date",
     "available_date",
     "availability_policy",
+    *ONS_PIT_COLUMNS,
     "subsystem_id",
     "subsystem",
     "load_block",
@@ -82,6 +111,7 @@ ONS_ENERGY_BALANCE_SUBSYSTEM_COLUMNS = [
     "ref_date",
     "available_date",
     "availability_policy",
+    *ONS_PIT_COLUMNS,
     "subsystem_id",
     "subsystem",
     "load_mwmed",
@@ -106,6 +136,7 @@ ONS_INTERCHANGE_SUBSYSTEM_HOURLY_COLUMNS = [
     "ref_date",
     "available_date",
     "availability_policy",
+    *ONS_PIT_COLUMNS,
     "source_subsystem_id",
     "source_subsystem",
     "target_subsystem_id",
@@ -157,11 +188,11 @@ def normalize_ons_ear_subsystem_daily(
     rows: list[dict[str, object]] = []
     for row in bronze.to_dicts():
         ref_date = _parse_date(_field(row, "ear_data"))
+        pit = _pit_fields(row, dataset_id="ons_ear_subsystem_daily", ref_date=ref_date)
         rows.append(
             {
                 "ref_date": ref_date,
-                "available_date": _available_date(ref_date),
-                "availability_policy": ONS_AVAILABILITY_POLICY,
+                **pit,
                 "subsystem_id": _text(_field(row, "id_subsistema")),
                 "subsystem": _text(_field(row, "nom_subsistema")),
                 "stored_energy_mwmes": _decimal(_field(row, "ear_verif_subsistema_mwmes")),
@@ -201,10 +232,10 @@ def normalize_ons_ena_subsystem_daily(
     rows: list[dict[str, object]] = []
     for row in bronze.to_dicts():
         ref_date = _parse_date(_field(row, "ena_data"))
+        pit = _pit_fields(row, dataset_id="ons_ena_subsystem_daily", ref_date=ref_date)
         common = {
             "ref_date": ref_date,
-            "available_date": _available_date(ref_date),
-            "availability_policy": ONS_AVAILABILITY_POLICY,
+            **pit,
             "subsystem_id": _text(_field(row, "id_subsistema")),
             "subsystem": _text(_field(row, "nom_subsistema")),
             **_lineage(row, source_version=source_version),
@@ -232,11 +263,11 @@ def normalize_ons_load_daily(
     for row in bronze.to_dicts():
         ref_date = _parse_date(_field(row, "din_instante"))
         raw_load = _field(row, "val_cargaenergiamwmed")
+        pit = _pit_fields(row, dataset_id="ons_load_daily", ref_date=ref_date)
         rows.append(
             {
                 "ref_date": ref_date,
-                "available_date": _available_date(ref_date),
-                "availability_policy": ONS_AVAILABILITY_POLICY,
+                **pit,
                 "subsystem_id": _text(_field(row, "id_subsistema")),
                 "subsystem": _text(_field(row, "nom_subsistema")),
                 "load_mwmed": _decimal(raw_load),
@@ -263,10 +294,10 @@ def normalize_ons_cmo_weekly(
     rows: list[dict[str, object]] = []
     for row in bronze.to_dicts():
         ref_date = _parse_date(_field(row, "din_instante"))
+        pit = _pit_fields(row, dataset_id="ons_cmo_weekly", ref_date=ref_date)
         common = {
             "ref_date": ref_date,
-            "available_date": _available_date(ref_date),
-            "availability_policy": ONS_AVAILABILITY_POLICY,
+            **pit,
             "subsystem_id": _text(_field(row, "id_subsistema")),
             "subsystem": _text(_field(row, "nom_subsistema")),
             **_lineage(row, source_version=source_version),
@@ -294,6 +325,11 @@ def normalize_ons_energy_balance_subsystem(
     for row in bronze.to_dicts():
         ref_datetime = _parse_datetime(_field(row, "din_instante"))
         ref_date = ref_datetime.date() if ref_datetime is not None else None
+        pit = _pit_fields(
+            row,
+            dataset_id="ons_energy_balance_subsystem",
+            ref_date=ref_date,
+        )
         raw_load = _field(row, "val_carga")
         raw_hydro = _field(row, "val_gerhidraulica")
         raw_thermal = _field(row, "val_gertermica")
@@ -304,8 +340,7 @@ def normalize_ons_energy_balance_subsystem(
             {
                 "ref_datetime": ref_datetime,
                 "ref_date": ref_date,
-                "available_date": _available_date(ref_date),
-                "availability_policy": ONS_AVAILABILITY_POLICY,
+                **pit,
                 "subsystem_id": _text(_field(row, "id_subsistema")),
                 "subsystem": _text(_field(row, "nom_subsistema")),
                 "load_mwmed": _decimal(raw_load),
@@ -337,14 +372,18 @@ def normalize_ons_interchange_subsystem_hourly(
     for row in bronze.to_dicts():
         ref_datetime = _parse_datetime(_field(row, "din_instante"))
         ref_date = ref_datetime.date() if ref_datetime is not None else None
+        pit = _pit_fields(
+            row,
+            dataset_id="ons_interchange_subsystem_hourly",
+            ref_date=ref_date,
+        )
         raw_interchange = _field(row, "val_intercambiomwmed")
         raw_programmed = _field(row, "val_intercambioprogmwmed")
         rows.append(
             {
                 "ref_datetime": ref_datetime,
                 "ref_date": ref_date,
-                "available_date": _available_date(ref_date),
-                "availability_policy": ONS_AVAILABILITY_POLICY,
+                **pit,
                 "source_subsystem_id": _text(_field(row, "id_subsistema_origem")),
                 "source_subsystem": _text(_field(row, "nom_subsistema_origem")),
                 "target_subsystem_id": _text(_field(row, "id_subsistema_destino")),
@@ -394,14 +433,116 @@ def _lineage(row: dict[str, object], *, source_version: str) -> dict[str, object
         "raw_path": row.get("raw_path"),
         "sha256": row.get("sha256"),
         "resource_name": row.get("resource_name"),
+        "source_publication_datetime_utc": row.get("source_publication_datetime_utc"),
+        "source_last_modified_utc": _source_last_modified(row),
+        "first_seen_timestamp_utc": row.get("first_seen_timestamp_utc")
+        or row.get("download_timestamp_utc"),
         "source_version": source_version,
     }
 
 
-def _available_date(value: date | None) -> date | None:
+def _pit_fields(
+    row: dict[str, object],
+    *,
+    dataset_id: str,
+    ref_date: date | None,
+) -> dict[str, object]:
+    source_last_modified = _source_last_modified(row)
+    first_seen = row.get("first_seen_timestamp_utc") or row.get("download_timestamp_utc")
+    source_publication = row.get("source_publication_datetime_utc")
+    if source_last_modified is not None:
+        availability_policy = ONS_SOURCE_LAST_MODIFIED_POLICY
+        availability_basis = AVAILABILITY_SOURCE_LAST_MODIFIED
+        revision_policy = REVISION_REVISED_USE_FIRST_SEEN
+        available_date = available_date_from_source_datetime(_datetime_value(source_last_modified))
+        model_reason = ONS_SOURCE_LAST_MODIFIED_POLICY
+    elif first_seen is not None:
+        availability_policy = ONS_FIRST_SEEN_POLICY
+        availability_basis = AVAILABILITY_FIRST_SEEN_DOWNLOAD_TIMESTAMP
+        revision_policy = REVISION_REVISED_USE_FIRST_SEEN
+        available_date = available_date_from_first_seen(_datetime_value(first_seen))
+        model_reason = ONS_FIRST_SEEN_POLICY
+    else:
+        availability_policy = ONS_CURRENT_SNAPSHOT_POLICY
+        availability_basis = AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE
+        revision_policy = REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY
+        available_date = None
+        model_reason = ONS_CURRENT_SNAPSHOT_POLICY
+    vintage_id = _snapshot_vintage_id(
+        row,
+        dataset_id=dataset_id,
+        ref_date=ref_date,
+        publication_or_first_seen=source_last_modified or first_seen,
+    )
+    return {
+        "available_date": available_date,
+        "availability_policy": availability_policy,
+        "availability_basis": availability_basis,
+        "revision_policy": revision_policy,
+        "release_date": None,
+        "source_publication_datetime_utc": source_publication,
+        "source_last_modified_utc": source_last_modified,
+        "first_seen_timestamp_utc": first_seen,
+        "vintage_id": vintage_id,
+        "revision_sequence": 0,
+        "model_usable": choose_model_usable(
+            configured_model_usable=True,
+            availability_basis=availability_basis,
+            revision_policy=revision_policy,
+            available_date=available_date,
+            vintage_id=vintage_id,
+            first_seen_timestamp_utc=first_seen or source_last_modified,
+        ),
+        "model_usable_reason": model_reason,
+    }
+
+
+def _source_last_modified(row: dict[str, object]) -> object:
+    for column in (
+        "resource_last_modified",
+        "ckan_resource_last_modified",
+        "http_last_modified",
+        "resource_updated_at",
+    ):
+        value = row.get(column)
+        if value is not None:
+            return value
+    return None
+
+
+def _snapshot_vintage_id(
+    row: dict[str, object],
+    *,
+    dataset_id: str,
+    ref_date: date | None,
+    publication_or_first_seen: object,
+) -> str:
+    resource_id = _text(row.get("resource_name")) or _text(row.get("raw_path")) or dataset_id
+    content_hash = _text(row.get("sha256"))
+    publication_timestamp = (
+        publication_or_first_seen
+        if _source_last_modified(row) is not None or not content_hash
+        else None
+    )
+    return make_vintage_id(
+        source="ons",
+        dataset_id=dataset_id,
+        resource_id=resource_id,
+        observation_key=ref_date.isoformat() if ref_date is not None else None,
+        publication_timestamp=publication_timestamp,
+        first_seen_timestamp_utc=None if content_hash else row.get("download_timestamp_utc"),
+        content_hash=content_hash,
+    )
+
+
+def _datetime_value(value: object) -> datetime | None:
     if value is None:
         return None
-    return usable_date_from_date_only(value)
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, date):
+        return datetime(value.year, value.month, value.day)
+    return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
 
 
 def _decimal(value: object) -> float | None:

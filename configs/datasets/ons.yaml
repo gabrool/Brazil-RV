@@ -23,7 +23,7 @@ datasets:
     raw_format: csv_annual
     canonical_table: ons_ear_subsystem_daily
     partition_keys: [year]
-    primary_keys: [ref_date, subsystem]
+    primary_keys: [ref_date, subsystem, vintage_id]
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys
@@ -35,7 +35,7 @@ datasets:
     resource_name_prefix: EAR_Diario_por_Subsistema
     direct_url_template: "https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/ear_subsistema_di/EAR_DIARIO_SUBSISTEMA_{year}.csv"
     filename_template: "EAR_DIARIO_SUBSISTEMA_{year}.csv"
-    availability_policy: ons_conservative_next_business_day
+    availability_policy: ons_source_last_modified_snapshot
     license_note: CC-BY; cite ONS and the dataset/source.
     notes: Daily stored energy by subsystem. Preserve official values only.
 
@@ -46,7 +46,7 @@ datasets:
     raw_format: csv_annual
     canonical_table: ons_ena_subsystem_daily
     partition_keys: [year]
-    primary_keys: [ref_date, subsystem, ena_type]
+    primary_keys: [ref_date, subsystem, ena_type, vintage_id]
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys
@@ -58,7 +58,7 @@ datasets:
     resource_name_prefix: ENA_Diario_por_Subsistema
     direct_url_template: "https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/ena_subsistema_di/ENA_DIARIO_SUBSISTEMA_{year}.csv"
     filename_template: "ENA_DIARIO_SUBSISTEMA_{year}.csv"
-    availability_policy: ons_conservative_next_business_day
+    availability_policy: ons_source_last_modified_snapshot
     license_note: CC-BY; cite ONS and the dataset/source.
     notes: Daily natural inflow energy by subsystem. Preserve official raw type/value fields.
 
@@ -69,7 +69,7 @@ datasets:
     raw_format: csv_annual
     canonical_table: ons_load_daily
     partition_keys: [year]
-    primary_keys: [ref_date, subsystem]
+    primary_keys: [ref_date, subsystem, vintage_id]
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys
@@ -81,7 +81,7 @@ datasets:
     resource_name_prefix: Carga_Energia
     direct_url_template: "https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/carga_energia_di/CARGA_ENERGIA_{year}.csv"
     filename_template: "CARGA_ENERGIA_{year}.csv"
-    availability_policy: ons_conservative_next_business_day
+    availability_policy: ons_source_last_modified_snapshot
     license_note: CC-BY; cite ONS and the dataset/source.
     notes: Daily subsystem load in MWmed; methodology changes are documented but values are not adjusted.
 
@@ -92,7 +92,7 @@ datasets:
     raw_format: csv_annual
     canonical_table: ons_cmo_weekly
     partition_keys: [year]
-    primary_keys: [ref_date, subsystem, load_block]
+    primary_keys: [ref_date, subsystem, load_block, vintage_id]
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys
@@ -104,7 +104,7 @@ datasets:
     resource_name_prefix: CMO_Semanal
     direct_url_template: "https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/cmo_se/CMO_SEMANAL_{year}.csv"
     filename_template: "CMO_SEMANAL_{year}.csv"
-    availability_policy: ons_conservative_next_business_day
+    availability_policy: ons_source_last_modified_snapshot
     license_note: CC-BY; cite ONS and the dataset/source.
     notes: Weekly marginal operating cost by subsystem/load block. Preserve official weekly rows; do not daily-fill in ingestion.
 
@@ -115,7 +115,7 @@ datasets:
     raw_format: csv_annual
     canonical_table: ons_energy_balance_subsystem
     partition_keys: [year]
-    primary_keys: [ref_datetime, subsystem]
+    primary_keys: [ref_datetime, subsystem, vintage_id]
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys
@@ -126,7 +126,7 @@ datasets:
     resource_name_prefix: Balanco_de_Energia_Subsistema
     direct_url_template: "https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/balanco_energia_subsistema_ho/BALANCO_ENERGIA_SUBSISTEMA_{year}.csv"
     filename_template: "BALANCO_ENERGIA_SUBSISTEMA_{year}.csv"
-    availability_policy: ons_conservative_next_business_day
+    availability_policy: ons_source_last_modified_snapshot
     license_note: CC-BY; cite ONS and the dataset/source.
     notes: Hourly verified load and supply by source/subsystem. Preserve hourly rows; daily aggregation belongs in raw-to-research.
 
@@ -137,7 +137,7 @@ datasets:
     raw_format: csv_annual
     canonical_table: ons_interchange_subsystem_hourly
     partition_keys: [year]
-    primary_keys: [ref_datetime, source_subsystem, target_subsystem]
+    primary_keys: [ref_datetime, source_subsystem, target_subsystem, vintage_id]
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys
@@ -148,7 +148,7 @@ datasets:
     resource_name_prefix: Intercambio_Nacional
     direct_url_template: "https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/intercambio_nacional_ho/INTERCAMBIO_NACIONAL_{year}.csv"
     filename_template: "INTERCAMBIO_NACIONAL_{year}.csv"
-    availability_policy: ons_conservative_next_business_day
+    availability_policy: ons_source_last_modified_snapshot
     license_note: CC-BY; cite ONS and the dataset/source.
     notes: Hourly directional interchange between subsystems. Do not derive net interchange.
 

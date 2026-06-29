@@ -7,6 +7,13 @@ import polars as pl
 
 from bralpha.normalization.ons_power import normalize_ons_to_silver
 from bralpha.parsing.ons_tabular import parse_ons_tabular_bytes
+from bralpha.timing.vintages import (
+    AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE,
+    AVAILABILITY_FIRST_SEEN_DOWNLOAD_TIMESTAMP,
+    AVAILABILITY_SOURCE_LAST_MODIFIED,
+    REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY,
+    REVISION_REVISED_USE_FIRST_SEEN,
+)
 
 
 def test_ons_ear_normalization_preserves_official_values_and_availability():
@@ -22,9 +29,58 @@ def test_ons_ear_normalization_preserves_official_values_and_availability():
     silver = normalize_ons_to_silver("ons_ear_subsystem_daily", bronze)
 
     assert silver["ref_date"].to_list() == [date(2024, 1, 5)]
-    assert silver["available_date"].to_list() == [date(2024, 1, 8)]
+    assert silver["available_date"].to_list() == [date(2024, 1, 3)]
+    assert silver["availability_policy"].to_list() == ["ons_first_seen_snapshot"]
+    assert silver["availability_basis"].to_list() == [
+        AVAILABILITY_FIRST_SEEN_DOWNLOAD_TIMESTAMP
+    ]
+    assert silver["revision_policy"].to_list() == [REVISION_REVISED_USE_FIRST_SEEN]
+    assert silver["model_usable"].to_list() == [True]
     assert silver["stored_energy_mwmes"].to_list() == [50.25]
     assert silver["raw_ear_verif_subsistema_mwmes"].to_list() == ["50,25"]
+
+
+def test_ons_source_last_modified_controls_availability_and_cutoff():
+    bronze = _bronze(
+        "ons_ear_subsystem_daily",
+        (
+            "id_subsistema;nom_subsistema;ear_data;ear_max_subsistema;"
+            "ear_verif_subsistema_mwmes;ear_verif_subsistema_percentual\n"
+            "SE;Sudeste;2024-01-05;100,5;50,25;49,98\n"
+        ),
+    ).with_columns(
+        resource_last_modified=pl.lit(datetime(2024, 1, 3, 22, tzinfo=UTC))
+    )
+
+    silver = normalize_ons_to_silver("ons_ear_subsystem_daily", bronze)
+
+    assert silver["available_date"].to_list() == [date(2024, 1, 4)]
+    assert silver["availability_policy"].to_list() == ["ons_source_last_modified_snapshot"]
+    assert silver["availability_basis"].to_list() == [AVAILABILITY_SOURCE_LAST_MODIFIED]
+    assert silver["source_last_modified_utc"].to_list() == [
+        datetime(2024, 1, 3, 22, tzinfo=UTC)
+    ]
+
+
+def test_ons_current_snapshot_without_timestamp_is_reference_only():
+    bronze = _bronze(
+        "ons_ear_subsystem_daily",
+        (
+            "id_subsistema;nom_subsistema;ear_data;ear_max_subsistema;"
+            "ear_verif_subsistema_mwmes;ear_verif_subsistema_percentual\n"
+            "SE;Sudeste;2024-01-05;100,5;50,25;49,98\n"
+        ),
+    ).drop("download_timestamp_utc")
+
+    silver = normalize_ons_to_silver("ons_ear_subsystem_daily", bronze)
+
+    assert silver["available_date"].to_list() == [None]
+    assert silver["availability_policy"].to_list() == ["ons_current_snapshot_reference_only"]
+    assert silver["availability_basis"].to_list() == [
+        AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE
+    ]
+    assert silver["revision_policy"].to_list() == [REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY]
+    assert silver["model_usable"].to_list() == [False]
 
 
 def test_ons_ena_normalization_emits_long_type_rows():

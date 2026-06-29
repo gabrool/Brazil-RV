@@ -7,6 +7,7 @@ import pytest
 
 from bralpha.derived.ons.daily_long import build_ons_daily_long, build_ons_state_asof_daily
 from bralpha.derived.ons.schemas import PANEL_PRIMARY_KEYS
+from bralpha.timing.vintages import AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE
 
 
 def test_ons_state_asof_uses_pre_window_history_and_latest_available_missing_values():
@@ -103,6 +104,62 @@ def test_ons_daily_long_drops_null_values_and_keeps_long_primary_key():
     assert "ref_datetime" not in daily_long.columns
     assert daily_long.group_by(PANEL_PRIMARY_KEYS["daily_long"]).len().height == daily_long.height
     assert set(daily_long["source_family"].unique().to_list()) == {"ons_ear_subsystem"}
+
+
+def test_ons_daily_long_excludes_current_snapshot_rows():
+    state = build_ons_state_asof_daily(
+        ear=_ear_observation().with_columns(
+            availability_basis=pl.lit(AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE),
+            model_usable=pl.lit(False),
+        ),
+        start=date(2024, 1, 3),
+        end=date(2024, 1, 3),
+        max_features=10,
+    )
+
+    daily_long = build_ons_daily_long(
+        state_asof_daily=state,
+        include_hydro=True,
+        include_load_cmo=False,
+        include_energy_balance=False,
+        include_interchange=False,
+    )
+
+    assert daily_long.is_empty()
+
+
+def test_ons_state_asof_uses_later_snapshot_only_after_available_date():
+    ear = pl.DataFrame(
+        {
+            "ref_date": [date(2024, 1, 1), date(2024, 1, 1)],
+            "available_date": [date(2024, 1, 2), date(2024, 1, 4)],
+            "availability_policy": ["ons_first_seen_snapshot", "ons_first_seen_snapshot"],
+            "subsystem_id": ["SE", "SE"],
+            "subsystem": ["Sudeste", "Sudeste"],
+            "feature_id": ["ons_ear_subsystem|se|sudeste"] * 2,
+            "stored_energy_mwmes": [50.0, 55.0],
+            "stored_energy_percent": [50.0, 55.0],
+            "stored_energy_max_mwmes": [100.0, 100.0],
+            "unit": ["MWmes", "MWmes"],
+            "has_stored_energy_mwmes": [True, True],
+            "has_stored_energy_percent": [True, True],
+            "has_stored_energy_max_mwmes": [True, True],
+            "vintage_id": ["ons-v1", "ons-v2"],
+            "revision_sequence": [0, 1],
+            "source_version": ["v0", "v0"],
+        }
+    )
+
+    state = build_ons_state_asof_daily(
+        ear=ear,
+        start=date(2024, 1, 2),
+        end=date(2024, 1, 4),
+        max_features=10,
+    )
+    stored = state.filter(pl.col("value_name") == "stored_energy_mwmes").sort("ref_date")
+
+    assert stored["value"].to_list() == [50.0, 50.0, 55.0]
+    assert stored["vintage_id"].to_list() == ["ons-v1", "ons-v1", "ons-v2"]
 
 
 def _ear_observation(feature_id: str = "ons_ear_subsystem|se|sudeste") -> pl.DataFrame:

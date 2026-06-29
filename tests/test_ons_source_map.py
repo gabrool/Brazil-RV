@@ -46,7 +46,7 @@ def test_ons_dataset_registry_loads_live_and_deferred_datasets(repo_root):
         assert dataset.source_map_status == "live_download"
         assert "ons-aws-prod-opendata" in extra["direct_url_template"]
         assert extra["filename_template"].endswith("_{year}.csv")
-        assert extra["availability_policy"] == "ons_conservative_next_business_day"
+        assert extra["availability_policy"] == "ons_source_last_modified_snapshot"
     for dataset_id in DEFERRED_DATASETS:
         dataset = registry.get(dataset_id)
         assert dataset.source_map_status != "live_download"

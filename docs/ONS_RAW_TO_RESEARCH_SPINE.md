@@ -37,13 +37,28 @@ Observation panels keep the ONS observation `ref_date` and the silver
 `available_date = ref_date`, and preserve the source row dates as
 `observation_ref_date` and `observation_available_date`.
 
+ONS datasets are revision-prone. The ONS EAR page warns that data participate
+in a consistency process and may be updated after publication, so current
+historical snapshots are not model-ready unless the row has source
+last-modified or first-seen snapshot lineage.
+
+| dataset_id | official timing source | availability_policy | availability_basis | revision_policy | model_usable default | what happens for current snapshots | what happens for first-seen snapshots |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `ons_ear_subsystem_daily` | ONS resource last-modified or first-seen manifest timestamp | `ons_source_last_modified_snapshot` or `ons_first_seen_snapshot` | `source_last_modified` or `first_seen_download_timestamp` | `revised_use_first_seen_snapshots` | true when timestamped | `ons_current_snapshot_reference_only`, `current_snapshot_no_vintage`, non-model-usable. | Usable from the timestamp's project-local usable date. |
+| `ons_ena_subsystem_daily` | ONS resource last-modified or first-seen manifest timestamp | `ons_source_last_modified_snapshot` or `ons_first_seen_snapshot` | `source_last_modified` or `first_seen_download_timestamp` | `revised_use_first_seen_snapshots` | true when timestamped | `ons_current_snapshot_reference_only`, `current_snapshot_no_vintage`, non-model-usable. | Usable from the timestamp's project-local usable date. |
+| `ons_load_daily` | ONS resource last-modified or first-seen manifest timestamp | `ons_source_last_modified_snapshot` or `ons_first_seen_snapshot` | `source_last_modified` or `first_seen_download_timestamp` | `revised_use_first_seen_snapshots` | true when timestamped | `ons_current_snapshot_reference_only`, `current_snapshot_no_vintage`, non-model-usable. | Usable from the timestamp's project-local usable date. |
+| `ons_cmo_weekly` | ONS resource last-modified or first-seen manifest timestamp | `ons_source_last_modified_snapshot` or `ons_first_seen_snapshot` | `source_last_modified` or `first_seen_download_timestamp` | `revised_use_first_seen_snapshots` | true when timestamped | `ons_current_snapshot_reference_only`, `current_snapshot_no_vintage`, non-model-usable. | Usable from the timestamp's project-local usable date. |
+| `ons_energy_balance_subsystem` | ONS resource last-modified or first-seen manifest timestamp | `ons_source_last_modified_snapshot` or `ons_first_seen_snapshot` | `source_last_modified` or `first_seen_download_timestamp` | `revised_use_first_seen_snapshots` | true when timestamped | `ons_current_snapshot_reference_only`, `current_snapshot_no_vintage`, non-model-usable. | Usable from the timestamp's project-local usable date. |
+| `ons_interchange_subsystem_hourly` | ONS resource last-modified or first-seen manifest timestamp | `ons_source_last_modified_snapshot` or `ons_first_seen_snapshot` | `source_last_modified` or `first_seen_download_timestamp` | `revised_use_first_seen_snapshots` | true when timestamped | `ons_current_snapshot_reference_only`, `current_snapshot_no_vintage`, non-model-usable. | Usable from the timestamp's project-local usable date. |
+
 As-of rows use only observations where:
 
 ```text
 observation_available_date <= ref_date
 ```
 
-`download_timestamp_utc` is never used as historical availability.
+Daily-long outputs keep only `model_usable = true` rows and exclude
+`current_snapshot_no_vintage`.
 
 ## Hourly-To-Daily Rule
 
