@@ -514,6 +514,60 @@ class ANPResearchConfig(BaseModel):
     anp_research: ANPResearchSection
 
 
+class NovoCagedCalendarConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    default: str
+    timezone: str
+
+
+class NovoCagedMovementsResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_record_observation: bool
+    include_group_observation: bool
+    group_by: list[str]
+    cross_by: list[str]
+    max_groups: int
+
+
+class NovoCagedReleaseCalendarResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    prefer_official_calendar: bool
+    include_reference: bool
+
+
+class NovoCagedAsofResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_state_asof_daily: bool
+    max_features: int
+
+
+class NovoCagedDailyLongConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_movement_counts: bool
+    include_wage_hours: bool
+
+
+class NovoCagedResearchSection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    calendar: NovoCagedCalendarConfig
+    movements: NovoCagedMovementsResearchConfig
+    release_calendar: NovoCagedReleaseCalendarResearchConfig
+    asof: NovoCagedAsofResearchConfig
+    daily_long: NovoCagedDailyLongConfig
+
+
+class NovoCagedResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    novo_caged_research: NovoCagedResearchSection
+
+
 def _load_yaml(repo_root: Path, relative_path: str) -> dict[str, Any]:
     path = repo_root / relative_path
     if not path.exists():
@@ -613,6 +667,12 @@ def load_anp_research_config(repo_root: Path) -> ANPResearchConfig:
     return ANPResearchConfig.model_validate(_load_yaml(repo_root, "configs/derived/anp.yaml"))
 
 
+def load_novo_caged_research_config(repo_root: Path) -> NovoCagedResearchConfig:
+    return NovoCagedResearchConfig.model_validate(
+        _load_yaml(repo_root, "configs/derived/novo_caged.yaml")
+    )
+
+
 __all__ = [
     "ANPAsofResearchConfig",
     "ANPCalendarConfig",
@@ -622,6 +682,13 @@ __all__ = [
     "ANPOilGasResearchConfig",
     "ANPResearchConfig",
     "ANPResearchSection",
+    "NovoCagedAsofResearchConfig",
+    "NovoCagedCalendarConfig",
+    "NovoCagedDailyLongConfig",
+    "NovoCagedMovementsResearchConfig",
+    "NovoCagedReleaseCalendarResearchConfig",
+    "NovoCagedResearchConfig",
+    "NovoCagedResearchSection",
     "BCBCalendarConfig",
     "BCBDailyLongConfig",
     "BCBFocusResearchConfig",
@@ -683,6 +750,7 @@ __all__ = [
     "load_cvm_dataset_registry",
     "load_cvm_research_config",
     "load_novo_caged_dataset_registry",
+    "load_novo_caged_research_config",
     "load_ons_dataset_registry",
     "load_tesouro_dataset_registry",
     "load_fred_dataset_registry",
