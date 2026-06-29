@@ -8,6 +8,9 @@ official_pages:
   - name: fund_daily_reports
     dataset_id: cvm_fund_daily_reports
     url: https://dados.cvm.gov.br/dataset/fi-doc-inf_diario
+  - name: fund_delivery_metadata
+    dataset_id: cvm_fund_delivery_metadata
+    url: https://dados.cvm.gov.br/dataset/fi-doc-entrega
   - name: fund_registry
     dataset_id: cvm_fund_registry_current
     url: https://dados.cvm.gov.br/dataset/fi-cad

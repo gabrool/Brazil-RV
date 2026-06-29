@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import polars as pl
 
+from bralpha.derived.cvm.pit import ensure_cvm_pit_columns
 from bralpha.derived.cvm.quality import validate_asof_panel
 from bralpha.derived.cvm.schemas import CVM_DAILY_LONG_COLUMNS, PANEL_PRIMARY_KEYS
+from bralpha.timing.vintages import AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE
 
 _FLOW_VALUE_COLUMNS = [
     "subscriptions",
@@ -46,6 +48,8 @@ def build_cvm_daily_long(
 
     frame = (
         pl.concat(parts, how="diagonal_relaxed")
+        .filter(pl.col("model_usable").fill_null(False))
+        .filter(pl.col("availability_basis") != AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE)
         .filter(pl.col("value").is_not_null())
         .select(CVM_DAILY_LONG_COLUMNS)
         .sort(["ref_date", "source_family", "feature_id", "value_name", "observation_ref_date"])
@@ -79,7 +83,7 @@ def _long_rows(
 
 
 def _ensure_daily_long_columns(frame: pl.DataFrame) -> pl.DataFrame:
-    work = frame
+    work = ensure_cvm_pit_columns(frame)
     if "is_available" not in work.columns:
         work = work.with_columns(is_available=pl.lit(True))
     if "staleness_days" not in work.columns:

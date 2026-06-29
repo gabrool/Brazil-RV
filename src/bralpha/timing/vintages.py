@@ -146,6 +146,7 @@ def model_usable_from_revision_policy(
             return bool(vintage_id)
         if availability_basis in {
             AVAILABILITY_EXACT_SOURCE_TIMESTAMP,
+            AVAILABILITY_SOURCE_DATE_ONLY,
             AVAILABILITY_OFFICIAL_RELEASE_CALENDAR,
         }:
             return bool(vintage_id and model_usable_without_vintage)
