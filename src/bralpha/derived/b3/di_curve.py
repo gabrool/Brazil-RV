@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import date
+from math import exp
 from typing import Any
 
 import polars as pl
@@ -11,6 +12,12 @@ from bralpha.derived.b3.schemas import (
     DI_CURVE_CONTRACT_DAILY_COLUMNS,
     DI_CURVE_GRID_DAILY_COLUMNS,
     PANEL_PRIMARY_KEYS,
+)
+from bralpha.domain.di_futures import (
+    annual_rate_from_discount_factor,
+    annual_rate_from_pu,
+    discount_factor_from_pu,
+    log_discount_factor_from_pu,
 )
 
 
@@ -32,6 +39,11 @@ def build_di_curve_contract_daily(
         root = str(row.get("root") or row.get("commodity") or "").upper()
         if root not in roots:
             continue
+        raw_settlement_pu = row.get("settlement")
+        business_days = row.get("business_days_to_maturity")
+        discount_factor = discount_factor_from_pu(raw_settlement_pu)
+        log_discount_factor = log_discount_factor_from_pu(raw_settlement_pu)
+        implied_rate = annual_rate_from_pu(raw_settlement_pu, business_days)
         rows.append(
             {
                 "ref_date": ref_date,
@@ -40,14 +52,23 @@ def build_di_curve_contract_daily(
                 "maturity_code": row.get("maturity_code"),
                 "maturity_date": _optional_date(row.get("maturity_date")),
                 "days_to_maturity_calendar": row.get("days_to_maturity_calendar"),
-                "business_days_to_maturity": row.get("business_days_to_maturity"),
+                "business_days_to_maturity": business_days,
+                "calendar_source": row.get("calendar_source"),
                 "contract_rank_by_maturity": row.get("contract_rank_by_maturity"),
-                "curve_value": row.get("settlement"),
+                "raw_settlement_pu": raw_settlement_pu,
+                "discount_factor": discount_factor,
+                "log_discount_factor": log_discount_factor,
+                "implied_annual_rate": implied_rate,
+                "implied_annual_rate_bp": _bp(implied_rate),
+                "curve_value": implied_rate,
+                "curve_value_kind": "implied_annual_rate",
                 "curve_value_diff_1d": None,
                 "curve_value_pct_change_1d": None,
+                "implied_annual_rate_bp_change_1d": None,
+                "log_discount_factor_change_1d": None,
                 "volume": row.get("volume"),
                 "open_interest": row.get("open_interest"),
-                "is_observed": row.get("settlement") is not None,
+                "is_observed": raw_settlement_pu is not None,
                 "source_version": row.get("source_version") or "v0",
             }
         )
@@ -65,11 +86,15 @@ def build_di_curve_contract_daily(
 def build_di_curve_grid_daily(
     di_curve_contract_daily: pl.DataFrame,
     *,
-    tenor_days: list[int],
+    tenor_days: list[int] | None = None,
+    tenor_business_days: list[int] | None = None,
     interpolation_method: str,
     start: date | None = None,
     end: date | None = None,
 ) -> pl.DataFrame:
+    tenors = tenor_business_days if tenor_business_days is not None else tenor_days
+    if tenors is None:
+        raise ValueError("tenor_business_days or tenor_days must be supplied")
     grouped: dict[date, list[dict[str, Any]]] = defaultdict(list)
     for row in di_curve_contract_daily.to_dicts():
         ref_date = _as_date(row["ref_date"])
@@ -85,13 +110,14 @@ def build_di_curve_grid_daily(
             [
                 row
                 for row in contract_rows
-                if row.get("curve_value") is not None
-                and row.get("days_to_maturity_calendar") is not None
+                if row.get("log_discount_factor") is not None
+                and row.get("business_days_to_maturity") is not None
+                and row.get("business_days_to_maturity") > 0
             ],
-            key=lambda row: row["days_to_maturity_calendar"],
+            key=lambda row: row["business_days_to_maturity"],
         )
         fallback_available = max(_as_date(row["available_date"]) for row in contract_rows)
-        for tenor in tenor_days:
+        for tenor in tenors:
             rows.append(
                 _grid_row(
                     ref_date,
@@ -121,6 +147,14 @@ def _add_contract_changes(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             if previous is not None:
                 row["curve_value_diff_1d"] = _diff(row["curve_value"], previous["curve_value"])
                 row["curve_value_pct_change_1d"] = _pct(row["curve_value"], previous["curve_value"])
+                row["implied_annual_rate_bp_change_1d"] = _diff(
+                    row["implied_annual_rate_bp"],
+                    previous["implied_annual_rate_bp"],
+                )
+                row["log_discount_factor_change_1d"] = _diff(
+                    row["log_discount_factor"],
+                    previous["log_discount_factor"],
+                )
             previous = row
     return rows
 
@@ -137,7 +171,13 @@ def _grid_row(
         "available_date": fallback_available,
         "curve_id": "DI1",
         "tenor_days": tenor,
+        "tenor_business_days": tenor,
         "curve_value": None,
+        "curve_value_kind": "implied_annual_rate",
+        "discount_factor": None,
+        "log_discount_factor": None,
+        "implied_annual_rate": None,
+        "implied_annual_rate_bp": None,
         "interpolation_method": interpolation_method,
         "left_contract_id": None,
         "right_contract_id": None,
@@ -154,7 +194,7 @@ def _grid_row(
     left = None
     right = None
     for row in observed:
-        days = row["days_to_maturity_calendar"]
+        days = row["business_days_to_maturity"]
         if days <= tenor:
             left = row
         if days >= tenor and right is None:
@@ -163,22 +203,27 @@ def _grid_row(
         return base
     base["left_contract_id"] = left["contract_id"]
     base["right_contract_id"] = right["contract_id"]
-    base["left_days_to_maturity"] = left["days_to_maturity_calendar"]
-    base["right_days_to_maturity"] = right["days_to_maturity_calendar"]
+    base["left_days_to_maturity"] = left["business_days_to_maturity"]
+    base["right_days_to_maturity"] = right["business_days_to_maturity"]
     base["available_date"] = max(
         _as_date(left["available_date"]),
         _as_date(right["available_date"]),
     )
     base["source_version"] = _join_versions(left.get("source_version"), right.get("source_version"))
-    if left["days_to_maturity_calendar"] == right["days_to_maturity_calendar"]:
-        base["curve_value"] = left["curve_value"]
+    if left["business_days_to_maturity"] == right["business_days_to_maturity"]:
+        base["log_discount_factor"] = left["log_discount_factor"]
     else:
-        width = right["days_to_maturity_calendar"] - left["days_to_maturity_calendar"]
-        weight = (tenor - left["days_to_maturity_calendar"]) / width
-        base["curve_value"] = (
-            left["curve_value"] + (right["curve_value"] - left["curve_value"]) * weight
+        width = right["business_days_to_maturity"] - left["business_days_to_maturity"]
+        weight = (tenor - left["business_days_to_maturity"]) / width
+        base["log_discount_factor"] = (
+            left["log_discount_factor"]
+            + (right["log_discount_factor"] - left["log_discount_factor"]) * weight
         )
         base["is_interpolated"] = True
+    base["discount_factor"] = _exp(base["log_discount_factor"])
+    base["implied_annual_rate"] = annual_rate_from_discount_factor(base["discount_factor"], tenor)
+    base["implied_annual_rate_bp"] = _bp(base["implied_annual_rate"])
+    base["curve_value"] = base["implied_annual_rate"]
     base["has_curve_value"] = base["curve_value"] is not None
     return base
 
@@ -198,6 +243,18 @@ def _pct(value: float | None, previous: float | None) -> float | None:
     if value is None or previous in {None, 0}:
         return None
     return (value / previous) - 1
+
+
+def _bp(value: float | None) -> float | None:
+    if value is None:
+        return None
+    return value * 10_000.0
+
+
+def _exp(value: float | None) -> float | None:
+    if value is None:
+        return None
+    return exp(value)
 
 
 def _contract_frame(rows: list[dict[str, Any]]) -> pl.DataFrame:

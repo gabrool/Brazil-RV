@@ -107,13 +107,25 @@ class B3DICurveConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     source_roots: list[str]
-    tenor_days: list[int]
+    tenor_business_days: list[int] | None = None
+    tenor_days: list[int] | None = None
     interpolation: str
 
     @field_validator("source_roots")
     @classmethod
     def normalize_roots(cls, roots: list[str]) -> list[str]:
         return [root.strip().upper() for root in roots]
+
+    @property
+    def configured_tenor_business_days(self) -> list[int]:
+        tenors = (
+            self.tenor_business_days
+            if self.tenor_business_days is not None
+            else self.tenor_days
+        )
+        if tenors is None:
+            raise ValueError("B3 DI curve config requires tenor_business_days or tenor_days")
+        return tenors
 
 
 class B3TargetsConfig(BaseModel):
