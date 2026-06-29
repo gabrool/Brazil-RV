@@ -12,6 +12,7 @@ FOCUS_VALUE_COLUMNS = ["mean", "median", "std_dev", "min_value", "max_value", "r
 def build_daily_long(
     *,
     sgs_asof_daily: pl.DataFrame | None = None,
+    sgs_feature_daily: pl.DataFrame | None = None,
     ptax_selected_daily: pl.DataFrame | None = None,
     focus_expectation_asof_daily: pl.DataFrame | None = None,
     include_sgs: bool,
@@ -21,6 +22,8 @@ def build_daily_long(
     frames = []
     if include_sgs and sgs_asof_daily is not None and not sgs_asof_daily.is_empty():
         frames.append(_sgs_rows(sgs_asof_daily))
+    if include_sgs and sgs_feature_daily is not None and not sgs_feature_daily.is_empty():
+        frames.append(_sgs_feature_rows(sgs_feature_daily))
     if include_ptax and ptax_selected_daily is not None and not ptax_selected_daily.is_empty():
         frames.extend(_ptax_rows(ptax_selected_daily))
     if (
@@ -62,6 +65,15 @@ def _sgs_rows(frame: pl.DataFrame) -> pl.DataFrame:
             value_name=pl.lit("value"),
             value=pl.col("value").cast(pl.Float64),
         )
+        .select(BCB_DAILY_LONG_COLUMNS)
+    )
+
+
+def _sgs_feature_rows(frame: pl.DataFrame) -> pl.DataFrame:
+    frame = _ensure_columns(frame, BCB_DAILY_LONG_COLUMNS)
+    return (
+        frame.filter(pl.col("model_usable").fill_null(False))
+        .with_columns(value=pl.col("value").cast(pl.Float64))
         .select(BCB_DAILY_LONG_COLUMNS)
     )
 

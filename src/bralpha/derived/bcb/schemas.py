@@ -16,6 +16,9 @@ BCB_SGS_OBSERVATION_DAILY_COLUMNS = [
     "model_usable",
     "source_reference_url",
     "notes",
+    "non_model_usable_reason",
+    "alternate_source_family",
+    "reference_feature_family",
     "source_version",
 ]
 
@@ -40,6 +43,28 @@ BCB_SGS_ASOF_DAILY_COLUMNS = [
     "model_usable",
     "source_reference_url",
     "notes",
+    "non_model_usable_reason",
+    "alternate_source_family",
+    "reference_feature_family",
+    "source_version",
+]
+
+BCB_SGS_FEATURE_DAILY_COLUMNS = [
+    "ref_date",
+    "available_date",
+    "source_family",
+    "feature_id",
+    "value_name",
+    "value",
+    "unit",
+    "observation_ref_date",
+    "observation_available_date",
+    "availability_policy",
+    "availability_basis",
+    "revision_policy",
+    "model_usable",
+    "is_available",
+    "staleness_days",
     "source_version",
 ]
 
@@ -149,6 +174,7 @@ BCB_DAILY_LONG_COLUMNS = [
 PANEL_PRIMARY_KEYS = {
     "sgs_observation_daily": ["series_id", "ref_date"],
     "sgs_asof_daily": ["ref_date", "series_id"],
+    "sgs_feature_daily": ["ref_date", "feature_id", "value_name"],
     "ptax_selected_daily": ["ref_date", "currency_code"],
     "focus_expectation_observation_daily": ["expectation_key", "ref_date"],
     "focus_expectation_asof_daily": ["ref_date", "expectation_key"],

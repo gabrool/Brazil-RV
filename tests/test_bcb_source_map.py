@@ -35,10 +35,14 @@ def test_bcb_source_map_scopes_sgs_reference_expansion(repo_root):
         encoding="utf-8"
     )
 
-    assert "monetary/liquidity reference metadata" in text
-    assert "broader model-ready SGS coverage remains tracked in #54" in text
+    assert "monetary/liquidity metadata" in text
+    assert (
+        "Model-ready SGS currently includes Selic, IPCA, and daily international reserves"
+        in text
+    )
     assert "BCB_LIVE_TESTS=1" in text
-    assert "reference/source-map coverage expansion" in " ".join(raw_to_research.split())
+    assert "sgs_feature_daily" in raw_to_research
+    assert "international reserves liquidity" in raw_to_research
 
 
 def test_bcb_text_heavy_datasets_are_pending_or_raw_only(repo_root):

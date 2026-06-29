@@ -10,6 +10,7 @@ from bralpha.derived.bcb.daily_long import build_daily_long
 def test_daily_long_includes_sgs_ptax_and_focus_rows_and_drops_nulls():
     panel = build_daily_long(
         sgs_asof_daily=_sgs_asof(),
+        sgs_feature_daily=_sgs_feature_daily(),
         ptax_selected_daily=_ptax_selected(),
         focus_expectation_asof_daily=_focus_asof(),
         include_sgs=True,
@@ -21,6 +22,11 @@ def test_daily_long_includes_sgs_ptax_and_focus_rows_and_drops_nulls():
 
     assert {
         ("sgs", "sgs:selic_over", "value"),
+        (
+            "bcb_sgs_feature",
+            "bcb_sgs_feature:external_reserves:reserves_log_change_5bd",
+            "reserves_log_change_5bd",
+        ),
         ("ptax", "ptax:USD", "bid_rate"),
         ("ptax", "ptax:USD", "ask_rate"),
         ("focus", "focus:focus-key", "mean"),
@@ -45,6 +51,7 @@ def test_daily_long_includes_sgs_ptax_and_focus_rows_and_drops_nulls():
 def test_daily_long_uses_long_primary_key_and_does_not_pivot_wide():
     panel = build_daily_long(
         sgs_asof_daily=_sgs_asof(),
+        sgs_feature_daily=_sgs_feature_daily(),
         ptax_selected_daily=_ptax_selected(),
         focus_expectation_asof_daily=_focus_asof(),
         include_sgs=True,
@@ -55,6 +62,26 @@ def test_daily_long_uses_long_primary_key_and_does_not_pivot_wide():
     keys = ["ref_date", "source_family", "feature_id", "value_name"]
     assert panel.group_by(keys).len().height == panel.height
     assert {"selic_over", "usd_bid_rate", "focus_mean"}.isdisjoint(panel.columns)
+
+
+def test_daily_long_includes_model_ready_sgs_features_and_excludes_reference_only_sgs():
+    panel = build_daily_long(
+        sgs_asof_daily=_sgs_asof(),
+        sgs_feature_daily=_sgs_feature_daily(),
+        ptax_selected_daily=None,
+        focus_expectation_asof_daily=None,
+        include_sgs=True,
+        include_ptax=False,
+        include_focus=False,
+    )
+
+    feature_ids = set(panel["feature_id"])
+
+    assert "sgs:m2_new" not in feature_ids
+    assert "bcb_sgs_feature:rates:selic_over_level_pa" in feature_ids
+    assert "bcb_sgs_feature:inflation:ipca_12m_sum_pct" in feature_ids
+    assert "bcb_sgs_feature:external_reserves:reserves_log_change_5bd" in feature_ids
+    assert panel.filter(pl.col("model_usable") != True).is_empty()  # noqa: E712
 
 
 def _sgs_asof() -> pl.DataFrame:
@@ -125,6 +152,66 @@ def _ptax_selected() -> pl.DataFrame:
             }
         ]
     )
+
+
+def _sgs_feature_daily() -> pl.DataFrame:
+    return pl.DataFrame(
+        [
+            _feature_row(
+                "bcb_sgs_feature:rates:selic_over_level_pa",
+                "selic_over_level_pa",
+                10.0,
+                "percent_pa",
+            ),
+            _feature_row(
+                "bcb_sgs_feature:inflation:ipca_12m_sum_pct",
+                "ipca_12m_sum_pct",
+                5.0,
+                "percent",
+            ),
+            _feature_row(
+                "bcb_sgs_feature:external_reserves:reserves_log_change_5bd",
+                "reserves_log_change_5bd",
+                0.01,
+                "log_change",
+            ),
+            {
+                **_feature_row(
+                    "bcb_sgs_feature:credit:reference_only",
+                    "reference_only",
+                    1.0,
+                    "index",
+                ),
+                "model_usable": False,
+            },
+        ]
+    )
+
+
+def _feature_row(
+    feature_id: str,
+    value_name: str,
+    value: float,
+    unit: str,
+) -> dict[str, object]:
+    return {
+        "ref_date": date(2024, 1, 2),
+        "available_date": date(2024, 1, 2),
+        "source_family": "bcb_sgs_feature",
+        "feature_id": feature_id,
+        "value_name": value_name,
+        "value": value,
+        "unit": unit,
+        "observation_ref_date": date(2024, 1, 2),
+        "observation_available_date": date(2024, 1, 2),
+        "availability_policy": "date_only_next_business_day",
+        "availability_basis": "source_date_only",
+        "revision_policy": "unrevised",
+        "model_usable": True,
+        "is_available": True,
+        "staleness_days": 0,
+        "source_version": "v0",
+    }
 
 
 def _focus_asof() -> pl.DataFrame:
