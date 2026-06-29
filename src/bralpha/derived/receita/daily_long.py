@@ -5,12 +5,14 @@ from datetime import date
 import polars as pl
 
 from bralpha.derived.receita.calendar import business_day_frame, business_days_mon_fri
+from bralpha.derived.receita.pit import ensure_receita_pit_columns
 from bralpha.derived.receita.quality import validate_asof_panel
 from bralpha.derived.receita.schemas import (
     PANEL_PRIMARY_KEYS,
     RECEITA_DAILY_LONG_COLUMNS,
     RECEITA_STATE_ASOF_DAILY_COLUMNS,
 )
+from bralpha.timing.vintages import AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE
 
 STATE_KEY_COLUMNS = ["source_family", "feature_id", "value_name"]
 
@@ -28,7 +30,17 @@ def build_receita_state_asof_daily(
 
     obs = (
         observations.filter(pl.col("observation_available_date").is_not_null())
-        .sort([*STATE_KEY_COLUMNS, "observation_available_date", "observation_ref_date"])
+        .sort(
+            [
+                *STATE_KEY_COLUMNS,
+                "observation_available_date",
+                "first_seen_timestamp_utc",
+                "source_last_modified_utc",
+                "revision_sequence",
+                "vintage_id",
+                "observation_ref_date",
+            ]
+        )
         .unique(
             subset=[*STATE_KEY_COLUMNS, "observation_available_date"],
             keep="last",
@@ -89,6 +101,8 @@ def build_receita_daily_long(
 
     frame = (
         state_asof_daily.filter(pl.col("source_family") == "receita_tax_collection")
+        .filter(pl.col("model_usable").fill_null(False))
+        .filter(pl.col("availability_basis") != AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE)
         .filter(pl.col("value").is_not_null())
         .select(RECEITA_DAILY_LONG_COLUMNS)
         .unique(subset=PANEL_PRIMARY_KEYS["daily_long"], keep="last", maintain_order=True)
@@ -104,6 +118,7 @@ def build_receita_daily_long(
 def _state_rows(frame: pl.DataFrame | None) -> pl.DataFrame | None:
     if frame is None or frame.is_empty():
         return None
+    frame = ensure_receita_pit_columns(frame)
     return frame.select(
         [
             pl.lit("receita_tax_collection").alias("source_family"),
@@ -111,6 +126,17 @@ def _state_rows(frame: pl.DataFrame | None) -> pl.DataFrame | None:
             pl.lit("collection_amount_brl").alias("value_name"),
             pl.col("ref_date").alias("observation_ref_date"),
             pl.col("available_date").alias("observation_available_date"),
+            pl.col("availability_policy"),
+            pl.col("availability_basis"),
+            pl.col("revision_policy"),
+            pl.col("release_date"),
+            pl.col("source_publication_datetime_utc"),
+            pl.col("source_last_modified_utc"),
+            pl.col("first_seen_timestamp_utc"),
+            pl.col("vintage_id"),
+            pl.col("revision_sequence"),
+            pl.col("model_usable"),
+            pl.col("model_usable_reason"),
             pl.col("collection_amount_brl").cast(pl.Float64).alias("value"),
             pl.col("unit"),
             pl.col("source_version"),

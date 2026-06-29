@@ -10,6 +10,7 @@ from bralpha.derived.receita.daily_long import (
     build_receita_state_asof_daily,
 )
 from bralpha.derived.receita.schemas import PANEL_PRIMARY_KEYS
+from bralpha.timing.vintages import AVAILABILITY_CONSERVATIVE_HEURISTIC
 
 
 def test_state_asof_uses_pre_window_history_and_staleness():
@@ -145,6 +146,27 @@ def test_daily_long_can_disable_tax_collection():
     )
 
     panel = build_receita_daily_long(state_asof_daily=state, include_tax_collection=False)
+
+    assert panel.is_empty()
+
+
+def test_daily_long_excludes_reference_only_tax_collection_rows():
+    state = build_receita_state_asof_daily(
+        feature_observations=pl.DataFrame(
+            [
+                {
+                    **_feature_row(),
+                    "availability_basis": AVAILABILITY_CONSERVATIVE_HEURISTIC,
+                    "model_usable": False,
+                }
+            ]
+        ),
+        start=date(2024, 3, 8),
+        end=date(2024, 3, 8),
+        max_features=10,
+    )
+
+    panel = build_receita_daily_long(state_asof_daily=state, include_tax_collection=True)
 
     assert panel.is_empty()
 

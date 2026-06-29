@@ -9,15 +9,41 @@ import polars as pl
 from bralpha.domain.b3_calendar import is_business_day, previous_business_day
 from bralpha.ingestion.receita.common import write_partitioned_frame
 from bralpha.parsing.common import normalize_column_name, parse_decimal
-
-RECEITA_COLLECTION_AVAILABILITY_POLICY = (
-    "receita_monthly_collection_conservative_next_month_end_plus_5bd"
+from bralpha.timing.vintages import (
+    AVAILABILITY_CONSERVATIVE_HEURISTIC,
+    REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY,
+    REVISION_REVISED_USE_FIRST_SEEN,
+    available_date_from_first_seen,
+    available_date_from_source_datetime,
+    choose_model_usable,
+    make_vintage_id,
 )
+
+RECEITA_COLLECTION_AVAILABILITY_POLICY = "receita_conservative_heuristic_plus_first_seen"
+RECEITA_COLLECTION_REFERENCE_ONLY_POLICY = (
+    "receita_monthly_collection_conservative_next_month_end_plus_5bd"
+    "_reference_only"
+)
+RECEITA_HEURISTIC_SNAPSHOT_BASIS = "conservative_heuristic+first_seen_download_timestamp"
+
+RECEITA_PIT_COLUMNS = [
+    "availability_basis",
+    "revision_policy",
+    "release_date",
+    "source_publication_datetime_utc",
+    "source_last_modified_utc",
+    "first_seen_timestamp_utc",
+    "vintage_id",
+    "revision_sequence",
+    "model_usable",
+    "model_usable_reason",
+]
 
 RECEITA_TAX_COLLECTION_COLUMNS = [
     "ref_date",
     "available_date",
     "availability_policy",
+    *RECEITA_PIT_COLUMNS,
     "year",
     "month",
     "collection_scope",
@@ -50,6 +76,7 @@ RECEITA_PRIMARY_KEYS_BY_DATASET = {
         "revenue_code",
         "revenue_key",
         "table_kind",
+        "vintage_id",
     ],
 }
 
@@ -118,6 +145,11 @@ def normalize_receita_tax_collection_monthly(
             _existing_or_literal(long_frame, "download_timestamp_utc", None).alias(
                 "download_timestamp_utc"
             ),
+            _existing_or_literal(long_frame, "source_publication_datetime_utc", None).alias(
+                "source_publication_datetime_utc"
+            ),
+            _source_last_modified_expr(long_frame).alias("source_last_modified_utc"),
+            _first_seen_expr(long_frame).alias("first_seen_timestamp_utc"),
             _existing_or_literal(long_frame, "raw_path", None).alias("raw_path"),
             _existing_or_literal(long_frame, "sha256", None).alias("sha256"),
             pl.lit(source_version).alias("source_version"),
@@ -128,9 +160,9 @@ def normalize_receita_tax_collection_monthly(
             pl.col("ref_date").dt.year().alias("year"),
             pl.col("ref_date").dt.month().alias("month"),
             pl.col("ref_date")
-            .map_elements(_available_date, return_dtype=pl.Date)
-            .alias("available_date"),
-            pl.lit(RECEITA_COLLECTION_AVAILABILITY_POLICY).alias("availability_policy"),
+            .map_elements(_heuristic_available_date, return_dtype=pl.Date)
+            .alias("heuristic_available_date"),
+            pl.lit(None).alias("release_date"),
             pl.col("collection_scope_raw")
             .map_elements(
                 lambda value: _text_or_default(value, "federal_total"),
@@ -177,6 +209,71 @@ def normalize_receita_tax_collection_monthly(
         )
         .map_elements(_revenue_key, return_dtype=pl.Utf8)
         .alias("revenue_key")
+    )
+    frame = frame.with_columns(
+        [
+            pl.struct(
+                [
+                    "source_publication_datetime_utc",
+                    "source_last_modified_utc",
+                    "first_seen_timestamp_utc",
+                ]
+            )
+            .map_elements(_snapshot_available_date, return_dtype=pl.Date)
+            .alias("snapshot_available_date"),
+            pl.struct(
+                [
+                    "source_dataset",
+                    "source_table",
+                    "raw_path",
+                    "sha256",
+                    "source_publication_datetime_utc",
+                    "source_last_modified_utc",
+                    "first_seen_timestamp_utc",
+                ]
+            )
+            .map_elements(_snapshot_vintage_id, return_dtype=pl.Utf8)
+            .alias("vintage_id"),
+        ]
+    )
+    frame = frame.with_columns(
+        [
+            pl.when(pl.col("snapshot_available_date").is_not_null())
+            .then(pl.max_horizontal("heuristic_available_date", "snapshot_available_date"))
+            .otherwise(pl.col("heuristic_available_date"))
+            .alias("available_date"),
+            pl.when(pl.col("snapshot_available_date").is_not_null())
+            .then(pl.lit(RECEITA_COLLECTION_AVAILABILITY_POLICY))
+            .otherwise(pl.lit(RECEITA_COLLECTION_REFERENCE_ONLY_POLICY))
+            .alias("availability_policy"),
+            pl.when(pl.col("snapshot_available_date").is_not_null())
+            .then(pl.lit(RECEITA_HEURISTIC_SNAPSHOT_BASIS))
+            .otherwise(pl.lit(AVAILABILITY_CONSERVATIVE_HEURISTIC))
+            .alias("availability_basis"),
+            pl.when(pl.col("snapshot_available_date").is_not_null())
+            .then(pl.lit(REVISION_REVISED_USE_FIRST_SEEN))
+            .otherwise(pl.lit(REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY))
+            .alias("revision_policy"),
+            pl.lit(0).alias("revision_sequence"),
+            pl.when(pl.col("snapshot_available_date").is_not_null())
+            .then(pl.lit(RECEITA_COLLECTION_AVAILABILITY_POLICY))
+            .otherwise(pl.lit(RECEITA_COLLECTION_REFERENCE_ONLY_POLICY))
+            .alias("model_usable_reason"),
+        ]
+    )
+    frame = frame.with_columns(
+        pl.struct(
+            [
+                "availability_basis",
+                "revision_policy",
+                "available_date",
+                "vintage_id",
+                "first_seen_timestamp_utc",
+                "source_last_modified_utc",
+            ]
+        )
+        .map_elements(_model_usable, return_dtype=pl.Boolean)
+        .alias("model_usable")
     )
     frame = frame.select(RECEITA_TAX_COLLECTION_COLUMNS)
     missing_required = frame.filter(
@@ -347,6 +444,33 @@ def _existing_or_literal(frame: pl.DataFrame, column: str, value: object) -> pl.
     return pl.lit(value)
 
 
+def _source_last_modified_expr(frame: pl.DataFrame) -> pl.Expr:
+    exprs = [
+        pl.col(column)
+        for column in (
+            "resource_last_modified",
+            "ckan_resource_last_modified",
+            "http_last_modified",
+            "resource_updated_at",
+        )
+        if column in frame.columns
+    ]
+    if not exprs:
+        return pl.lit(None)
+    return pl.coalesce(exprs)
+
+
+def _first_seen_expr(frame: pl.DataFrame) -> pl.Expr:
+    exprs = [
+        pl.col(column)
+        for column in ("first_seen_timestamp_utc", "download_timestamp_utc")
+        if column in frame.columns
+    ]
+    if not exprs:
+        return pl.lit(None)
+    return pl.coalesce(exprs)
+
+
 def _source_table_expr(frame: pl.DataFrame) -> pl.Expr:
     exprs = []
     for column in ("sheet_name", "resource_name", "resource_family", "inner_filename"):
@@ -451,7 +575,7 @@ def _month_from_column(column: str) -> tuple[int | None, int] | None:
     return (None, month) if month is not None else None
 
 
-def _available_date(ref_date: date | None) -> date | None:
+def _heuristic_available_date(ref_date: date | None) -> date | None:
     if ref_date is None:
         return None
     next_month_year = ref_date.year + (1 if ref_date.month == 12 else 0)
@@ -459,6 +583,52 @@ def _available_date(ref_date: date | None) -> date | None:
     next_month_end = _month_end(next_month_year, next_month)
     release_anchor = _last_business_day_on_or_before(next_month_end)
     return _add_business_days(release_anchor, 5)
+
+
+def _snapshot_available_date(values: dict[str, object]) -> date | None:
+    source_publication = values.get("source_publication_datetime_utc")
+    if source_publication is not None:
+        return available_date_from_source_datetime(source_publication)
+    source_last_modified = values.get("source_last_modified_utc")
+    if source_last_modified is not None:
+        return available_date_from_source_datetime(source_last_modified)
+    return available_date_from_first_seen(values.get("first_seen_timestamp_utc"))
+
+
+def _snapshot_vintage_id(values: dict[str, object]) -> str:
+    dataset_id = _text(values.get("source_dataset")) or "receita_tax_collection_monthly"
+    resource_id = _text(values.get("source_table")) or _text(values.get("raw_path")) or dataset_id
+    content_hash = _text(values.get("sha256"))
+    publication_timestamp = None
+    first_seen_timestamp_utc = None
+    if content_hash is None:
+        publication_timestamp = values.get("source_publication_datetime_utc") or values.get(
+            "source_last_modified_utc"
+        )
+        if publication_timestamp is None:
+            first_seen_timestamp_utc = values.get("first_seen_timestamp_utc")
+    return make_vintage_id(
+        source="receita",
+        dataset_id=dataset_id,
+        resource_id=resource_id,
+        publication_timestamp=publication_timestamp,
+        first_seen_timestamp_utc=first_seen_timestamp_utc,
+        content_hash=content_hash,
+    )
+
+
+def _model_usable(values: dict[str, object]) -> bool:
+    first_seen_or_source = values.get("first_seen_timestamp_utc") or values.get(
+        "source_last_modified_utc"
+    )
+    return choose_model_usable(
+        configured_model_usable=True,
+        availability_basis=_text(values.get("availability_basis")),
+        revision_policy=_text(values.get("revision_policy")) or "",
+        available_date=values.get("available_date"),
+        vintage_id=_text(values.get("vintage_id")),
+        first_seen_timestamp_utc=first_seen_or_source,
+    )
 
 
 def _last_business_day_on_or_before(value: date) -> date:
