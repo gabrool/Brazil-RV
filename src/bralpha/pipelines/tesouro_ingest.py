@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 
@@ -56,7 +57,11 @@ def run_tesouro_ingest(
     paths = tesouro_paths(repo_root)
     write_tesouro_bronze(bronze, tesouro_bronze_root(paths, dataset_id))
 
-    silver = normalize_tesouro_to_silver(dataset_id, bronze)
+    silver = normalize_tesouro_to_silver(
+        dataset_id,
+        bronze,
+        holidays=_reference_holidays(paths),
+    )
     required_columns = SILVER_COLUMNS_BY_DATASET.get(dataset_id)
     if required_columns is None:
         raise NotImplementedError(f"Tesouro silver normalizer is not implemented for {dataset_id}")
@@ -89,6 +94,34 @@ def _implemented_raw_format(raw_format: str | None) -> str:
     if raw_format in {"csv", "csv_multi_resource"}:
         return raw_format
     raise ValueError(f"Tesouro raw format is not implemented for live parsing: {raw_format}")
+
+
+def _reference_holidays(paths) -> set[date] | None:
+    for dataset_id in ["b3_holiday_calendar", "reference_calendar"]:
+        holidays = _holiday_dates(paths.silver / dataset_id)
+        if holidays is not None:
+            return holidays
+    return None
+
+
+def _holiday_dates(root: Path) -> set[date] | None:
+    if not root.exists():
+        return None
+    files = sorted(root.glob("**/*.parquet"))
+    if not files:
+        return None
+    frame = pl.concat([pl.read_parquet(path) for path in files], how="diagonal_relaxed")
+    if frame.is_empty() or "ref_date" not in frame.columns:
+        return None
+    if "is_business_day" in frame.columns:
+        frame = frame.filter(pl.col("is_business_day") == False)  # noqa: E712
+    return {_as_date(row["ref_date"]) for row in frame.select("ref_date").to_dicts()}
+
+
+def _as_date(value: Any) -> date:
+    if isinstance(value, date):
+        return value
+    return date.fromisoformat(str(value)[:10])
 
 
 def main(argv: list[str] | None = None) -> None:

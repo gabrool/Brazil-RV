@@ -29,7 +29,7 @@ datasets:
     ckan_package: taxas-dos-titulos-ofertados-pelo-tesouro-direto
     ckan_resource_formats: [CSV]
     ckan_resource_name_contains: [Taxas dos Títulos Ofertados]
-    availability_policy: next_business_day
+    availability_policy: date_only_next_business_day
     license_note: ODbL open data; cite Tesouro Transparente as source.
     notes: One historical CSV; starts Jan 2002; daily; prices/rates reflect the secondary market for federal public bonds.
 
@@ -46,9 +46,9 @@ datasets:
     ckan_package: vendas-do-tesouro-direto
     ckan_resource_formats: [CSV]
     ckan_resource_name_contains: [Vendas do Tesouro Direto]
-    availability_policy: next_business_day
+    availability_policy: tesouro_direto_sales_official_2bd
     license_note: ODbL open data; cite Tesouro Transparente as source.
-    notes: One historical CSV; starts Jan 2002; daily sales by title and maturity.
+    notes: One historical CSV; starts Jan 2002; daily sales by title and maturity. CKAN resource metadata states a two-business-day lag.
 
   - dataset_id: tesouro_direto_redemptions
     source: tesouro
@@ -66,9 +66,9 @@ datasets:
       - Vencimentos do Tesouro Direto
       - Recompras do Tesouro Direto
       - Pagamento de Cupom de Juros do Tesouro Direto
-    availability_policy: next_business_day
+    availability_policy: tesouro_direto_redemptions_conservative_2bd
     license_note: ODbL open data; cite Tesouro Transparente as source.
-    notes: Multiple CSV resources; starts Jan 2005; maturities, early repurchases, and coupon payments.
+    notes: Multiple CSV resources; starts Jan 2005; maturities, early repurchases, and coupon payments. Timing is conservatively lagged two business days unless official metadata documents earlier availability.
 
   - dataset_id: tesouro_direto_stock
     source: tesouro

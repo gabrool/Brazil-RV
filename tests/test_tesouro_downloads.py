@@ -122,6 +122,68 @@ def test_tesouro_pipeline_mocked_live_config_writes_bronze_and_silver(repo_root,
     assert silver["available_date"].item() == date(2024, 1, 3)
 
 
+def test_tesouro_pipeline_passes_configured_holidays_to_flow_normalizer(repo_root, tmp_path):
+    shutil.copytree(repo_root / "configs", tmp_path / "configs")
+    _write_holiday_calendar(tmp_path, date(2024, 1, 3))
+    client = MockTesouroClient(
+        csv_content=(
+            "Data Venda;Tipo Titulo;Vencimento do Titulo;Quantidade;Valor;Investidores\n"
+            "02/01/2024;Tesouro Selic;01/01/2027;1,00;100,00;1\n"
+        ).encode("latin1"),
+        resources=[_resource("sales", "Vendas do Tesouro Direto")],
+    )
+
+    status = run_tesouro_ingest(
+        repo_root=tmp_path,
+        dataset_id="tesouro_direto_sales",
+        start=date(2024, 1, 2),
+        end=date(2024, 1, 2),
+        client=client,
+    )
+
+    silver = pl.read_parquet(
+        tmp_path
+        / "data"
+        / "silver"
+        / "tesouro_direto_sales"
+        / "year=2024"
+        / "data.parquet"
+    )
+    assert status == {"downloads": 1, "bronze_rows": 1, "silver_rows": 1}
+    assert silver["availability_basis"].item() == "configured_holiday_calendar"
+    assert silver["available_date"].item() == date(2024, 1, 5)
+
+
+def test_tesouro_pipeline_flow_calendar_fallback_is_explicit(repo_root, tmp_path):
+    shutil.copytree(repo_root / "configs", tmp_path / "configs")
+    client = MockTesouroClient(
+        csv_content=(
+            "Data Venda;Tipo Titulo;Vencimento do Titulo;Quantidade;Valor;Investidores\n"
+            "02/01/2024;Tesouro Selic;01/01/2027;1,00;100,00;1\n"
+        ).encode("latin1"),
+        resources=[_resource("sales", "Vendas do Tesouro Direto")],
+    )
+
+    run_tesouro_ingest(
+        repo_root=tmp_path,
+        dataset_id="tesouro_direto_sales",
+        start=date(2024, 1, 2),
+        end=date(2024, 1, 2),
+        client=client,
+    )
+
+    silver = pl.read_parquet(
+        tmp_path
+        / "data"
+        / "silver"
+        / "tesouro_direto_sales"
+        / "year=2024"
+        / "data.parquet"
+    )
+    assert silver["availability_basis"].item() == "weekday_fallback"
+    assert silver["available_date"].item() == date(2024, 1, 4)
+
+
 def test_tesouro_silver_write_is_idempotent_for_same_primary_key(repo_root, tmp_path):
     shutil.copytree(repo_root / "configs", tmp_path / "configs")
     content = (
@@ -151,3 +213,28 @@ def test_tesouro_silver_write_is_idempotent_for_same_primary_key(repo_root, tmp_
     )
     assert silver.height == 1
     assert silver.group_by(["ref_date", "security_name", "maturity_date"]).len().height == 1
+
+
+def _resource(resource_id: str, name: str) -> dict[str, object]:
+    return {
+        "id": resource_id,
+        "name": name,
+        "format": "CSV",
+        "position": 0,
+        "url": f"https://example.test/{resource_id}.csv",
+    }
+
+
+def _write_holiday_calendar(repo_root, holiday: date) -> None:
+    root = repo_root / "data" / "silver" / "b3_holiday_calendar" / f"year={holiday.year}"
+    root.mkdir(parents=True)
+    pl.DataFrame(
+        [
+            {
+                "ref_date": holiday,
+                "calendar_id": "B3",
+                "is_business_day": False,
+                "holiday_name": "Fixture holiday",
+            }
+        ]
+    ).write_parquet(root / "data.parquet")

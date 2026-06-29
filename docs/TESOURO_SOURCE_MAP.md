@@ -9,8 +9,8 @@ to source-specific silver tables.
 | dataset_id | priority | status | source_page_or_api | raw_format | expected_frequency | silver_output | known_limitations |
 |---|---:|---|---|---|---|---|---|
 | `tesouro_direto_prices_rates` | P0 | `live_download` | `taxas-dos-titulos-ofertados-pelo-tesouro-direto` via CKAN `package_show` | csv | daily | `data/silver/tesouro_direto_prices_rates/` | Historical CSV starts Jan 2002. Rows are date-only; available on next business day. |
-| `tesouro_direto_sales` | P0 | `live_download` | `vendas-do-tesouro-direto` via CKAN `package_show` | csv | daily | `data/silver/tesouro_direto_sales/` | Historical CSV starts Jan 2002. Preserve official sales amounts and quantities only. |
-| `tesouro_direto_redemptions` | P0 | `live_download` | `resgates-do-tesouro-direto` via CKAN `package_show` | csv_multi_resource | daily | `data/silver/tesouro_direto_redemptions/` | Three CSV resources are selected: maturities, early repurchases, and coupon payments. |
+| `tesouro_direto_sales` | P0 | `live_download` | `vendas-do-tesouro-direto` via CKAN `package_show` | csv | daily | `data/silver/tesouro_direto_sales/` | Historical CSV starts Jan 2002. CKAN resource metadata states a two-business-day lag. |
+| `tesouro_direto_redemptions` | P0 | `live_download` | `resgates-do-tesouro-direto` via CKAN `package_show` | csv_multi_resource | daily | `data/silver/tesouro_direto_redemptions/` | Three CSV resources are selected and conservatively lagged two business days because earlier official timing is not documented here. |
 | `tesouro_direto_stock` | P0 | `live_download` | `estoque-do-tesouro-direto` via CKAN `package_show` | csv | monthly | `data/silver/tesouro_direto_stock/` | Monthly stock uses a conservative 30-calendar-day lag, then next business day. Stock is calculated by issuance rates, not market prices. |
 | `tesouro_dpf_stock` | P0 | `live_download` | `estoque-da-divida-publica-federal` via CKAN `package_show` | csv | monthly | `data/silver/tesouro_dpf_stock/` | Monthly DPF stock uses a conservative 45-calendar-day lag, then next business day. |
 | `tesouro_rtn_series` | P0 | `live_download_if_api_verified` | `resultado-do-tesouro-nacional` CKAN package; API resource points to Tesouro series-temporais docs | api_json_or_xlsx_pending | monthly | none | Kept pending until the API response schema is fixture-verified. XLSX parsing is not implemented in this PR. |
@@ -36,9 +36,20 @@ to source-specific silver tables.
 
 ## Availability policy
 
-- Daily Tesouro Direto market/flow observations use
+- Daily Tesouro Direto prices/rates use
   `available_date = next_business_day(ref_date)` because the source rows are
   date-only.
+- Tesouro Direto sales use
+  `available_date = add_business_days(ref_date, 2)` per the official CKAN
+  resource description for `vendas-do-tesouro-direto`.
+- Tesouro Direto redemptions use
+  `available_date = add_business_days(ref_date, 2)` under
+  `tesouro_direto_redemptions_conservative_2bd` because the selected CKAN
+  resources do not document an earlier model-usable timing.
+- Sales/redemptions business-day lags use the configured `b3_holiday_calendar`
+  or `reference_calendar` silver table when available. If no project calendar is
+  present, rows keep `availability_basis = "weekday_fallback"` so that fallback
+  timing is auditable rather than silently treated as Brazil-calendar accurate.
 - Monthly Tesouro Direto stock uses
   `available_date = next_business_day(ref_date + 30 calendar days)`.
 - Monthly DPF stock uses

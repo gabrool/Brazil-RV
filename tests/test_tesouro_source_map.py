@@ -39,6 +39,12 @@ def test_tesouro_dataset_registry_loads_source_map(repo_root):
     }
     assert datasets["tesouro_rtn_series"].source_map_status == "live_download_if_api_verified"
     assert datasets["tesouro_rtn_series"].source_urls == []
+    assert datasets["tesouro_direto_sales"].model_extra["availability_policy"] == (
+        "tesouro_direto_sales_official_2bd"
+    )
+    assert datasets["tesouro_direto_redemptions"].model_extra["availability_policy"] == (
+        "tesouro_direto_redemptions_conservative_2bd"
+    )
     assert datasets["tesouro_capag_states"].source_map_status == "source_map_only_p1"
     assert datasets["tesouro_capag_states"].source_urls == []
 

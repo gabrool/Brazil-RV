@@ -38,6 +38,7 @@ def test_tesouro_prices_rates_preserve_official_rates_prices():
     assert silver.columns == TESOURO_DIRETO_PRICES_RATES_COLUMNS
     assert row["ref_date"] == date(2024, 1, 2)
     assert row["available_date"] == date(2024, 1, 3)
+    assert row["availability_policy"] == "date_only_next_business_day"
     assert row["security_name"] == "Tesouro Prefixado"
     assert row["security_type"] == "Tesouro Prefixado"
     assert row["maturity_date"] == date(2027, 1, 1)
@@ -63,7 +64,9 @@ def test_tesouro_sales_preserve_quantity_value_and_investor_count():
     row = silver.row(0, named=True)
 
     assert silver.columns == TESOURO_DIRETO_SALES_COLUMNS
-    assert row["available_date"] == date(2024, 1, 3)
+    assert row["available_date"] == date(2024, 1, 4)
+    assert row["availability_policy"] == "tesouro_direto_sales_official_2bd"
+    assert row["availability_basis"] == "weekday_fallback"
     assert row["quantity"] == 123.45
     assert row["value"] == 123456.78
     assert row["investor_count"] == 42
@@ -88,8 +91,70 @@ def test_tesouro_redemptions_map_type_from_ckan_resource_name():
 
     assert silver.columns == TESOURO_DIRETO_REDEMPTIONS_COLUMNS
     assert row["redemption_type"] == "early_repurchase"
-    assert row["available_date"] == date(2024, 1, 3)
+    assert row["available_date"] == date(2024, 1, 4)
+    assert row["availability_policy"] == "tesouro_direto_redemptions_conservative_2bd"
+    assert row["availability_basis"] == "weekday_fallback"
     assert row["value"] == 1000.0
+
+
+def test_tesouro_sales_2bd_lag_skips_weekends():
+    silver = normalize_sales_to_silver(
+        pl.DataFrame(
+            [
+                _bronze_row(
+                    raw_data_venda="2024-01-05",
+                    raw_tipo_titulo="Tesouro Selic",
+                    raw_vencimento_do_titulo="2027-03-01",
+                    raw_quantidade="1",
+                    raw_valor="10",
+                )
+            ]
+        )
+    )
+
+    assert silver["available_date"].item() == date(2024, 1, 9)
+    assert silver["availability_basis"].item() == "weekday_fallback"
+
+
+def test_tesouro_sales_2bd_lag_uses_configured_holidays():
+    silver = normalize_sales_to_silver(
+        pl.DataFrame(
+            [
+                _bronze_row(
+                    raw_data_venda="2024-01-02",
+                    raw_tipo_titulo="Tesouro Selic",
+                    raw_vencimento_do_titulo="2027-03-01",
+                    raw_quantidade="1",
+                    raw_valor="10",
+                )
+            ]
+        ),
+        holidays={date(2024, 1, 3)},
+    )
+
+    assert silver["available_date"].item() == date(2024, 1, 5)
+    assert silver["availability_basis"].item() == "configured_holiday_calendar"
+
+
+def test_tesouro_redemptions_2bd_lag_uses_configured_holidays():
+    silver = normalize_redemptions_to_silver(
+        pl.DataFrame(
+            [
+                _bronze_row(
+                    resource_name="Recompras do Tesouro Direto",
+                    raw_data_resgate="2024-01-02",
+                    raw_tipo_titulo="Tesouro IPCA+",
+                    raw_vencimento_do_titulo="2035-05-15",
+                    raw_quantidade="10",
+                    raw_valor="1000",
+                )
+            ]
+        ),
+        holidays={date(2024, 1, 3)},
+    )
+
+    assert silver["available_date"].item() == date(2024, 1, 5)
+    assert silver["availability_basis"].item() == "configured_holiday_calendar"
 
 
 def test_tesouro_direto_stock_uses_30_day_lag_then_next_business_day():
@@ -112,6 +177,7 @@ def test_tesouro_direto_stock_uses_30_day_lag_then_next_business_day():
     assert silver.columns == TESOURO_DIRETO_STOCK_COLUMNS
     expected_ref_date = date(2024, 1, 31)
     assert row["ref_date"] == expected_ref_date
+    assert row["availability_policy"] == "tesouro_direto_stock_conservative_30d"
     assert row["available_date"] == usable_date_from_date_only(
         expected_ref_date + timedelta(days=30)
     )
