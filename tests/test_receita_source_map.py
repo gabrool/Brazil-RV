@@ -25,11 +25,21 @@ def test_receita_docs_list_every_configured_dataset(repo_root):
 
 def test_receita_live_dataset_has_official_page_and_discovery_rules(repo_root):
     dataset = load_receita_dataset_registry(repo_root).get("receita_tax_collection_monthly")
+    discovery = dataset.resource_discovery
 
     assert dataset.source_page_url == "https://dados.gov.br/dados/conjuntos-dados/resultado-da-arrecadacao"
+    assert discovery["source_page_url"] == dataset.source_page_url
+    assert (
+        discovery["metadata_api_url"]
+        == "https://dados.gov.br/dados/api/publico/conjuntos-dados/resultado-da-arrecadacao"
+    )
+    assert discovery["mode"] == "official_metadata_api_then_static_html"
     assert dataset.source_urls[0].url_template.startswith("https://dados.gov.br/")
     assert "arrecadação" in dataset.link_text_contains_any
-    assert ".csv" in dataset.accepted_extensions
+    assert ".csv" in discovery["accepted_extensions"]
+    assert ".pdf" in discovery["rejected_extensions"]
+    forbidden_tokens = ("TO_BE_FILLED", "placeholder", "example.com")
+    assert not any(token in str(dataset.model_extra) for token in forbidden_tokens)
 
 
 def test_receita_deferred_datasets_have_no_fake_endpoints(repo_root):

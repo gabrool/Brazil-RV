@@ -16,6 +16,9 @@ official_pages:
   - name: dados_gov_resultado_arrecadacao
     dataset_id: receita_tax_collection_monthly
     url: https://dados.gov.br/dados/conjuntos-dados/resultado-da-arrecadacao
+  - name: dados_gov_resultado_arrecadacao_metadata_api
+    dataset_id: receita_tax_collection_monthly
+    url: https://dados.gov.br/dados/api/publico/conjuntos-dados/resultado-da-arrecadacao
   - name: tax_expenditures_or_benefits
     dataset_id: receita_tax_expenditures_annual
     url: https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/dados-abertos/beneficios-e-renuncias-fiscais
@@ -34,7 +37,7 @@ official_pages:
 
 endpoint_policy:
   live_download_requires:
-    - stable_official_url_or_official_page_link_discovery
+    - stable_official_metadata_api_or_static_page_link_discovery
     - no_login
     - no_browser_automation
     - fixture_test

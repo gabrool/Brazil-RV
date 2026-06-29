@@ -34,6 +34,12 @@ datasets:
     availability_policy: receita_monthly_collection_conservative_next_month_end_plus_5bd
     license_note: Brazilian federal open-data terms; cite Receita Federal/RFB and the official dataset/source.
     source_page_url: "https://dados.gov.br/dados/conjuntos-dados/resultado-da-arrecadacao"
+    resource_discovery:
+      mode: official_metadata_api_then_static_html
+      metadata_api_url: "https://dados.gov.br/dados/api/publico/conjuntos-dados/resultado-da-arrecadacao"
+      source_page_url: "https://dados.gov.br/dados/conjuntos-dados/resultado-da-arrecadacao"
+      accepted_extensions: [".csv", ".txt", ".zip", ".xlsx", ".xls", ".ods"]
+      rejected_extensions: [".pdf"]
     receita_category_page_url: "https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/dados-abertos/arrecadacao"
     link_text_contains_any:
       - "arrecadação"

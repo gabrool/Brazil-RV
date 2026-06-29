@@ -6,6 +6,7 @@ from bralpha.infra.config import load_receita_dataset_registry
 from bralpha.ingestion.receita.resources import (
     ReceitaUnsupportedResourceError,
     receita_collection_resources,
+    receita_collection_resources_from_metadata,
 )
 
 
@@ -65,3 +66,74 @@ def test_receita_resource_discovery_does_not_follow_external_pages(repo_root):
     resources = receita_collection_resources(dataset, html)
 
     assert resources[0].url == "https://dados.gov.br/dados/resultado.csv"
+
+
+def test_receita_metadata_discovery_selects_structured_and_ignores_pdf_and_metadata(
+    repo_root,
+):
+    dataset = load_receita_dataset_registry(repo_root).get("receita_tax_collection_monthly")
+    metadata = {
+        "result": {
+            "resources": [
+                {
+                    "name": "Metadados da arrecadacao",
+                    "url": "https://dados.gov.br/dados/metadados-arrecadacao.csv",
+                    "format": "CSV",
+                },
+                {
+                    "title": "Arrecadacao PDF",
+                    "download_url": "https://dados.gov.br/dados/arrecadacao.pdf",
+                    "format": "PDF",
+                },
+                {
+                    "title": "Resultado da arrecadacao historica CSV",
+                    "download_url": "https://dados.gov.br/dados/resultado-historico.csv",
+                    "format": "CSV",
+                },
+            ]
+        }
+    }
+
+    resources = receita_collection_resources_from_metadata(dataset, metadata)
+
+    assert len(resources) == 1
+    assert resources[0].url == "https://dados.gov.br/dados/resultado-historico.csv"
+    assert resources[0].filename == "resultado-historico.csv"
+
+
+def test_receita_metadata_discovery_prefers_full_history_over_recent_csv(repo_root):
+    dataset = load_receita_dataset_registry(repo_root).get("receita_tax_collection_monthly")
+    metadata = {
+        "recursos": [
+            {
+                "name": "Resultado da arrecadacao 2025 CSV",
+                "href": "https://dados.gov.br/dados/resultado-2025.csv",
+                "format": "CSV",
+            },
+            {
+                "name": "Resultado da arrecadacao serie historica ZIP",
+                "href": "https://dados.gov.br/dados/resultado-serie-historica.zip",
+                "format": "ZIP",
+            },
+        ]
+    }
+
+    resources = receita_collection_resources_from_metadata(dataset, metadata)
+
+    assert resources[0].url.endswith("resultado-serie-historica.zip")
+
+
+def test_receita_metadata_discovery_rejects_pdf_only(repo_root):
+    dataset = load_receita_dataset_registry(repo_root).get("receita_tax_collection_monthly")
+    metadata = {
+        "distribution": [
+            {
+                "name": "Resultado da arrecadacao relatorio PDF",
+                "resource_url": "https://dados.gov.br/dados/resultado.pdf",
+                "mimetype": "application/pdf",
+            }
+        ]
+    }
+
+    with pytest.raises(ReceitaUnsupportedResourceError, match="PDF"):
+        receita_collection_resources_from_metadata(dataset, metadata)
