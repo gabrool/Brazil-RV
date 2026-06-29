@@ -15,6 +15,7 @@ from bralpha.ingestion.cvm.common import (
     cvm_silver_root,
 )
 from bralpha.ingestion.cvm.downloads import download_cvm_dataset
+from bralpha.metadata.manifest import manifest_bronze_metadata
 from bralpha.normalization.cvm_funds import (
     CVM_SILVER_COLUMNS_BY_DATASET,
     normalize_cvm_to_silver,
@@ -130,8 +131,11 @@ def _parse_successful_result(result: CVMDownloadResult, *, raw_format: str) -> p
         "sha256": result.record.sha256 or "",
     }
     if result.record.dataset_id == "cvm_fund_daily_reports":
-        return parse_cvm_fund_daily_report_file(raw_path, **common)
-    return parse_cvm_registry_file(raw_path, **common)
+        frame = parse_cvm_fund_daily_report_file(raw_path, **common)
+    else:
+        frame = parse_cvm_registry_file(raw_path, **common)
+    metadata = manifest_bronze_metadata(result.record)
+    return frame.with_columns([pl.lit(value).alias(column) for column, value in metadata.items()])
 
 
 def _successful_results(results: list[CVMDownloadResult]) -> list[CVMDownloadResult]:

@@ -6,14 +6,18 @@ import polars as pl
 import pytest
 
 from bralpha.timing.vintages import (
+    AVAILABILITY_CONSERVATIVE_HEURISTIC,
     AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE,
     AVAILABILITY_EXACT_SOURCE_TIMESTAMP,
     AVAILABILITY_FIRST_SEEN_DOWNLOAD_TIMESTAMP,
     AVAILABILITY_FRED_VINTAGE_REQUEST,
+    AVAILABILITY_OFFICIAL_LAG_POLICY,
     AVAILABILITY_OFFICIAL_RELEASE_CALENDAR,
     AVAILABILITY_SOURCE_DATE_ONLY,
+    AVAILABILITY_SOURCE_LAST_MODIFIED,
     AVAILABILITY_UNKNOWN,
     REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY,
+    REVISION_OFFICIAL_LAG_NO_REVISIONS,
     REVISION_REVISED_USE_FIRST_SEEN,
     REVISION_REVISED_USE_VINTAGES,
     REVISION_UNREVISED,
@@ -21,6 +25,9 @@ from bralpha.timing.vintages import (
     assert_pit_model_ready_panel,
     availability_basis_from_metadata,
     available_date_from_first_seen,
+    available_date_from_official_date_only,
+    available_date_from_source_datetime,
+    choose_model_usable,
     make_vintage_id,
     missing_pit_audit_columns,
     model_usable_from_revision_policy,
@@ -56,6 +63,28 @@ def test_make_vintage_id_is_stable_and_content_sensitive():
 
     assert first == second
     assert first.startswith("fred:fred_series_observations:")
+    assert changed != first
+
+
+def test_make_vintage_id_accepts_observation_key_without_breaking_existing_shape():
+    first = make_vintage_id(
+        source="anp",
+        dataset_id="anp_fuel_sales_monthly",
+        resource_id="sales.csv",
+        observation_key="SP|diesel|2024-01-31",
+        publication_timestamp="2024-02-29",
+        content_hash="abc",
+    )
+    changed = make_vintage_id(
+        source="anp",
+        dataset_id="anp_fuel_sales_monthly",
+        resource_id="sales.csv",
+        observation_key="RJ|diesel|2024-01-31",
+        publication_timestamp="2024-02-29",
+        content_hash="abc",
+    )
+
+    assert first.startswith("anp:anp_fuel_sales_monthly:")
     assert changed != first
 
 
@@ -160,6 +189,49 @@ def test_first_seen_utc_is_converted_to_brazil_cutoff_date():
         vintage_id="cvm:registry:abc",
         first_seen_timestamp_utc=datetime(2024, 1, 5, 14, tzinfo=UTC),
     )
+
+
+def test_source_datetime_and_official_date_helpers_use_existing_cutoff_policy():
+    assert available_date_from_source_datetime(
+        datetime(2024, 1, 2, 21, 0, tzinfo=UTC)
+    ) == date(2024, 1, 2)
+    assert available_date_from_source_datetime(
+        datetime(2024, 1, 2, 22, 0, tzinfo=UTC)
+    ) == date(2024, 1, 3)
+    assert available_date_from_official_date_only(date(2024, 1, 5)) == date(2024, 1, 8)
+
+
+def test_choose_model_usable_blocks_unknown_and_current_snapshot_basis():
+    assert choose_model_usable(
+        configured_model_usable=True,
+        availability_basis=AVAILABILITY_OFFICIAL_LAG_POLICY,
+        revision_policy=REVISION_OFFICIAL_LAG_NO_REVISIONS,
+        available_date=date(2024, 1, 2),
+    )
+    assert not choose_model_usable(
+        configured_model_usable=True,
+        availability_basis=AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE,
+        revision_policy=REVISION_OFFICIAL_LAG_NO_REVISIONS,
+        available_date=date(2024, 1, 2),
+    )
+    assert not choose_model_usable(
+        configured_model_usable=True,
+        availability_basis=AVAILABILITY_UNKNOWN,
+        revision_policy=REVISION_OFFICIAL_LAG_NO_REVISIONS,
+        available_date=date(2024, 1, 2),
+    )
+    assert not choose_model_usable(
+        configured_model_usable=True,
+        availability_basis=AVAILABILITY_CONSERVATIVE_HEURISTIC,
+        revision_policy=REVISION_OFFICIAL_LAG_NO_REVISIONS,
+        available_date=None,
+    )
+
+
+def test_shared_availability_basis_constants_match_contract_values():
+    assert AVAILABILITY_SOURCE_LAST_MODIFIED == "source_last_modified"
+    assert AVAILABILITY_OFFICIAL_LAG_POLICY == "official_lag_policy"
+    assert AVAILABILITY_CONSERVATIVE_HEURISTIC == "conservative_heuristic"
 
 
 def test_pit_audit_column_helpers_flag_missing_lineage_fields():

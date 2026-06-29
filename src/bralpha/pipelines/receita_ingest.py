@@ -15,6 +15,7 @@ from bralpha.ingestion.receita.common import (
     receita_silver_root,
 )
 from bralpha.ingestion.receita.downloads import download_receita_dataset
+from bralpha.metadata.manifest import manifest_bronze_metadata
 from bralpha.normalization.receita_revenue import (
     RECEITA_SILVER_COLUMNS_BY_DATASET,
     normalize_receita_to_silver,
@@ -82,7 +83,7 @@ def _parse_successful_result(
 ) -> pl.DataFrame:
     raw_path = Path(str(result.record.raw_path))
     params = result.record.request_params
-    return parse_receita_tabular_file(
+    parsed = parse_receita_tabular_file(
         raw_path,
         raw_format=_raw_format_for_path(raw_path, raw_format),
         source_dataset=result.record.dataset_id,
@@ -91,6 +92,8 @@ def _parse_successful_result(
         download_timestamp_utc=result.record.download_timestamp_utc,
         sha256=result.record.sha256 or "",
     )
+    metadata = manifest_bronze_metadata(result.record)
+    return parsed.with_columns([pl.lit(value).alias(column) for column, value in metadata.items()])
 
 
 def _successful_results(results: list[ReceitaDownloadResult]) -> list[ReceitaDownloadResult]:

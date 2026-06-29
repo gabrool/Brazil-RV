@@ -17,12 +17,16 @@ from bralpha.timing.availability import (
 
 AVAILABILITY_EXACT_SOURCE_TIMESTAMP = "exact_source_timestamp"
 AVAILABILITY_SOURCE_DATE_ONLY = "source_date_only"
+AVAILABILITY_SOURCE_LAST_MODIFIED = "source_last_modified"
 AVAILABILITY_FRED_VINTAGE_REQUEST = "fred_vintage_request"
 AVAILABILITY_OFFICIAL_RELEASE_CALENDAR = "official_release_calendar"
+AVAILABILITY_OFFICIAL_LAG_POLICY = "official_lag_policy"
 AVAILABILITY_FIRST_SEEN_DOWNLOAD_TIMESTAMP = "first_seen_download_timestamp"
+AVAILABILITY_CONSERVATIVE_HEURISTIC = "conservative_heuristic"
 AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE = "current_snapshot_no_vintage"
 AVAILABILITY_UNKNOWN = "unknown"
 REVISION_UNREVISED = "unrevised"
+REVISION_OFFICIAL_LAG_NO_REVISIONS = "official_lag_no_revisions"
 REVISION_REVISED_USE_VINTAGES = "revised_use_vintages"
 REVISION_REVISED_USE_FIRST_SEEN = "revised_use_first_seen_snapshots"
 REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY = "current_snapshot_reference_only"
@@ -40,6 +44,7 @@ def make_vintage_id(
     source: str,
     dataset_id: str,
     resource_id: str,
+    observation_key: str | None = None,
     publication_timestamp: date | datetime | str | None,
     first_seen_timestamp_utc: date | datetime | str | None = None,
     content_hash: str | None = None,
@@ -48,6 +53,7 @@ def make_vintage_id(
         source.strip().lower(),
         dataset_id.strip(),
         resource_id.strip(),
+        observation_key or "",
         _stable_text(publication_timestamp),
         _stable_text(first_seen_timestamp_utc),
         content_hash or "",
@@ -62,14 +68,36 @@ def available_date_from_vintage_date(vintage_date: date | None) -> date | None:
     return usable_date_from_date_only(vintage_date)
 
 
+def available_date_from_source_datetime(
+    dt_utc: datetime | None,
+    *,
+    cutoff_time: time = DEFAULT_DECISION_CUTOFF_TIME,
+) -> date | None:
+    return _available_date_from_utc_timestamp(dt_utc, cutoff_time=cutoff_time)
+
+
 def available_date_from_first_seen(
     first_seen_timestamp_utc: datetime | None,
     *,
     cutoff_time: time = DEFAULT_DECISION_CUTOFF_TIME,
 ) -> date | None:
-    if first_seen_timestamp_utc is None:
+    return _available_date_from_utc_timestamp(first_seen_timestamp_utc, cutoff_time=cutoff_time)
+
+
+def available_date_from_official_date_only(release_date: date | None) -> date | None:
+    if release_date is None:
         return None
-    timestamp = first_seen_timestamp_utc
+    return usable_date_from_date_only(release_date)
+
+
+def _available_date_from_utc_timestamp(
+    timestamp_utc: datetime | None,
+    *,
+    cutoff_time: time,
+) -> date | None:
+    if timestamp_utc is None:
+        return None
+    timestamp = timestamp_utc
     if timestamp.tzinfo is None:
         timestamp = timestamp.replace(tzinfo=UTC)
     timestamp = timestamp.astimezone(ZoneInfo(DEFAULT_TIMING_TIMEZONE))
@@ -109,7 +137,7 @@ def model_usable_from_revision_policy(
 ) -> bool:
     if not configured_model_usable:
         return False
-    if revision_policy in {REVISION_UNREVISED, "official_lag_no_revisions"}:
+    if revision_policy in {REVISION_UNREVISED, REVISION_OFFICIAL_LAG_NO_REVISIONS}:
         return True
     if revision_policy == REVISION_REVISED_USE_VINTAGES:
         if availability_basis == AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE:
@@ -127,6 +155,32 @@ def model_usable_from_revision_policy(
     if revision_policy == REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY:
         return False
     return False
+
+
+def choose_model_usable(
+    *,
+    configured_model_usable: bool,
+    availability_basis: str | None,
+    revision_policy: str,
+    available_date: date | None = None,
+    vintage_id: str | None = None,
+    first_seen_timestamp_utc: date | datetime | str | None = None,
+    model_usable_without_vintage: bool = False,
+) -> bool:
+    if availability_basis == AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE:
+        return False
+    if availability_basis == AVAILABILITY_UNKNOWN:
+        return False
+    if available_date is None:
+        return False
+    return model_usable_from_revision_policy(
+        configured_model_usable=configured_model_usable,
+        revision_policy=revision_policy,
+        vintage_id=vintage_id,
+        availability_basis=availability_basis,
+        first_seen_timestamp_utc=first_seen_timestamp_utc,
+        model_usable_without_vintage=model_usable_without_vintage,
+    )
 
 
 def required_pit_audit_columns(*, require_first_seen: bool = False) -> list[str]:

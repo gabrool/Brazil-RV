@@ -15,6 +15,7 @@ from bralpha.ingestion.ons.common import (
     ons_silver_root,
 )
 from bralpha.ingestion.ons.downloads import download_ons_dataset
+from bralpha.metadata.manifest import manifest_bronze_metadata
 from bralpha.normalization.ons_power import (
     ONS_SILVER_COLUMNS_BY_DATASET,
     normalize_ons_to_silver,
@@ -73,7 +74,7 @@ def run_ons_ingest(
 def _parse_successful_result(result: ONSDownloadResult, *, raw_format: str) -> pl.DataFrame:
     raw_path = Path(str(result.record.raw_path))
     params = result.record.request_params
-    return parse_ons_tabular_file(
+    parsed = parse_ons_tabular_file(
         raw_path,
         raw_format=raw_format,
         source_dataset=result.record.dataset_id,
@@ -82,6 +83,8 @@ def _parse_successful_result(result: ONSDownloadResult, *, raw_format: str) -> p
         download_timestamp_utc=result.record.download_timestamp_utc,
         sha256=result.record.sha256 or "",
     )
+    metadata = manifest_bronze_metadata(result.record)
+    return parsed.with_columns([pl.lit(value).alias(column) for column, value in metadata.items()])
 
 
 def _successful_results(results: list[ONSDownloadResult]) -> list[ONSDownloadResult]:
