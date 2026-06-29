@@ -12,15 +12,42 @@ from bralpha.domain.b3_calendar import is_business_day, previous_business_day
 from bralpha.ingestion.novo_caged.common import write_partitioned_frame
 from bralpha.parsing.common import normalize_column_name, parse_decimal, parse_int
 from bralpha.timing.availability import usable_date_from_date_only
+from bralpha.timing.vintages import (
+    AVAILABILITY_CONSERVATIVE_HEURISTIC,
+    AVAILABILITY_OFFICIAL_RELEASE_CALENDAR,
+    REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY,
+    REVISION_UNREVISED,
+    choose_model_usable,
+    make_vintage_id,
+)
 
-NOVO_CAGED_MOVEMENT_AVAILABILITY_POLICY = "novo_caged_conservative_next_month_end_plus_2bd"
+NOVO_CAGED_MOVEMENT_AVAILABILITY_POLICY = (
+    "novo_caged_conservative_next_month_end_plus_2bd_reference_only"
+)
 NOVO_CAGED_CALENDAR_AVAILABILITY_POLICY = "novo_caged_official_release_calendar"
+
+NOVO_CAGED_PIT_COLUMNS = [
+    "availability_basis",
+    "revision_policy",
+    "release_date",
+    "source_publication_datetime_utc",
+    "source_last_modified_utc",
+    "first_seen_timestamp_utc",
+    "vintage_id",
+    "revision_sequence",
+    "model_usable",
+    "model_usable_reason",
+]
+NOVO_CAGED_PIT_COLUMNS_WITHOUT_RELEASE_DATE = [
+    column for column in NOVO_CAGED_PIT_COLUMNS if column != "release_date"
+]
 
 NOVO_CAGED_MOVEMENT_COLUMNS = [
     "movement_record_id",
     "ref_date",
     "available_date",
     "availability_policy",
+    *NOVO_CAGED_PIT_COLUMNS,
     "competence",
     "year",
     "month",
@@ -67,6 +94,7 @@ NOVO_CAGED_RELEASE_CALENDAR_COLUMNS = [
     "release_date",
     "available_date",
     "availability_policy",
+    *NOVO_CAGED_PIT_COLUMNS_WITHOUT_RELEASE_DATE,
     "release_year",
     "competence_label",
     "source",
@@ -168,6 +196,11 @@ def normalize_novo_caged_movements_monthly(
             _existing_or_literal(bronze, "download_timestamp_utc", None).alias(
                 "download_timestamp_utc"
             ),
+            _existing_or_literal(bronze, "source_publication_datetime_utc", None).alias(
+                "source_publication_datetime_utc"
+            ),
+            _source_last_modified_expr(bronze).alias("source_last_modified_utc"),
+            _first_seen_expr(bronze).alias("first_seen_timestamp_utc"),
             _existing_or_literal(bronze, "raw_path", None).alias("raw_path"),
             _existing_or_literal(bronze, "sha256", None).alias("sha256"),
             pl.lit(source_version).alias("source_version"),
@@ -188,6 +221,12 @@ def normalize_novo_caged_movements_monthly(
             .map_elements(_movement_available_date, return_dtype=pl.Date)
             .alias("available_date"),
             pl.lit(NOVO_CAGED_MOVEMENT_AVAILABILITY_POLICY).alias("availability_policy"),
+            pl.lit(AVAILABILITY_CONSERVATIVE_HEURISTIC).alias("availability_basis"),
+            pl.lit(REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY).alias("revision_policy"),
+            pl.lit(None).alias("release_date"),
+            pl.lit(0).alias("revision_sequence"),
+            pl.lit(False).alias("model_usable"),
+            pl.lit(NOVO_CAGED_MOVEMENT_AVAILABILITY_POLICY).alias("model_usable_reason"),
         ]
     )
     id_columns = [
@@ -210,6 +249,19 @@ def normalize_novo_caged_movements_monthly(
         .map_elements(_movement_record_id, return_dtype=pl.Utf8)
         .alias("movement_record_id")
     )
+    frame = frame.with_columns(
+        pl.struct(
+            [
+                "source_dataset",
+                "resource_name",
+                "raw_path",
+                "first_seen_timestamp_utc",
+                "sha256",
+            ]
+        )
+        .map_elements(_snapshot_vintage_id, return_dtype=pl.Utf8)
+        .alias("vintage_id")
+    )
     return frame.select(NOVO_CAGED_MOVEMENT_COLUMNS)
 
 
@@ -229,6 +281,28 @@ def normalize_novo_caged_release_calendar(
                 "release_date": release_date,
                 "available_date": usable_date_from_date_only(release_date),
                 "availability_policy": NOVO_CAGED_CALENDAR_AVAILABILITY_POLICY,
+                "availability_basis": AVAILABILITY_OFFICIAL_RELEASE_CALENDAR,
+                "revision_policy": REVISION_UNREVISED,
+                "source_publication_datetime_utc": None,
+                "source_last_modified_utc": lineage.get("source_last_modified_utc"),
+                "first_seen_timestamp_utc": lineage.get("first_seen_timestamp_utc"),
+                "vintage_id": make_vintage_id(
+                    source="novo_caged",
+                    dataset_id="novo_caged_release_calendar",
+                    resource_id=str(lineage.get("raw_path") or "release_calendar"),
+                    observation_key=ref_date.isoformat() if ref_date else None,
+                    publication_timestamp=release_date,
+                    first_seen_timestamp_utc=lineage.get("first_seen_timestamp_utc"),
+                    content_hash=str(lineage.get("sha256") or ""),
+                ),
+                "revision_sequence": 0,
+                "model_usable": choose_model_usable(
+                    configured_model_usable=True,
+                    availability_basis=AVAILABILITY_OFFICIAL_RELEASE_CALENDAR,
+                    revision_policy=REVISION_UNREVISED,
+                    available_date=usable_date_from_date_only(release_date),
+                ),
+                "model_usable_reason": NOVO_CAGED_CALENDAR_AVAILABILITY_POLICY,
                 "release_year": release_date.year,
                 "competence_label": competence_label,
                 **lineage,
@@ -303,6 +377,33 @@ def _existing_or_literal(frame: pl.DataFrame, column: str, value: object) -> pl.
     return pl.lit(value)
 
 
+def _source_last_modified_expr(frame: pl.DataFrame) -> pl.Expr:
+    exprs = [
+        pl.col(column)
+        for column in (
+            "resource_last_modified",
+            "ckan_resource_last_modified",
+            "http_last_modified",
+            "resource_updated_at",
+        )
+        if column in frame.columns
+    ]
+    if not exprs:
+        return pl.lit(None)
+    return pl.coalesce(exprs)
+
+
+def _first_seen_expr(frame: pl.DataFrame) -> pl.Expr:
+    exprs = [
+        pl.col(column)
+        for column in ("first_seen_timestamp_utc", "download_timestamp_utc")
+        if column in frame.columns
+    ]
+    if not exprs:
+        return pl.lit(None)
+    return pl.coalesce(exprs)
+
+
 def _text(value: object) -> str | None:
     if value is None:
         return None
@@ -373,6 +474,19 @@ def _movement_record_id(values: dict[str, object]) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def _snapshot_vintage_id(values: dict[str, object]) -> str:
+    dataset_id = _text(values.get("source_dataset")) or "novo_caged_movements_monthly"
+    resource_id = _text(values.get("resource_name")) or _text(values.get("raw_path")) or dataset_id
+    return make_vintage_id(
+        source="novo_caged",
+        dataset_id=dataset_id,
+        resource_id=resource_id,
+        publication_timestamp=None,
+        first_seen_timestamp_utc=None,
+        content_hash=None,
+    )
+
+
 def _calendar_rows(text: str) -> list[tuple[date, str]]:
     pattern = re.compile(
         r"(?P<release>\d{2}/\d{2}/\d{4})\s*-\s*Compet[eê]ncia:\s*"
@@ -425,5 +539,21 @@ def _first_lineage(bronze: pl.DataFrame, *, source_version: str) -> dict[str, ob
         "download_timestamp_utc": row.get("download_timestamp_utc"),
         "raw_path": row.get("raw_path"),
         "sha256": row.get("sha256"),
+        "source_last_modified_utc": _source_last_modified(row),
+        "first_seen_timestamp_utc": row.get("first_seen_timestamp_utc")
+        or row.get("download_timestamp_utc"),
         "source_version": source_version,
     }
+
+
+def _source_last_modified(row: dict[str, object]) -> object:
+    for column in (
+        "resource_last_modified",
+        "ckan_resource_last_modified",
+        "http_last_modified",
+        "resource_updated_at",
+    ):
+        value = row.get(column)
+        if value is not None:
+            return value
+    return None

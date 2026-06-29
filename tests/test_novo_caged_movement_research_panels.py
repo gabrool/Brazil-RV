@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime
 
 import polars as pl
 import pytest
@@ -49,7 +49,8 @@ def test_movement_group_observation_uses_calendar_availability_and_aggregates():
     assert all_sign_one["silver_available_date"] == date(2024, 3, 12)
     assert all_sign_one["calendar_available_date"] == date(2024, 3, 4)
     assert all_sign_one["available_date"] == date(2024, 3, 4)
-    assert all_sign_one["availability_source"] == "official_calendar"
+    assert all_sign_one["availability_source"] == "official_calendar_plus_snapshot"
+    assert all_sign_one["model_usable"] is True
     assert all_sign_one["feature_id"] == "novo_caged_movement|all|all|1"
     assert panel.group_by(["ref_date", "group_type", "group_value", "movement_sign"]).len().filter(
         pl.col("len") > 1
@@ -74,6 +75,31 @@ def test_movement_group_observation_falls_back_to_silver_availability_without_ca
     assert row["available_date"] == date(2024, 3, 12)
     assert row["calendar_available_date"] is None
     assert row["availability_source"] == "conservative_fallback"
+    assert row["model_usable"] is False
+
+
+def test_movement_group_observation_requires_calendar_and_snapshot_timestamp():
+    records = build_movement_record_observation(
+        _movement_silver().with_columns(first_seen_timestamp_utc=pl.lit(None))
+    )
+    calendar = _release_reference()
+
+    panel = build_movement_group_observation(
+        records,
+        release_calendar=calendar,
+        prefer_official_calendar=True,
+        group_by=["all"],
+        cross_by=["movement_sign"],
+        max_groups=50,
+    )
+    row = panel.filter(
+        (pl.col("ref_date") == date(2024, 1, 31)) & (pl.col("movement_sign") == "1")
+    ).to_dicts()[0]
+
+    assert row["calendar_available_date"] == date(2024, 3, 4)
+    assert row["snapshot_available_date"] is None
+    assert row["model_usable"] is False
+    assert row["availability_policy"] == "novo_caged_missing_snapshot_reference_only"
 
 
 def test_movement_group_observation_normalizes_group_values_and_sign_tokens():
@@ -182,6 +208,7 @@ def _row(
         "download_timestamp_utc": None,
         "raw_path": "raw.7z",
         "sha256": "abc",
+        "first_seen_timestamp_utc": datetime(2024, 3, 1, 12, tzinfo=UTC),
         "source_version": "v0",
     }
 

@@ -4,6 +4,10 @@ from datetime import date
 
 import polars as pl
 
+from bralpha.derived.novo_caged.pit import (
+    ensure_novo_caged_pit_columns,
+    novo_caged_pit_aggregations,
+)
 from bralpha.derived.novo_caged.quality import validate_panel
 from bralpha.derived.novo_caged.schemas import (
     NOVO_CAGED_MOVEMENT_GROUP_OBSERVATION_COLUMNS,
@@ -11,9 +15,27 @@ from bralpha.derived.novo_caged.schemas import (
     PANEL_PRIMARY_KEYS,
 )
 from bralpha.parsing.common import normalize_column_name
+from bralpha.timing.vintages import (
+    AVAILABILITY_CONSERVATIVE_HEURISTIC,
+    AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE,
+    REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY,
+    REVISION_REVISED_USE_FIRST_SEEN,
+    available_date_from_first_seen,
+    available_date_from_source_datetime,
+)
 
 _GROUP_BY_COLUMNS = {"all", "region", "state", "cnae_section"}
 _CROSS_BY_COLUMNS = {"movement_sign"}
+NOVO_CAGED_CALENDAR_SNAPSHOT_POLICY = (
+    "novo_caged_official_calendar_plus_snapshot_first_seen"
+)
+NOVO_CAGED_UNMATCHED_CALENDAR_POLICY = (
+    "novo_caged_unmatched_release_calendar_reference_only"
+)
+NOVO_CAGED_MISSING_SNAPSHOT_POLICY = "novo_caged_missing_snapshot_reference_only"
+NOVO_CAGED_CALENDAR_SNAPSHOT_BASIS = (
+    "official_release_calendar+first_seen_download_timestamp"
+)
 
 
 def build_movement_record_observation(
@@ -25,7 +47,7 @@ def build_movement_record_observation(
     if silver.is_empty():
         return _empty(NOVO_CAGED_MOVEMENT_RECORD_OBSERVATION_COLUMNS)
 
-    frame = silver
+    frame = ensure_novo_caged_pit_columns(silver)
     if start is not None:
         frame = frame.filter(pl.col("ref_date") >= start)
     if end is not None:
@@ -70,7 +92,7 @@ def build_movement_group_observation(
     if movement_records.is_empty():
         return _empty(NOVO_CAGED_MOVEMENT_GROUP_OBSERVATION_COLUMNS)
 
-    frame = movement_records
+    frame = ensure_novo_caged_pit_columns(movement_records)
     if start is not None:
         frame = frame.filter(pl.col("ref_date") >= start)
     if end is not None:
@@ -134,16 +156,26 @@ def _aggregate_group(frame: pl.DataFrame, group_type: str) -> pl.DataFrame:
         ),
     )
     return (
-        working.group_by(["ref_date", "group_type", "group_value", "movement_sign"])
+        working.group_by(["ref_date", "group_type", "group_value", "movement_sign", "vintage_id"])
         .agg(
-            silver_available_date=pl.col("available_date").max(),
-            silver_availability_policy=pl.col("availability_policy").drop_nulls().first(),
-            movement_count=pl.len().cast(pl.Int64),
-            wage_mean=pl.col("wage").mean(),
-            contract_hours_mean=pl.col("contract_hours").mean(),
-            wage_count=pl.col("wage").is_not_null().sum().cast(pl.Int64),
-            contract_hours_count=pl.col("contract_hours").is_not_null().sum().cast(pl.Int64),
-            source_version=pl.col("source_version").drop_nulls().first(),
+            [
+                pl.col("available_date").max().alias("silver_available_date"),
+                pl.col("availability_policy")
+                .drop_nulls()
+                .first()
+                .alias("silver_availability_policy"),
+                *novo_caged_pit_aggregations(),
+                pl.len().cast(pl.Int64).alias("movement_count"),
+                pl.col("wage").mean().alias("wage_mean"),
+                pl.col("contract_hours").mean().alias("contract_hours_mean"),
+                pl.col("wage").is_not_null().sum().cast(pl.Int64).alias("wage_count"),
+                pl.col("contract_hours")
+                .is_not_null()
+                .sum()
+                .cast(pl.Int64)
+                .alias("contract_hours_count"),
+                pl.col("source_version").drop_nulls().first(),
+            ]
         )
         .with_columns(
             feature_id=pl.struct(["group_type", "group_value", "movement_sign"]).map_elements(
@@ -168,11 +200,13 @@ def _join_release_calendar(
         calendar = pl.DataFrame(
             {
                 "ref_date": [],
+                "calendar_release_date": [],
                 "calendar_available_date": [],
                 "calendar_availability_policy": [],
             },
             schema={
                 "ref_date": pl.Date,
+                "calendar_release_date": pl.Date,
                 "calendar_available_date": pl.Date,
                 "calendar_availability_policy": pl.Utf8,
             },
@@ -181,6 +215,7 @@ def _join_release_calendar(
         calendar = release_calendar.select(
             [
                 "ref_date",
+                pl.col("release_date").alias("calendar_release_date"),
                 pl.col("available_date").alias("calendar_available_date"),
                 pl.col("availability_policy").alias("calendar_availability_policy"),
             ]
@@ -189,36 +224,136 @@ def _join_release_calendar(
     return (
         panel.join(calendar, on="ref_date", how="left")
         .with_columns(
-            _chosen_available_date(prefer_official_calendar).alias("available_date"),
-            _chosen_availability_source(prefer_official_calendar).alias("availability_source"),
-            _chosen_availability_policy(prefer_official_calendar).alias("availability_policy"),
+            pl.struct(
+                ["source_publication_datetime_utc", "first_seen_timestamp_utc"]
+            ).map_elements(_snapshot_available_date, return_dtype=pl.Date).alias(
+                "snapshot_available_date"
+            )
         )
-        .drop(["silver_availability_policy", "calendar_availability_policy"])
+        .with_columns(
+            _chosen_available_date(prefer_official_calendar).alias("available_date"),
+            _chosen_availability_source(prefer_official_calendar).alias(
+                "availability_source"
+            ),
+            _chosen_availability_policy(prefer_official_calendar).alias(
+                "availability_policy"
+            ),
+            _chosen_availability_basis(prefer_official_calendar).alias(
+                "availability_basis"
+            ),
+            _chosen_revision_policy(prefer_official_calendar).alias("revision_policy"),
+            pl.col("calendar_release_date").alias("release_date"),
+            _chosen_model_usable(prefer_official_calendar).alias("model_usable"),
+            _chosen_model_usable_reason(prefer_official_calendar).alias(
+                "model_usable_reason"
+            ),
+        )
+        .drop(
+            [
+                "silver_availability_policy",
+                "calendar_availability_policy",
+                "calendar_release_date",
+                "silver_model_usable",
+                "silver_model_usable_reason",
+            ]
+        )
     )
 
 
 def _chosen_available_date(prefer_official_calendar: bool) -> pl.Expr:
     if not prefer_official_calendar:
         return pl.col("silver_available_date")
-    return pl.when(pl.col("calendar_available_date").is_not_null()).then(
-        pl.col("calendar_available_date")
-    ).otherwise(pl.col("silver_available_date"))
+    gated_available = pl.max_horizontal("calendar_available_date", "snapshot_available_date")
+    return (
+        pl.when(
+            pl.col("calendar_available_date").is_not_null()
+            & pl.col("snapshot_available_date").is_not_null()
+        )
+        .then(gated_available)
+        .otherwise(pl.col("silver_available_date"))
+    )
 
 
 def _chosen_availability_source(prefer_official_calendar: bool) -> pl.Expr:
     if not prefer_official_calendar:
         return pl.lit("conservative_fallback")
-    return pl.when(pl.col("calendar_available_date").is_not_null()).then(
-        pl.lit("official_calendar")
-    ).otherwise(pl.lit("conservative_fallback"))
+    return (
+        pl.when(
+            pl.col("calendar_available_date").is_not_null()
+            & pl.col("snapshot_available_date").is_not_null()
+        )
+        .then(pl.lit("official_calendar_plus_snapshot"))
+        .when(pl.col("calendar_available_date").is_not_null())
+        .then(pl.lit("official_calendar_missing_snapshot"))
+        .otherwise(pl.lit("conservative_fallback"))
+    )
 
 
 def _chosen_availability_policy(prefer_official_calendar: bool) -> pl.Expr:
     if not prefer_official_calendar:
         return pl.col("silver_availability_policy")
-    return pl.when(pl.col("calendar_available_date").is_not_null()).then(
-        pl.col("calendar_availability_policy")
-    ).otherwise(pl.col("silver_availability_policy"))
+    return (
+        pl.when(
+            pl.col("calendar_available_date").is_not_null()
+            & pl.col("snapshot_available_date").is_not_null()
+        )
+        .then(pl.lit(NOVO_CAGED_CALENDAR_SNAPSHOT_POLICY))
+        .when(pl.col("calendar_available_date").is_not_null())
+        .then(pl.lit(NOVO_CAGED_MISSING_SNAPSHOT_POLICY))
+        .otherwise(pl.lit(NOVO_CAGED_UNMATCHED_CALENDAR_POLICY))
+    )
+
+
+def _chosen_availability_basis(prefer_official_calendar: bool) -> pl.Expr:
+    if not prefer_official_calendar:
+        return pl.lit(AVAILABILITY_CONSERVATIVE_HEURISTIC)
+    return (
+        pl.when(
+            pl.col("calendar_available_date").is_not_null()
+            & pl.col("snapshot_available_date").is_not_null()
+        )
+        .then(pl.lit(NOVO_CAGED_CALENDAR_SNAPSHOT_BASIS))
+        .when(pl.col("calendar_available_date").is_not_null())
+        .then(pl.lit(AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE))
+        .otherwise(pl.lit(AVAILABILITY_CONSERVATIVE_HEURISTIC))
+    )
+
+
+def _chosen_revision_policy(prefer_official_calendar: bool) -> pl.Expr:
+    if not prefer_official_calendar:
+        return pl.lit(REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY)
+    return (
+        pl.when(
+            pl.col("calendar_available_date").is_not_null()
+            & pl.col("snapshot_available_date").is_not_null()
+        )
+        .then(pl.lit(REVISION_REVISED_USE_FIRST_SEEN))
+        .otherwise(pl.lit(REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY))
+    )
+
+
+def _chosen_model_usable(prefer_official_calendar: bool) -> pl.Expr:
+    if not prefer_official_calendar:
+        return pl.lit(False)
+    return (
+        pl.col("calendar_available_date").is_not_null()
+        & pl.col("snapshot_available_date").is_not_null()
+        & pl.col("vintage_id").is_not_null()
+    )
+
+
+def _chosen_model_usable_reason(prefer_official_calendar: bool) -> pl.Expr:
+    if not prefer_official_calendar:
+        return pl.col("silver_availability_policy")
+    return _chosen_availability_policy(prefer_official_calendar)
+
+
+def _snapshot_available_date(values: dict[str, object]) -> date | None:
+    source_publication = values.get("source_publication_datetime_utc")
+    if source_publication is not None:
+        return available_date_from_source_datetime(source_publication)
+    first_seen = values.get("first_seen_timestamp_utc")
+    return available_date_from_first_seen(first_seen)
 
 
 def _validate_groups(group_by: list[str]) -> None:
