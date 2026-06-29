@@ -14,6 +14,10 @@ RAW_BRONZE_ONLY_DATASETS = {
     "cvm_fund_class_registry",
 }
 
+AUDIT_DATASETS = {
+    "cvm_fund_delivery_metadata",
+}
+
 DEFERRED_DATASETS = {
     "cvm_fund_portfolio_cda",
     "cvm_company_ipe_metadata",
@@ -31,10 +35,12 @@ def test_cvm_dataset_registry_loads_live_and_deferred_datasets(repo_root):
     dataset_ids = {dataset.dataset_id for dataset in registry.datasets}
 
     assert registry.raw_storage.manifest_path == "data/manifests/cvm/downloads.jsonl"
-    assert dataset_ids == LIVE_DATASETS | RAW_BRONZE_ONLY_DATASETS | DEFERRED_DATASETS
+    assert dataset_ids == (
+        LIVE_DATASETS | RAW_BRONZE_ONLY_DATASETS | AUDIT_DATASETS | DEFERRED_DATASETS
+    )
     daily = registry.get("cvm_fund_daily_reports")
     assert daily.source_map_status == "live_download"
-    assert daily.primary_keys == ["ref_date", "fund_id"]
+    assert daily.primary_keys == ["ref_date", "fund_id", "vintage_id"]
     assert daily.partition_keys == ["year", "month"]
     assert (daily.model_extra or {})["period_routing"] == {
         "historical_annual_through": 2020,
@@ -51,6 +57,10 @@ def test_cvm_dataset_registry_loads_live_and_deferred_datasets(repo_root):
         assert dataset.source_map_status == "raw_bronze_only_pending_normalizer"
         assert dataset.source_urls
         assert dataset.canonical_table.endswith("_raw")
+    delivery = registry.get("cvm_fund_delivery_metadata")
+    assert delivery.source_map_status == "source_map_only_audit_metadata"
+    assert delivery.source_urls
+    assert "fi-doc-entrega" in str(delivery.source_urls[0].url_template)
     for dataset_id in DEFERRED_DATASETS:
         dataset = registry.get(dataset_id)
         assert dataset.source_map_status != "live_download"
@@ -60,10 +70,11 @@ def test_cvm_dataset_registry_loads_live_and_deferred_datasets(repo_root):
 def test_cvm_source_map_docs_list_every_dataset(repo_root):
     text = (repo_root / "docs" / "CVM_SOURCE_MAP.md").read_text(encoding="utf-8")
 
-    for dataset_id in LIVE_DATASETS | RAW_BRONZE_ONLY_DATASETS | DEFERRED_DATASETS:
+    for dataset_id in LIVE_DATASETS | RAW_BRONZE_ONLY_DATASETS | AUDIT_DATASETS | DEFERRED_DATASETS:
         assert dataset_id in text
     assert "No fake endpoints" in text
-    assert "cvm_fund_daily_conservative_2bd" in text
+    assert "cvm_fund_daily_conservative_2bd_reference_only" in text
+    assert "cvm_first_seen_snapshot" in text
     assert "INF_DIARIO/DADOS/HIST" in text
     assert "raw_bronze_only_pending_normalizer" in text
 

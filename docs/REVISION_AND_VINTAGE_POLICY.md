@@ -47,6 +47,14 @@ IBGE SIDRA model-ready rows use matched IBGE release-calendar events as publicat
 
 Tesouro Direto sales use the official two-business-day lag from CKAN resource metadata. Redemptions use a conservative two-business-day lag until official metadata documents a more precise rule. Prices/rates keep their existing date-only next-business-day rule.
 
+ANP weekly fuel prices keep the documented collection-week plus seven-calendar-day conservative timing. ANP monthly sales and oil/gas production use the official next-month-end next-business-day lag and preserve source timestamps for revision audit without delaying rows solely because a large historical file was downloaded later.
+
 ONS data should follow the existing docs-grounded ONS contract: prefer official ONS metadata where available, use first-seen snapshots when implemented, and keep mutable current-snapshot revised data out of model-ready panels.
+
+Novo CAGED movement rows require both an official release-calendar match and source/first-seen snapshot timing. Release-calendar metadata is model-usable; movement fallback timing without a snapshot is reference-only.
+
+Receita tax-collection rows use the next-month-end plus five-business-day heuristic only together with a source or first-seen snapshot timestamp. Heuristic-only rows are reference-only because the Receita open-data page does not provide a machine-readable release calendar or revision policy.
+
+CVM daily fund reports are model-usable only from matched delivery metadata or from persisted first-seen snapshots. The two-business-day daily-report lag is a reference-only diagnostic fallback, and current fund registry snapshots remain `current_snapshot_reference_only`.
 
 BCB SGS series must carry source references, timing notes, and revision metadata. Series with unknown timing or unverified identifiers are configuration candidates only and must remain `model_usable = false`.

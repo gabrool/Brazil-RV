@@ -9,6 +9,11 @@ from bralpha.derived.cvm.fund_reports import (
     build_fund_group_observation,
 )
 from bralpha.derived.cvm.registry import build_fund_registry_current_reference
+from bralpha.normalization.cvm_funds import CVM_REGISTRY_CURRENT_REFERENCE_POLICY
+from bralpha.timing.vintages import (
+    AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE,
+    REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY,
+)
 
 
 def test_fund_registry_current_reference_preserves_current_metadata_only():
@@ -37,7 +42,10 @@ def test_fund_registry_current_reference_preserves_current_metadata_only():
     assert row["fund_name"] == "Current Fund"
     assert row["admin_name"] == "Admin Teste"
     assert "ref_date" not in panel.columns
-    assert "available_date" not in panel.columns
+    assert row["availability_policy"] == CVM_REGISTRY_CURRENT_REFERENCE_POLICY
+    assert row["availability_basis"] == AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE
+    assert row["revision_policy"] == REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY
+    assert row["model_usable"] is False
 
 
 def test_registry_reference_is_not_joined_into_historical_group_panels():
@@ -106,6 +114,18 @@ def _registry_row(
 ) -> dict[str, object]:
     return {
         "fund_id": fund_id,
+        "available_date": snapshot_date,
+        "availability_policy": CVM_REGISTRY_CURRENT_REFERENCE_POLICY,
+        "availability_basis": AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE,
+        "revision_policy": REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY,
+        "release_date": None,
+        "source_publication_datetime_utc": None,
+        "source_last_modified_utc": None,
+        "first_seen_timestamp_utc": None,
+        "vintage_id": f"cvm:registry:{snapshot_date.isoformat()}",
+        "revision_sequence": 0,
+        "model_usable": False,
+        "model_usable_reason": CVM_REGISTRY_CURRENT_REFERENCE_POLICY,
         "fund_type": fund_type,
         "fund_name": fund_name,
         "cvm_code": "001",

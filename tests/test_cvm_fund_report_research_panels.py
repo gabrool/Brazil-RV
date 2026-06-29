@@ -187,6 +187,55 @@ def test_fund_state_asof_daily_uses_pre_window_history_and_staleness():
     assert "redemptions" not in panel.columns
 
 
+def test_fund_state_asof_daily_uses_latest_snapshot_only_after_it_is_available():
+    observations = build_fund_daily_observation(
+        pl.DataFrame(
+            [
+                _daily_row(
+                    fund_id="fund-a",
+                    fund_type="FI",
+                    ref_date=date(2024, 1, 2),
+                    available_date=date(2024, 1, 4),
+                    portfolio_value=100.0,
+                    nav=90.0,
+                    subscriptions=5.0,
+                    redemptions=1.0,
+                    shareholder_count=10,
+                    vintage_id="cvm:v1",
+                    first_seen_timestamp_utc=date(2024, 1, 4),
+                ),
+                _daily_row(
+                    fund_id="fund-a",
+                    fund_type="FI",
+                    ref_date=date(2024, 1, 2),
+                    available_date=date(2024, 1, 8),
+                    portfolio_value=110.0,
+                    nav=95.0,
+                    subscriptions=7.0,
+                    redemptions=2.0,
+                    shareholder_count=11,
+                    vintage_id="cvm:v2",
+                    first_seen_timestamp_utc=date(2024, 1, 8),
+                    revision_sequence=1,
+                ),
+            ]
+        )
+    )
+    groups = build_fund_group_observation(observations, group_by=["all"], max_groups=100)
+
+    panel = build_fund_state_asof_daily(
+        groups,
+        start=date(2024, 1, 4),
+        end=date(2024, 1, 8),
+        max_groups=100,
+    )
+
+    assert panel.filter(pl.col("ref_date") == date(2024, 1, 5))["portfolio_value"].item() == 100.0
+    jan8 = panel.filter(pl.col("ref_date") == date(2024, 1, 8)).row(0, named=True)
+    assert jan8["portfolio_value"] == 110.0
+    assert jan8["vintage_id"] == "cvm:v2"
+
+
 def _daily_rows() -> list[dict[str, object]]:
     return [
         _daily_row(
@@ -222,11 +271,24 @@ def _daily_row(
     shareholder_count: int | None,
     ref_date: date = date(2024, 1, 2),
     available_date: date = date(2024, 1, 4),
+    vintage_id: str = "legacy",
+    first_seen_timestamp_utc: date | None = None,
+    revision_sequence: int = 0,
 ) -> dict[str, object]:
     return {
         "ref_date": ref_date,
         "available_date": available_date,
-        "availability_policy": "cvm_fund_daily_conservative_2bd",
+        "availability_policy": "cvm_first_seen_snapshot",
+        "availability_basis": "first_seen_download_timestamp",
+        "revision_policy": "revised_use_first_seen_snapshots",
+        "release_date": None,
+        "source_publication_datetime_utc": None,
+        "source_last_modified_utc": None,
+        "first_seen_timestamp_utc": first_seen_timestamp_utc or available_date,
+        "vintage_id": vintage_id,
+        "revision_sequence": revision_sequence,
+        "model_usable": True,
+        "model_usable_reason": "cvm_first_seen_snapshot",
         "fund_id": fund_id,
         "fund_type": fund_type,
         "portfolio_value": portfolio_value,

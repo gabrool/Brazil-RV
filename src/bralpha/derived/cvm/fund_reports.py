@@ -5,6 +5,7 @@ from datetime import date
 import polars as pl
 
 from bralpha.derived.cvm.calendar import business_day_frame, business_days_mon_fri
+from bralpha.derived.cvm.pit import cvm_pit_aggregations, ensure_cvm_pit_columns
 from bralpha.derived.cvm.quality import validate_asof_panel, validate_panel
 from bralpha.derived.cvm.schemas import (
     CVM_FUND_DAILY_OBSERVATION_COLUMNS,
@@ -27,7 +28,7 @@ def build_fund_daily_observation(
     if silver.is_empty():
         return _empty(CVM_FUND_DAILY_OBSERVATION_COLUMNS)
 
-    frame = silver
+    frame = ensure_cvm_pit_columns(silver)
     if start is not None:
         frame = frame.filter(pl.col("ref_date") >= start)
     if end is not None:
@@ -166,7 +167,18 @@ def build_fund_state_asof_daily(
                 "available_date": "observation_available_date",
             }
         )
-        .sort(["feature_id", "observation_available_date", "observation_ref_date"])
+        .sort(
+            [
+                "feature_id",
+                "observation_available_date",
+                "first_seen_timestamp_utc",
+                "source_last_modified_utc",
+                "source_publication_datetime_utc",
+                "revision_sequence",
+                "vintage_id",
+                "observation_ref_date",
+            ]
+        )
         .unique(
             subset=["feature_id", "observation_available_date"],
             keep="last",
@@ -231,21 +243,27 @@ def _aggregate_group(frame: pl.DataFrame, group_type: str) -> pl.DataFrame:
         ),
     )
     return (
-        working.group_by(["ref_date", "group_type", "group_value"])
+        working.group_by(["ref_date", "group_type", "group_value", "vintage_id"])
         .agg(
-            available_date=pl.col("available_date").max(),
-            portfolio_value=_null_aware_sum("portfolio_value"),
-            nav=_null_aware_sum("nav"),
-            subscriptions=_null_aware_sum("subscriptions"),
-            redemptions=_null_aware_sum("redemptions"),
-            shareholder_count=_null_aware_sum("shareholder_count"),
-            fund_count=pl.col("fund_id").n_unique(),
-            portfolio_value_count=pl.col("portfolio_value").is_not_null().sum(),
-            nav_count=pl.col("nav").is_not_null().sum(),
-            subscriptions_count=pl.col("subscriptions").is_not_null().sum(),
-            redemptions_count=pl.col("redemptions").is_not_null().sum(),
-            shareholder_count_count=pl.col("shareholder_count").is_not_null().sum(),
-            source_version=pl.col("source_version").drop_nulls().first(),
+            [
+                pl.col("available_date").max().alias("available_date"),
+                *cvm_pit_aggregations(),
+                _null_aware_sum("portfolio_value"),
+                _null_aware_sum("nav"),
+                _null_aware_sum("subscriptions"),
+                _null_aware_sum("redemptions"),
+                _null_aware_sum("shareholder_count"),
+                pl.col("fund_id").n_unique().alias("fund_count"),
+                pl.col("portfolio_value").is_not_null().sum().alias("portfolio_value_count"),
+                pl.col("nav").is_not_null().sum().alias("nav_count"),
+                pl.col("subscriptions").is_not_null().sum().alias("subscriptions_count"),
+                pl.col("redemptions").is_not_null().sum().alias("redemptions_count"),
+                pl.col("shareholder_count")
+                .is_not_null()
+                .sum()
+                .alias("shareholder_count_count"),
+                pl.col("source_version").drop_nulls().first().alias("source_version"),
+            ]
         )
         .with_columns(
             feature_id=pl.struct(["group_type", "group_value"]).map_elements(

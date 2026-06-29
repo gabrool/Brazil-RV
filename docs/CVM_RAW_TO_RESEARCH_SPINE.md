@@ -21,21 +21,31 @@ Outputs:
 - `data/gold/cvm/fund_registry_current_reference/`
 - `data/gold/cvm/daily_long/`
 
+## Timing Policy
+
+| dataset_id | official timing source | availability_policy | availability_basis | revision_policy | model_usable default | what happens for current snapshots | what happens for first-seen snapshots |
+|---|---|---|---|---|---:|---|---|
+| `cvm_fund_daily_reports` | CVM `fi-doc-entrega` delivery metadata when exactly matched; otherwise persisted pipeline first-seen snapshots | `cvm_delivery_metadata`, `cvm_first_seen_snapshot`, or `cvm_fund_daily_conservative_2bd_reference_only` | `exact_source_timestamp`, `source_date_only`, `first_seen_download_timestamp`, or `conservative_heuristic` | `revised_use_vintages`, `revised_use_first_seen_snapshots`, or `current_snapshot_reference_only` | true only for delivery/first-seen rows | Two-business-day fallback remains reference-only and is excluded from model-ready daily-long rows. | Rows become usable from the first-seen usable date and keep their `vintage_id`. |
+| `cvm_fund_delivery_metadata` | Official CVM `Fundos de Investimento: Documentos: Entrega` metadata | `cvm_delivery_metadata` | `exact_source_timestamp` or `source_date_only` | `revised_use_vintages` | false until the INF_DIARIO join is fixture-documented | Audit/source-map only. | Delivery metadata can make matched daily rows model-usable once the join is unambiguous. |
+| `cvm_fund_registry_current` | Current CVM `cad_fi.csv` snapshot | `cvm_fund_registry_current_reference_only` | `current_snapshot_no_vintage` | `current_snapshot_reference_only` | false | Kept as reference metadata only. | Historical registry first-seen modeling is deferred. |
+
 ## Point-In-Time Policy
 
 Daily fund report observation rows keep the CVM report date as `ref_date` and
-preserve the silver `available_date`, which is the historical model-usable
-decision date. Group observations aggregate only rows available from the
-configured daily-report silver contract, and the group `available_date` is the
-maximum contributing fund-row availability date.
+preserve the silver `available_date`, `availability_basis`, `revision_policy`,
+`vintage_id`, and `model_usable` fields. Daily rows are model-usable only when
+they are backed by matched delivery metadata or by a persisted first-seen
+snapshot. Group observations aggregate only rows available from the configured
+daily-report silver contract, and the group `available_date` is the maximum
+contributing fund-row availability date.
 
 As-of rows use the model date as `ref_date`, set `available_date = ref_date`,
 and retain the original group observation dates as `observation_ref_date` and
 `observation_available_date`.
 
 As-of panels only use observations where
-`observation_available_date <= ref_date`. Download timestamps are never used as
-historical availability.
+`observation_available_date <= ref_date`. When multiple revisions exist, the
+latest source/first-seen snapshot that is available by the model date wins.
 
 ## Panel Semantics
 
@@ -58,7 +68,9 @@ day. It forward-fills only state and count fields and exposes `staleness_days`.
 joined into historical flow or state panels.
 
 `daily_long` is aggregate-only. It is built from the flow and state panels,
-drops null values, and excludes fund-level rows and registry metadata.
+drops null values, excludes `model_usable = false` and
+`current_snapshot_no_vintage` rows, and excludes fund-level rows and registry
+metadata.
 
 ## Transformer-Aware Feature Rule
 

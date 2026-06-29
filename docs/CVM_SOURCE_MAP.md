@@ -8,8 +8,9 @@ source-specific silver.
 
 | dataset_id | priority | status | source_page_or_endpoint | raw_format | expected_frequency | silver_output | known_limitations |
 |---|---:|---|---|---|---|---|---|
-| `cvm_fund_daily_reports` | P0 | `live_download` | `fi-doc-inf_diario`; `INF_DIARIO/DADOS/` monthly ZIPs and `INF_DIARIO/DADOS/HIST/` annual ZIPs | zip_csv | daily | `data/silver/cvm_fund_daily_reports/` | Administrators have one business day to send reports; first-pass availability is conservative two business days after `ref_date`. |
-| `cvm_fund_registry_current` | P0 | `live_download` | `fi-cad`; direct `cad_fi.csv` | csv | daily_snapshot | `data/silver/cvm_fund_registry_current/` | Current snapshot/reference data, not a historical model feature by itself. |
+| `cvm_fund_daily_reports` | P0 | `live_download` | `fi-doc-inf_diario`; `INF_DIARIO/DADOS/` monthly ZIPs and `INF_DIARIO/DADOS/HIST/` annual ZIPs | zip_csv | daily | `data/silver/cvm_fund_daily_reports/` | Revision-sensitive current files. Model-ready rows require `cvm_delivery_metadata` or `cvm_first_seen_snapshot`; `cvm_fund_daily_conservative_2bd_reference_only` is diagnostic only. |
+| `cvm_fund_delivery_metadata` | P0 | `source_map_only_audit_metadata` | `fi-doc-entrega` | ckan_resource_reference | daily_snapshot | none | Official delivery metadata audit source. Not joined to daily reports until the INF_DIARIO match is documented unambiguously. |
+| `cvm_fund_registry_current` | P0 | `live_download` | `fi-cad`; direct `cad_fi.csv` | csv | daily_snapshot | `data/silver/cvm_fund_registry_current/` | Current snapshot/reference data; forced `current_snapshot_no_vintage` and not a historical model feature by itself. |
 | `cvm_fund_registry_history` | P0 | `raw_bronze_only_pending_normalizer` | `fi-cad`; direct `cad_fi_hist.zip` | zip_csv | daily | `data/bronze/cvm/cvm_fund_registry_history/` | Live raw/bronze download only; silver deferred until the official multi-file historical schema is fixture-verified. |
 | `cvm_fund_class_registry` | P0 | `raw_bronze_only_pending_normalizer` | `fi-cad`; direct `registro_fundo_classe.zip` | zip_csv | daily_snapshot | `data/bronze/cvm/cvm_fund_class_registry/` | Live raw/bronze download only; silver deferred until the `registro_fundo.csv` / `registro_classe.csv` / `registro_subclasse.csv` layout is handled explicitly. |
 | `cvm_fund_portfolio_cda` | P1 | `source_map_only_feature_gated_large_files` | `fi-doc-cda` | zip_csv_large | monthly | none | Large monthly holdings files with confidentiality mechanics; future feature-gated PR. |
@@ -26,9 +27,11 @@ source-specific silver.
 - CVM's Informe Diario page states the daily fund report contains portfolio
   value, net assets, quota value, daily subscriptions, daily redemptions, and
   number of shareholders.
-- CVM states current and previous month daily report files are updated daily,
-  older recent files are updated weekly, and administrators have one business
-  day to send the report to CVM.
+- CVM's delivery metadata dataset states recent fund document metadata files are
+  updated daily for new submissions/resubmissions and older recent files are
+  updated weekly for resubmissions. That makes current historical files
+  revision-sensitive unless a delivery record or first-seen snapshot controls
+  the vintage.
 - Direct daily report files are available as annual historical ZIPs for
   2000-2020 and monthly ZIPs from 2021 onward.
 - CVM's fund registry page covers fund CNPJ, registration date, status,
@@ -40,15 +43,17 @@ source-specific silver.
 
 ## Availability Policy
 
-`cvm_fund_daily_reports` uses `cvm_fund_daily_conservative_2bd`:
+`cvm_fund_daily_reports` uses one of three policies:
 
-```text
-available_date = add_business_days(ref_date, 2)
-```
+| policy | basis | model-ready use |
+|---|---|---|
+| `cvm_delivery_metadata` | `exact_source_timestamp` or `source_date_only` | Usable only when CVM delivery metadata is matched to the observation. |
+| `cvm_first_seen_snapshot` | `first_seen_download_timestamp` | Usable from the persisted first-seen snapshot date. |
+| `cvm_fund_daily_conservative_2bd_reference_only` | `conservative_heuristic` | Reference-only diagnostic fallback for current snapshots without delivery/first-seen lineage. |
 
-This rule reflects the official one-business-day administrator submission
-window plus a conservative portal processing lag. Download timestamps are never
-used as historical availability.
+`cvm_fund_registry_current` is always reference-only in the current spine. It
+carries `availability_basis = current_snapshot_no_vintage`,
+`revision_policy = current_snapshot_reference_only`, and `model_usable = false`.
 
 ## Deferred Scope
 

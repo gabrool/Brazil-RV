@@ -145,6 +145,13 @@ def test_model_usable_policy_blocks_current_snapshots_without_pit_lineage():
         vintage_id="fred:series:abc",
         availability_basis=AVAILABILITY_SOURCE_DATE_ONLY,
     )
+    assert model_usable_from_revision_policy(
+        configured_model_usable=True,
+        revision_policy=REVISION_REVISED_USE_VINTAGES,
+        vintage_id="cvm:delivery:abc",
+        availability_basis=AVAILABILITY_SOURCE_DATE_ONLY,
+        model_usable_without_vintage=True,
+    )
     assert not model_usable_from_revision_policy(
         configured_model_usable=True,
         revision_policy=REVISION_REVISED_USE_VINTAGES,

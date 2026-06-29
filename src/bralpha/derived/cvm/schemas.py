@@ -1,9 +1,23 @@
 from __future__ import annotations
 
+CVM_PIT_COLUMNS = [
+    "availability_basis",
+    "revision_policy",
+    "release_date",
+    "source_publication_datetime_utc",
+    "source_last_modified_utc",
+    "first_seen_timestamp_utc",
+    "vintage_id",
+    "revision_sequence",
+    "model_usable",
+    "model_usable_reason",
+]
+
 CVM_FUND_DAILY_OBSERVATION_COLUMNS = [
     "ref_date",
     "available_date",
     "availability_policy",
+    *CVM_PIT_COLUMNS,
     "fund_id",
     "fund_type",
     "portfolio_value",
@@ -30,6 +44,8 @@ CVM_FUND_DAILY_OBSERVATION_COLUMNS = [
 CVM_FUND_GROUP_OBSERVATION_COLUMNS = [
     "ref_date",
     "available_date",
+    "availability_policy",
+    *CVM_PIT_COLUMNS,
     "group_type",
     "group_value",
     "feature_id",
@@ -52,6 +68,8 @@ CVM_FUND_FLOWS_DAILY_COLUMNS = [
     "available_date",
     "observation_ref_date",
     "observation_available_date",
+    "availability_policy",
+    *CVM_PIT_COLUMNS,
     "group_type",
     "group_value",
     "feature_id",
@@ -71,6 +89,8 @@ CVM_FUND_STATE_ASOF_DAILY_COLUMNS = [
     "feature_id",
     "observation_ref_date",
     "observation_available_date",
+    "availability_policy",
+    *CVM_PIT_COLUMNS,
     "portfolio_value",
     "nav",
     "shareholder_count",
@@ -86,6 +106,9 @@ CVM_FUND_STATE_ASOF_DAILY_COLUMNS = [
 
 CVM_FUND_REGISTRY_CURRENT_REFERENCE_COLUMNS = [
     "fund_id",
+    "available_date",
+    "availability_policy",
+    *CVM_PIT_COLUMNS,
     "fund_type",
     "fund_name",
     "cvm_code",
@@ -127,15 +150,23 @@ CVM_DAILY_LONG_COLUMNS = [
     "unit",
     "observation_ref_date",
     "observation_available_date",
+    "availability_policy",
+    *CVM_PIT_COLUMNS,
     "is_available",
     "staleness_days",
     "source_version",
 ]
 
 PANEL_PRIMARY_KEYS = {
-    "fund_daily_observation": ["ref_date", "fund_id"],
-    "fund_group_observation": ["ref_date", "group_type", "group_value"],
-    "fund_flows_daily": ["ref_date", "group_type", "group_value", "observation_ref_date"],
+    "fund_daily_observation": ["ref_date", "fund_id", "vintage_id"],
+    "fund_group_observation": ["ref_date", "group_type", "group_value", "vintage_id"],
+    "fund_flows_daily": [
+        "ref_date",
+        "group_type",
+        "group_value",
+        "observation_ref_date",
+        "vintage_id",
+    ],
     "fund_state_asof_daily": ["ref_date", "feature_id"],
     "fund_registry_current_reference": ["fund_id"],
     "daily_long": [
