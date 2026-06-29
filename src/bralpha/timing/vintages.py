@@ -104,7 +104,6 @@ def model_usable_from_revision_policy(
     revision_policy: str,
     vintage_id: str | None = None,
     availability_basis: str | None = None,
-    has_vintage_history: bool = False,
     first_seen_timestamp_utc: date | datetime | str | None = None,
     model_usable_without_vintage: bool = False,
 ) -> bool:
@@ -122,7 +121,7 @@ def model_usable_from_revision_policy(
             AVAILABILITY_OFFICIAL_RELEASE_CALENDAR,
         }:
             return bool(vintage_id and model_usable_without_vintage)
-        return bool(vintage_id and has_vintage_history)
+        return False
     if revision_policy == REVISION_REVISED_USE_FIRST_SEEN:
         return bool(vintage_id and first_seen_timestamp_utc)
     if revision_policy == REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY:
