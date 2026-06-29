@@ -23,7 +23,7 @@ datasets:
     raw_format: 7z_txt
     canonical_table: novo_caged_movement_record
     partition_keys: [year]
-    primary_keys: [movement_record_id]
+    primary_keys: [movement_record_id, vintage_id]
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys
@@ -31,7 +31,7 @@ datasets:
       - available_date_not_null
       - available_date_on_or_after_ref_date
     source_map_status: live_download
-    availability_policy: novo_caged_conservative_next_month_end_plus_2bd
+    availability_policy: novo_caged_conservative_next_month_end_plus_2bd_reference_only
     license_note: Brazilian federal open-data terms; cite MTE/PDET and dataset/source.
     resource_families:
       - name: movement_records
@@ -49,7 +49,7 @@ datasets:
     raw_format: html
     canonical_table: novo_caged_release_calendar
     partition_keys: [release_year]
-    primary_keys: [ref_date]
+    primary_keys: [ref_date, vintage_id]
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys

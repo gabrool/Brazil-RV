@@ -8,6 +8,12 @@ from bralpha.normalization.novo_caged_labor import (
     normalize_novo_caged_release_calendar,
 )
 from bralpha.parsing.novo_caged_tabular import parse_novo_caged_tabular_bytes
+from bralpha.timing.vintages import (
+    AVAILABILITY_CONSERVATIVE_HEURISTIC,
+    AVAILABILITY_OFFICIAL_RELEASE_CALENDAR,
+    REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY,
+    REVISION_UNREVISED,
+)
 
 
 def test_novo_caged_movement_normalizer_maps_aliases_and_availability():
@@ -18,7 +24,14 @@ def test_novo_caged_movement_normalizer_maps_aliases_and_availability():
     row = silver.to_dicts()[0]
     assert row["ref_date"] == date(2024, 1, 31)
     assert row["available_date"] == date(2024, 3, 4)
-    assert row["availability_policy"] == "novo_caged_conservative_next_month_end_plus_2bd"
+    assert (
+        row["availability_policy"]
+        == "novo_caged_conservative_next_month_end_plus_2bd_reference_only"
+    )
+    assert row["availability_basis"] == AVAILABILITY_CONSERVATIVE_HEURISTIC
+    assert row["revision_policy"] == REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY
+    assert row["first_seen_timestamp_utc"] == datetime(2024, 3, 5, 12)
+    assert row["model_usable"] is False
     assert row["state"] == "SP"
     assert row["municipality_code"] == "3550308"
     assert row["cnae_section"] == "G"
@@ -48,6 +61,7 @@ def test_novo_caged_movement_id_excludes_raw_path_timestamp_and_hash():
     )
 
     assert silver_a["movement_record_id"].to_list() == silver_b["movement_record_id"].to_list()
+    assert silver_a["vintage_id"].to_list() == silver_b["vintage_id"].to_list()
     assert silver_a["raw_path"].to_list() != silver_b["raw_path"].to_list()
     assert silver_a["sha256"].to_list() != silver_b["sha256"].to_list()
 
@@ -75,6 +89,12 @@ def test_novo_caged_release_calendar_normalizer_parses_official_style_rows():
         "novo_caged_official_release_calendar",
         "novo_caged_official_release_calendar",
     ]
+    assert silver["availability_basis"].to_list() == [
+        AVAILABILITY_OFFICIAL_RELEASE_CALENDAR,
+        AVAILABILITY_OFFICIAL_RELEASE_CALENDAR,
+    ]
+    assert silver["revision_policy"].to_list() == [REVISION_UNREVISED, REVISION_UNREVISED]
+    assert silver["model_usable"].to_list() == [True, True]
     assert silver.group_by(["ref_date"]).len().height == 2
 
 

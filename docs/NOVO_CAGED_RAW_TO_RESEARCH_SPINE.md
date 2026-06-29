@@ -22,12 +22,23 @@ commit generated data.
 
 ## Point-In-Time Policy
 
-Movement observations keep the silver `available_date` as
-`silver_available_date`. When the official release-calendar reference has the
-same `ref_date`, `movement_group_observation` uses that calendar
-`available_date` instead and marks `availability_source = official_calendar`.
-When no calendar row exists, it falls back to the movement silver date and marks
-`availability_source = conservative_fallback`.
+Movement silver keeps the old month-end-plus-2BD heuristic only as
+`novo_caged_conservative_next_month_end_plus_2bd_reference_only`. Model-ready
+movement groups require both the official calendar row for the competence and a
+source/first-seen snapshot timestamp. When both exist,
+`movement_group_observation` uses:
+
+```text
+available_date = max(calendar_available_date, snapshot_available_date)
+```
+
+When either side of that gate is missing, the row remains reference-only.
+
+| dataset_id | official timing source | availability_policy | availability_basis | revision_policy | model_usable default | what happens for current snapshots | what happens for first-seen snapshots |
+|---|---|---|---|---|---|---|---|
+| `novo_caged_release_calendar` | MTE Novo CAGED official release-calendar page | `novo_caged_official_release_calendar` | `official_release_calendar` | `unrevised` | true | Calendar metadata remains usable as release metadata, not as movement values. | First-seen is retained as audit lineage for the calendar page. |
+| `novo_caged_movements_monthly` | Official calendar plus source/first-seen movement snapshot timestamp | `novo_caged_official_calendar_plus_snapshot_first_seen` | `official_release_calendar+first_seen_download_timestamp` | `revised_use_first_seen_snapshots` | true only after both gates | Without calendar match or snapshot timestamp, rows are reference-only and excluded from daily-long. | The movement group becomes usable on `max(calendar usable date, snapshot usable date)`. |
+| `novo_caged_movements_monthly` fallback | Conservative heuristic only | `novo_caged_conservative_next_month_end_plus_2bd_reference_only` | `conservative_heuristic` | `current_snapshot_reference_only` | false | Heuristic-only movement rows are retained for audit and excluded from model-ready panels. | Not applicable without calendar matching. |
 
 Daily as-of panels use:
 
@@ -37,7 +48,8 @@ Daily as-of panels use:
 - `observation_available_date`: selected monthly observation availability.
 
 Rows are emitted only after first availability, and no row may use an observation
-with `observation_available_date > ref_date`.
+with `observation_available_date > ref_date`. `daily_long` keeps only
+`model_usable = true` rows and excludes `current_snapshot_no_vintage`.
 
 ## Feature Discipline
 

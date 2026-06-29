@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import shutil
-from datetime import date
+from datetime import UTC, date, datetime
 
 import polars as pl
 import pytest
@@ -139,6 +139,7 @@ def test_novo_caged_asof_history_prefers_pre_window_release_calendar_silver(
                     "pre-window",
                     date(2023, 12, 31),
                     available_date=date(2024, 2, 2),
+                    first_seen_timestamp_utc=datetime(2024, 1, 29, 12, tzinfo=UTC),
                 )
             ]
         ),
@@ -211,6 +212,7 @@ def _movement_row(
     ref_date: date,
     *,
     available_date: date = date(2024, 3, 4),
+    first_seen_timestamp_utc: datetime = datetime(2024, 3, 1, 12, tzinfo=UTC),
 ) -> dict[str, object]:
     return {
         "movement_record_id": row_id,
@@ -253,6 +255,7 @@ def _movement_row(
         "source": "novo_caged",
         "source_dataset": "novo_caged_movements_monthly",
         "download_timestamp_utc": None,
+        "first_seen_timestamp_utc": first_seen_timestamp_utc,
         "raw_path": "raw.7z",
         "sha256": "abc",
         "source_version": "v0",

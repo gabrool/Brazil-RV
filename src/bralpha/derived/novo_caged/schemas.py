@@ -1,10 +1,27 @@
 from __future__ import annotations
 
+NOVO_CAGED_PIT_COLUMNS = [
+    "availability_basis",
+    "revision_policy",
+    "release_date",
+    "source_publication_datetime_utc",
+    "source_last_modified_utc",
+    "first_seen_timestamp_utc",
+    "vintage_id",
+    "revision_sequence",
+    "model_usable",
+    "model_usable_reason",
+]
+NOVO_CAGED_PIT_COLUMNS_WITHOUT_RELEASE_DATE = [
+    column for column in NOVO_CAGED_PIT_COLUMNS if column != "release_date"
+]
+
 NOVO_CAGED_MOVEMENT_RECORD_OBSERVATION_COLUMNS = [
     "movement_record_id",
     "ref_date",
     "available_date",
     "availability_policy",
+    *NOVO_CAGED_PIT_COLUMNS,
     "competence",
     "year",
     "month",
@@ -43,6 +60,7 @@ NOVO_CAGED_RELEASE_CALENDAR_REFERENCE_COLUMNS = [
     "release_date",
     "available_date",
     "availability_policy",
+    *NOVO_CAGED_PIT_COLUMNS_WITHOUT_RELEASE_DATE,
     "release_year",
     "competence_label",
     "source_version",
@@ -53,8 +71,10 @@ NOVO_CAGED_MOVEMENT_GROUP_OBSERVATION_COLUMNS = [
     "available_date",
     "silver_available_date",
     "calendar_available_date",
+    "snapshot_available_date",
     "availability_source",
     "availability_policy",
+    *NOVO_CAGED_PIT_COLUMNS,
     "group_type",
     "group_value",
     "movement_sign",
@@ -74,6 +94,8 @@ NOVO_CAGED_STATE_ASOF_DAILY_COLUMNS = [
     "feature_id",
     "observation_ref_date",
     "observation_available_date",
+    "availability_policy",
+    *NOVO_CAGED_PIT_COLUMNS,
     "value_name",
     "value",
     "unit",
@@ -93,19 +115,22 @@ NOVO_CAGED_DAILY_LONG_COLUMNS = [
     "unit",
     "observation_ref_date",
     "observation_available_date",
+    "availability_policy",
+    *NOVO_CAGED_PIT_COLUMNS,
     "is_available",
     "staleness_days",
     "source_version",
 ]
 
 PANEL_PRIMARY_KEYS = {
-    "movement_record_observation": ["movement_record_id"],
-    "release_calendar_reference": ["ref_date"],
+    "movement_record_observation": ["movement_record_id", "vintage_id"],
+    "release_calendar_reference": ["ref_date", "vintage_id"],
     "movement_group_observation": [
         "ref_date",
         "group_type",
         "group_value",
         "movement_sign",
+        "vintage_id",
     ],
     "state_asof_daily": ["ref_date", "source_family", "feature_id", "value_name"],
     "daily_long": ["ref_date", "source_family", "feature_id", "value_name"],

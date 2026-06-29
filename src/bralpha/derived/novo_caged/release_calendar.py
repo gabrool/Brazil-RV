@@ -4,6 +4,7 @@ from datetime import date
 
 import polars as pl
 
+from bralpha.derived.novo_caged.pit import ensure_novo_caged_pit_columns
 from bralpha.derived.novo_caged.quality import validate_panel
 from bralpha.derived.novo_caged.schemas import (
     NOVO_CAGED_RELEASE_CALENDAR_REFERENCE_COLUMNS,
@@ -20,7 +21,7 @@ def build_release_calendar_reference(
     if silver.is_empty():
         return _empty_reference()
 
-    frame = silver
+    frame = ensure_novo_caged_pit_columns(silver)
     if start is not None:
         frame = frame.filter(pl.col("ref_date") >= start)
     if end is not None:

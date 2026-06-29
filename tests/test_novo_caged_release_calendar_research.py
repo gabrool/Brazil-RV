@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime
 
 import polars as pl
 
@@ -39,6 +39,15 @@ def test_release_calendar_reference_preserves_official_fields_and_unique_pk():
         "release_date",
         "available_date",
         "availability_policy",
+        "availability_basis",
+        "revision_policy",
+        "source_publication_datetime_utc",
+        "source_last_modified_utc",
+        "first_seen_timestamp_utc",
+        "vintage_id",
+        "revision_sequence",
+        "model_usable",
+        "model_usable_reason",
         "release_year",
         "competence_label",
         "source_version",
@@ -83,6 +92,7 @@ def test_release_calendar_reference_is_used_by_movement_group_availability():
                 "is_intermittent": False,
                 "is_part_time": False,
                 "source_system": "eSocial",
+                "first_seen_timestamp_utc": datetime(2024, 3, 1, 12, tzinfo=UTC),
                 "source_version": "v0",
             }
         ]
@@ -112,4 +122,5 @@ def test_release_calendar_reference_is_used_by_movement_group_availability():
     assert row["calendar_available_date"] == date(2024, 3, 4)
     assert row["silver_available_date"] == date(2024, 3, 15)
     assert row["available_date"] == date(2024, 3, 4)
-    assert row["availability_source"] == "official_calendar"
+    assert row["availability_source"] == "official_calendar_plus_snapshot"
+    assert row["model_usable"] is True
