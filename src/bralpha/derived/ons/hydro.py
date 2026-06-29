@@ -5,6 +5,7 @@ from typing import Any
 
 import polars as pl
 
+from bralpha.derived.ons.pit import ensure_ons_pit_columns
 from bralpha.derived.ons.quality import validate_panel
 from bralpha.derived.ons.schemas import (
     ONS_EAR_SUBSYSTEM_OBSERVATION_COLUMNS,
@@ -23,7 +24,7 @@ def build_ear_subsystem_observation(
     if silver.is_empty():
         return _empty_ear()
 
-    frame = silver
+    frame = ensure_ons_pit_columns(silver)
     if start is not None:
         frame = frame.filter(pl.col("ref_date") >= start)
     if end is not None:
@@ -61,7 +62,7 @@ def build_ena_subsystem_observation(
     if silver.is_empty():
         return _empty_ena()
 
-    frame = silver
+    frame = ensure_ons_pit_columns(silver)
     if start is not None:
         frame = frame.filter(pl.col("ref_date") >= start)
     if end is not None:
