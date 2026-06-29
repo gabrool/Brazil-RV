@@ -568,6 +568,49 @@ class NovoCagedResearchConfig(BaseModel):
     novo_caged_research: NovoCagedResearchSection
 
 
+class ReceitaCalendarConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    default: str
+    timezone: str
+
+
+class ReceitaTaxCollectionResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_observation: bool
+    include_feature_observation: bool
+    max_features: int
+
+
+class ReceitaAsofResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_state_asof_daily: bool
+    max_features: int
+
+
+class ReceitaDailyLongConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_tax_collection: bool
+
+
+class ReceitaResearchSection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    calendar: ReceitaCalendarConfig
+    tax_collection: ReceitaTaxCollectionResearchConfig
+    asof: ReceitaAsofResearchConfig
+    daily_long: ReceitaDailyLongConfig
+
+
+class ReceitaResearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    receita_research: ReceitaResearchSection
+
+
 def _load_yaml(repo_root: Path, relative_path: str) -> dict[str, Any]:
     path = repo_root / relative_path
     if not path.exists():
@@ -677,6 +720,12 @@ def load_novo_caged_research_config(repo_root: Path) -> NovoCagedResearchConfig:
     )
 
 
+def load_receita_research_config(repo_root: Path) -> ReceitaResearchConfig:
+    return ReceitaResearchConfig.model_validate(
+        _load_yaml(repo_root, "configs/derived/receita.yaml")
+    )
+
+
 __all__ = [
     "ANPAsofResearchConfig",
     "ANPCalendarConfig",
@@ -693,6 +742,12 @@ __all__ = [
     "NovoCagedReleaseCalendarResearchConfig",
     "NovoCagedResearchConfig",
     "NovoCagedResearchSection",
+    "ReceitaAsofResearchConfig",
+    "ReceitaCalendarConfig",
+    "ReceitaDailyLongConfig",
+    "ReceitaResearchConfig",
+    "ReceitaResearchSection",
+    "ReceitaTaxCollectionResearchConfig",
     "BCBCalendarConfig",
     "BCBDailyLongConfig",
     "BCBFocusResearchConfig",
@@ -755,6 +810,7 @@ __all__ = [
     "load_cvm_research_config",
     "load_novo_caged_dataset_registry",
     "load_novo_caged_research_config",
+    "load_receita_research_config",
     "load_ons_dataset_registry",
     "load_receita_dataset_registry",
     "load_tesouro_dataset_registry",

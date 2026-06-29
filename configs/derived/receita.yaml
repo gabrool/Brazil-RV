@@ -1,0 +1,16 @@
+receita_research:
+  calendar:
+    default: business_days_mon_fri
+    timezone: America/Sao_Paulo
+
+  tax_collection:
+    include_observation: true
+    include_feature_observation: true
+    max_features: 20000
+
+  asof:
+    include_state_asof_daily: true
+    max_features: 20000
+
+  daily_long:
+    include_tax_collection: true
