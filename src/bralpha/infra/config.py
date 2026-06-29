@@ -633,6 +633,10 @@ def load_novo_caged_dataset_registry(repo_root: Path) -> DatasetRegistry:
     )
 
 
+def load_receita_dataset_registry(repo_root: Path) -> DatasetRegistry:
+    return DatasetRegistry.model_validate(_load_yaml(repo_root, "configs/datasets/receita.yaml"))
+
+
 def load_b3_research_config(repo_root: Path) -> B3ResearchConfig:
     return B3ResearchConfig.model_validate(_load_yaml(repo_root, "configs/derived/b3.yaml"))
 
@@ -752,6 +756,7 @@ __all__ = [
     "load_novo_caged_dataset_registry",
     "load_novo_caged_research_config",
     "load_ons_dataset_registry",
+    "load_receita_dataset_registry",
     "load_tesouro_dataset_registry",
     "load_fred_dataset_registry",
     "load_fred_research_config",

@@ -1,0 +1,46 @@
+source: receita
+portal:
+  name: Receita Federal do Brasil / Ministerio da Fazenda
+  url: https://www.gov.br/receitafederal/
+  license_note: Brazilian federal open-data terms; cite Receita Federal/RFB and dataset/source.
+
+official_pages:
+  - name: receita_home
+    url: https://www.gov.br/receitafederal/
+  - name: receita_dados_abertos
+    dataset_id: receita_tax_collection_monthly
+    url: https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/dados-abertos
+  - name: receita_arrecadacao_category
+    dataset_id: receita_tax_collection_monthly
+    url: https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/dados-abertos/arrecadacao
+  - name: dados_gov_resultado_arrecadacao
+    dataset_id: receita_tax_collection_monthly
+    url: https://dados.gov.br/dados/conjuntos-dados/resultado-da-arrecadacao
+  - name: dados_gov_resultado_arrecadacao_metadata_api
+    dataset_id: receita_tax_collection_monthly
+    url: https://dados.gov.br/dados/api/publico/conjuntos-dados/resultado-da-arrecadacao
+  - name: tax_expenditures_or_benefits
+    dataset_id: receita_tax_expenditures_annual
+    url: https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/dados-abertos/beneficios-e-renuncias-fiscais
+  - name: tax_burden
+    dataset_id: receita_tax_burden_annual
+    url: https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/dados-abertos/carga-tributaria
+  - name: cnpj_open_data_reference
+    dataset_id: receita_cnpj_open_data_reference
+    url: https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/dados-abertos/cadastros
+  - name: customs_trade_context
+    dataset_id: receita_customs_trade_tax_collection
+    url: https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/dados-abertos/comercio-exterior
+  - name: installment_programs_context
+    dataset_id: receita_refis_installment_programs
+    url: https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/dados-abertos/parcelamentos
+
+endpoint_policy:
+  live_download_requires:
+    - stable_official_metadata_api_or_static_page_link_discovery
+    - no_login
+    - no_browser_automation
+    - fixture_test
+    - manifest_failure_on_404
+    - no_pdf_parsing
+  dependency_note: No Receita-specific dependency is added in this PR; XLSX/ODS remains unsupported unless a future fixture proves fastexcel is needed.
