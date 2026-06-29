@@ -19,11 +19,16 @@ def test_flows_align_to_available_date_without_forward_fill():
     )
 
     assert panel.columns == TESOURO_DIRETO_FLOWS_DAILY_COLUMNS
-    assert panel["ref_date"].to_list() == [date(2024, 1, 2), date(2024, 1, 2)]
-    assert panel["available_date"].to_list() == [date(2024, 1, 2), date(2024, 1, 2)]
+    assert panel["ref_date"].to_list() == [date(2024, 1, 3), date(2024, 1, 3)]
+    assert panel["available_date"].to_list() == [date(2024, 1, 3), date(2024, 1, 3)]
     assert panel["observation_ref_date"].to_list() == [date(2024, 1, 1), date(2024, 1, 1)]
+    assert set(panel["availability_policy"].to_list()) == {
+        "tesouro_direto_sales_official_2bd",
+        "tesouro_direto_redemptions_conservative_2bd",
+    }
     assert set(panel["flow_type"].to_list()) == {"sale", "redemption"}
-    assert panel.filter(pl.col("ref_date") == date(2024, 1, 3)).is_empty()
+    assert set(panel["availability_basis"].to_list()) == {"weekday_fallback"}
+    assert panel.filter(pl.col("ref_date") == date(2024, 1, 2)).is_empty()
 
 
 def test_flows_preserve_redemption_type_and_null_safe_sales_key():
@@ -32,8 +37,8 @@ def test_flows_preserve_redemption_type_and_null_safe_sales_key():
         redemptions=pl.DataFrame([_redemption_row()]),
         include_sales=True,
         include_redemptions=True,
-        start=date(2024, 1, 2),
-        end=date(2024, 1, 2),
+        start=date(2024, 1, 3),
+        end=date(2024, 1, 3),
     )
     sale = panel.filter(pl.col("flow_type") == "sale").row(0, named=True)
     redemption = panel.filter(pl.col("flow_type") == "redemption").row(0, named=True)
@@ -50,7 +55,9 @@ def test_flows_preserve_redemption_type_and_null_safe_sales_key():
 def _sales_row() -> dict[str, object]:
     return {
         "ref_date": date(2024, 1, 1),
-        "available_date": date(2024, 1, 2),
+        "available_date": date(2024, 1, 3),
+        "availability_policy": "tesouro_direto_sales_official_2bd",
+        "availability_basis": "weekday_fallback",
         "security_name": "Tesouro Selic",
         "security_type": "Tesouro Selic",
         "maturity_date": date(2027, 3, 1),
@@ -66,7 +73,9 @@ def _sales_row() -> dict[str, object]:
 def _redemption_row() -> dict[str, object]:
     return {
         "ref_date": date(2024, 1, 1),
-        "available_date": date(2024, 1, 2),
+        "available_date": date(2024, 1, 3),
+        "availability_policy": "tesouro_direto_redemptions_conservative_2bd",
+        "availability_basis": "weekday_fallback",
         "redemption_type": "early_repurchase",
         "security_name": "Tesouro Selic",
         "security_type": "Tesouro Selic",

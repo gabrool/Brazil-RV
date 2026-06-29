@@ -55,7 +55,15 @@ def build_direto_flows_daily(
 
 def _sales_rows(frame: pl.DataFrame) -> pl.DataFrame:
     return (
-        _ensure_columns(frame, ["investor_count", "source_dataset"])
+        _ensure_columns(
+            frame,
+            [
+                "investor_count",
+                "source_dataset",
+                "availability_policy",
+                "availability_basis",
+            ],
+        )
         .filter(pl.col("available_date").is_not_null())
         .with_columns(
             observation_ref_date=pl.col("ref_date"),
@@ -71,7 +79,15 @@ def _sales_rows(frame: pl.DataFrame) -> pl.DataFrame:
 
 def _redemption_rows(frame: pl.DataFrame) -> pl.DataFrame:
     return (
-        _ensure_columns(frame, ["investor_count", "source_dataset"])
+        _ensure_columns(
+            frame,
+            [
+                "investor_count",
+                "source_dataset",
+                "availability_policy",
+                "availability_basis",
+            ],
+        )
         .filter(pl.col("available_date").is_not_null())
         .with_columns(
             observation_ref_date=pl.col("ref_date"),

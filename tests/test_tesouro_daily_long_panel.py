@@ -35,6 +35,12 @@ def test_daily_long_includes_all_tesouro_families_and_drops_null_values():
     assert ("tesouro_direto_flows", "flow-feature", "quantity") in keys
     assert ("tesouro_direto_stock", "td-stock-feature", "stock_value") in keys
     assert ("tesouro_dpf_stock", "dpf-stock-feature", "stock_value") in keys
+    flow = panel.filter(
+        (pl.col("source_family") == "tesouro_direto_flows")
+        & (pl.col("value_name") == "quantity")
+    ).row(0, named=True)
+    assert flow["availability_policy"] == "tesouro_direto_sales_official_2bd"
+    assert flow["availability_basis"] == "weekday_fallback"
     assert not panel.filter(pl.col("value").is_null()).height
 
 
@@ -65,6 +71,7 @@ def _prices_asof() -> pl.DataFrame:
                 "maturity_date": date(2027, 1, 1),
                 "observation_ref_date": date(2024, 1, 2),
                 "observation_available_date": date(2024, 1, 3),
+                "availability_policy": "tesouro_direto_sales_official_2bd",
                 "buy_rate": 11.0,
                 "sell_rate": None,
                 "buy_price": 950.0,
@@ -89,6 +96,8 @@ def _flows_daily() -> pl.DataFrame:
                 "available_date": date(2024, 1, 3),
                 "observation_ref_date": date(2024, 1, 2),
                 "observation_available_date": date(2024, 1, 3),
+                "availability_policy": "tesouro_direto_sales_official_2bd",
+                "availability_basis": "weekday_fallback",
                 "flow_type": "sale",
                 "redemption_type": None,
                 "security_name": "Tesouro Selic",
