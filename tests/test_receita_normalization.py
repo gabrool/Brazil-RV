@@ -5,6 +5,11 @@ from datetime import date, datetime
 import polars as pl
 import pytest
 
+from bralpha.derived.receita.daily_long import build_receita_state_asof_daily
+from bralpha.derived.receita.tax_collection import (
+    build_tax_collection_feature_observation,
+    build_tax_collection_observation,
+)
 from bralpha.normalization.receita_revenue import (
     RECEITA_COLLECTION_AVAILABILITY_POLICY,
     RECEITA_COLLECTION_REFERENCE_ONLY_POLICY,
@@ -62,6 +67,41 @@ def test_receita_heuristic_only_rows_are_reference_only():
     assert row["model_usable"] is False
 
 
+def test_receita_no_hash_first_seen_snapshots_keep_distinct_vintages_and_asof():
+    bronze = pl.concat(
+        [
+            _long_bronze(
+                amount="10,5",
+                downloaded_at=datetime(2024, 3, 8, 12),
+                sha256=None,
+            ),
+            _long_bronze(
+                amount="20,5",
+                downloaded_at=datetime(2024, 3, 12, 12),
+                sha256=None,
+            ),
+        ],
+        how="diagonal_relaxed",
+    )
+
+    silver = normalize_receita_tax_collection_monthly(bronze)
+
+    assert silver.height == 2
+    assert silver.select("vintage_id").n_unique() == 2
+    observations = build_tax_collection_observation(silver)
+    features = build_tax_collection_feature_observation(observations, max_features=10)
+    state = build_receita_state_asof_daily(
+        feature_observations=features,
+        start=date(2024, 3, 8),
+        end=date(2024, 3, 12),
+        max_features=10,
+    ).sort("ref_date")
+
+    assert state.filter(pl.col("ref_date") == date(2024, 3, 8))["value"].item() == 10.5
+    assert state.filter(pl.col("ref_date") == date(2024, 3, 11))["value"].item() == 10.5
+    assert state.filter(pl.col("ref_date") == date(2024, 3, 12))["value"].item() == 20.5
+
+
 def test_receita_wide_layout_unpivots_month_columns_to_long_rows():
     silver = normalize_receita_tax_collection_monthly(_wide_bronze())
 
@@ -96,14 +136,19 @@ def test_receita_ambiguous_layout_raises_instead_of_guessing():
         normalize_receita_tax_collection_monthly(bronze)
 
 
-def _long_bronze() -> pl.DataFrame:
+def _long_bronze(
+    *,
+    amount: str = "10,5",
+    downloaded_at: datetime | None = datetime(2024, 3, 8, 12),
+    sha256: str | None = "abc",
+) -> pl.DataFrame:
     return pl.DataFrame(
         {
             "source": ["receita"],
             "source_dataset": ["receita_tax_collection_monthly"],
-            "download_timestamp_utc": [datetime(2024, 3, 8, 12)],
+            "download_timestamp_utc": [downloaded_at],
             "raw_path": ["raw.csv"],
-            "sha256": ["abc"],
+            "sha256": [sha256],
             "resource_name": ["resultado-arrecadacao"],
             "resource_family": ["tax_collection_monthly"],
             "sheet_name": [None],
@@ -115,7 +160,7 @@ def _long_bronze() -> pl.DataFrame:
             "raw_categoria": ["Imposto de Renda"],
             "raw_codigo_receita": ["001"],
             "raw_descricao": ["IRPJ"],
-            "raw_valor_arrecadado": ["10,5"],
+            "raw_valor_arrecadado": [amount],
         }
     )
 

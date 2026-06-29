@@ -221,7 +221,17 @@ def normalize_receita_tax_collection_monthly(
             )
             .map_elements(_snapshot_available_date, return_dtype=pl.Date)
             .alias("snapshot_available_date"),
-            pl.struct(["source_dataset", "source_table", "raw_path", "sha256"])
+            pl.struct(
+                [
+                    "source_dataset",
+                    "source_table",
+                    "raw_path",
+                    "sha256",
+                    "source_publication_datetime_utc",
+                    "source_last_modified_utc",
+                    "first_seen_timestamp_utc",
+                ]
+            )
             .map_elements(_snapshot_vintage_id, return_dtype=pl.Utf8)
             .alias("vintage_id"),
         ]
@@ -589,12 +599,20 @@ def _snapshot_vintage_id(values: dict[str, object]) -> str:
     dataset_id = _text(values.get("source_dataset")) or "receita_tax_collection_monthly"
     resource_id = _text(values.get("source_table")) or _text(values.get("raw_path")) or dataset_id
     content_hash = _text(values.get("sha256"))
+    publication_timestamp = None
+    first_seen_timestamp_utc = None
+    if content_hash is None:
+        publication_timestamp = values.get("source_publication_datetime_utc") or values.get(
+            "source_last_modified_utc"
+        )
+        if publication_timestamp is None:
+            first_seen_timestamp_utc = values.get("first_seen_timestamp_utc")
     return make_vintage_id(
         source="receita",
         dataset_id=dataset_id,
         resource_id=resource_id,
-        publication_timestamp=None,
-        first_seen_timestamp_utc=None if content_hash else None,
+        publication_timestamp=publication_timestamp,
+        first_seen_timestamp_utc=first_seen_timestamp_utc,
         content_hash=content_hash,
     )
 
