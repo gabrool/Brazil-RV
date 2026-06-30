@@ -346,6 +346,20 @@ def test_rule_model_has_all_required_fields(repo_root):
             assert rule.model_default_reason.strip()
 
 
+def test_feature_upgrade_docs_cover_upgraded_families(repo_root):
+    upgrade_doc = (repo_root / "docs" / "FEATURE_UPGRADES_CONTRACT.md").read_text()
+    preprocessing_doc = (
+        repo_root / "docs" / "FEATURE_PREPROCESSING_METADATA_CONTRACT.md"
+    ).read_text()
+
+    for source_family in _UPGRADED_SOURCE_FAMILIES:
+        assert source_family in upgrade_doc
+        assert source_family in preprocessing_doc
+
+    assert "values remain unpreprocessed" in upgrade_doc
+    assert "does not apply transforms in the feature builders" in upgrade_doc
+
+
 def _rule(
     config: FeaturePreprocessingConfig,
     *,
@@ -1188,3 +1202,24 @@ _FEATURE_ROWS_BY_RULE_ID = {
         "unit": "percent",
     },
 }
+
+
+_UPGRADED_SOURCE_FAMILIES = [
+    "b3_di_curve_feature",
+    "b3_futures_feature",
+    "b3_index_feature",
+    "b3_index_composition_feature",
+    "bcb_sgs_feature",
+    "bcb_ptax_feature",
+    "bcb_focus_feature",
+    "fred_rate_feature",
+    "fred_market_feature",
+    "tesouro_feature",
+    "br_rv_cross_feature",
+    "ibge_sidra_feature",
+    "anp_fuel_feature",
+    "ons_power_feature",
+    "cvm_fund_feature",
+    "novo_caged_feature",
+    "receita_feature",
+]
