@@ -147,6 +147,8 @@ IBGE_DAILY_LONG_COLUMNS = [
     "source_version",
 ]
 
+IBGE_SIDRA_FEATURE_DAILY_COLUMNS = list(IBGE_DAILY_LONG_COLUMNS)
+
 PANEL_PRIMARY_KEYS = {
     "sidra_observation": [
         "dataset_slug",
@@ -157,6 +159,7 @@ PANEL_PRIMARY_KEYS = {
         "classification_key",
     ],
     "sidra_asof_daily": ["ref_date", "feature_id"],
+    "sidra_feature_daily": ["ref_date", "source_family", "feature_id", "value_name"],
     "release_calendar_reference": ["event_id"],
     "products_reference": ["product_id"],
     "news_release_metadata": ["news_id"],

@@ -6,6 +6,7 @@ from pathlib import Path
 
 import polars as pl
 
+from bralpha.derived.feature_utils import feature_warmup_start
 from bralpha.derived.ibge.daily_long import build_daily_long
 from bralpha.derived.ibge.io import (
     IBGEResearchInputMissingError,
@@ -20,16 +21,19 @@ from bralpha.derived.ibge.reference import (
 )
 from bralpha.derived.ibge.schemas import PANEL_PRIMARY_KEYS
 from bralpha.derived.ibge.sidra import build_sidra_asof_daily, build_sidra_observation
+from bralpha.derived.ibge.sidra_features import build_sidra_feature_daily
 from bralpha.infra.config import (
     load_ibge_research_config,
     load_paths_config,
     resolve_project_paths,
 )
 from bralpha.ingestion.ibge.sidra import load_sidra_series_config
+from bralpha.modeling.config import load_model_dataset_config
 
 PANEL_ORDER = [
     "sidra_observation",
     "sidra_asof_daily",
+    "sidra_feature_daily",
     "release_calendar_reference",
     "products_reference",
     "news_release_metadata",
@@ -53,6 +57,8 @@ def run_ibge_research_spine(
     paths = resolve_project_paths(repo_root, load_paths_config(repo_root))
     config = load_ibge_research_config(repo_root).ibge_research
     series_config = load_sidra_series_config(repo_root)
+    model_config = load_model_dataset_config(repo_root)
+    warmup_start = feature_warmup_start(start, model_config.feature_warmup_business_days)
     built: dict[str, pl.DataFrame] = {}
     status: dict[str, str] = {}
 
@@ -68,6 +74,7 @@ def run_ibge_research_spine(
                 built,
                 start,
                 end,
+                warmup_start=warmup_start,
                 required=explicit,
             )
         except IBGEResearchInputMissingError as exc:
@@ -104,6 +111,7 @@ def _build_panel(
     start: date,
     end: date,
     *,
+    warmup_start: date,
     required: bool,
 ) -> pl.DataFrame | None:
     if panel == "sidra_observation":
@@ -141,6 +149,18 @@ def _build_panel(
             end=end,
             max_dense_features=config.sidra.max_dense_features,
         )
+    if panel == "sidra_feature_daily":
+        asof = _feature_dependency(
+            paths,
+            built,
+            "sidra_asof_daily",
+            warmup_start,
+            end,
+            required=required,
+        )
+        if asof is None:
+            return None
+        return build_sidra_feature_daily(asof, start=start, end=end)
     if panel == "release_calendar_reference":
         if not config.references.include_release_calendar:
             return None
@@ -177,10 +197,12 @@ def _build_panel(
         return None if silver is None else build_news_release_metadata(silver)
     if panel == "daily_long":
         sidra = _dependency(paths, built, "sidra_asof_daily", start, end, required=required)
-        if sidra is None:
+        features = _dependency(paths, built, "sidra_feature_daily", start, end, required=False)
+        if sidra is None and features is None:
             return None
         return build_daily_long(
             sidra_asof_daily=sidra,
+            sidra_feature_daily=features,
             include_sidra=config.daily_long.include_sidra,
         )
     raise ValueError(f"Unknown panel: {panel}")
@@ -225,6 +247,34 @@ def _dependency(
     if panel in built:
         return built[panel]
     return read_gold_panel(paths, panel, required=required, start=start, end=end)
+
+
+def _feature_dependency(
+    paths,
+    built: dict[str, pl.DataFrame],
+    panel: str,
+    start: date,
+    end: date,
+    *,
+    required: bool = False,
+) -> pl.DataFrame | None:
+    frames = []
+    history = read_gold_panel(paths, panel, start=start, end=end)
+    if history is not None:
+        frames.append(history)
+    if panel in built:
+        frames.append(built[panel])
+    if not frames:
+        if required:
+            raise IBGEResearchInputMissingError(f"Missing feature dependency panel: {panel}")
+        return None
+    if len(frames) == 1:
+        return frames[0]
+    return (
+        pl.concat(frames, how="diagonal_relaxed")
+        .unique(subset=PANEL_PRIMARY_KEYS[panel], keep="last", maintain_order=True)
+        .sort("ref_date")
+    )
 
 
 def _panel_ref_date_col(panel: str) -> str | None:

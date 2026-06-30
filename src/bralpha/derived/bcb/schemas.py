@@ -70,6 +70,8 @@ BCB_SGS_FEATURE_DAILY_COLUMNS = [
 
 BCB_PTAX_FEATURE_DAILY_COLUMNS = list(BCB_SGS_FEATURE_DAILY_COLUMNS)
 
+BCB_FOCUS_FEATURE_DAILY_COLUMNS = list(BCB_SGS_FEATURE_DAILY_COLUMNS)
+
 BCB_PTAX_SELECTED_DAILY_COLUMNS = [
     "ref_date",
     "available_date",
@@ -181,6 +183,7 @@ PANEL_PRIMARY_KEYS = {
     "ptax_selected_daily": ["ref_date", "currency_code"],
     "focus_expectation_observation_daily": ["expectation_key", "ref_date"],
     "focus_expectation_asof_daily": ["ref_date", "expectation_key"],
+    "focus_feature_daily": ["ref_date", "feature_id", "value_name"],
     "focus_reference_dates": [
         "indicator",
         "period",
