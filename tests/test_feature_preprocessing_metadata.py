@@ -180,12 +180,48 @@ def test_key_model_default_decisions(repo_root):
     assert (
         _rule(config, panel="di_curve_grid_daily", value_name="implied_annual_rate_bp")
         .model_default
-        is True
+        is False
     )
     assert (
         _rule(config, panel="di_curve_grid_daily", value_name="log_discount_factor")
         .model_default
+        is False
+    )
+    assert (
+        _rule(
+            config,
+            source_family="b3_di_curve_feature",
+            feature_id="b3_di_curve:DI1:252bd",
+            value_name="rate_level_bp",
+        ).model_default
         is True
+    )
+    assert (
+        _rule(
+            config,
+            source_family="b3_di_curve_feature",
+            feature_id="b3_di_curve:DI1:252bd",
+            value_name="log_df_change_1bd",
+        ).preprocessing.transform
+        == "already_return"
+    )
+    assert (
+        _rule(
+            config,
+            source_family="b3_futures_feature",
+            feature_id="b3_futures:DI1_R1",
+            value_name="log_return_1bd",
+        ).model_default
+        is True
+    )
+    assert (
+        _rule(config, panel="continuous_futures_daily", value_name="settlement").model_default
+        is False
+    )
+    assert _rule(config, panel="index_daily", value_name="close").model_default is False
+    assert (
+        _rule(config, panel="index_composition_daily", value_name="weight").model_default
+        is False
     )
     assert _rule(config, panel="listed_market_daily", value_name="close").model_default is False
     assert (
@@ -365,6 +401,102 @@ _FEATURE_ROWS_BY_RULE_ID = {
     "b3_index_composition_theoretical_quantity": {
         "panel": "index_composition_daily",
         "value_name": "theoretical_quantity",
+    },
+    "b3_di_curve_feature_rate_levels_shapes_forwards": {
+        "source_family": "b3_di_curve_feature",
+        "feature_id": "b3_di_curve:DI1:shape",
+        "value_name": "forward_21_63_bp",
+        "unit": "bp",
+    },
+    "b3_di_curve_feature_rate_changes": {
+        "source_family": "b3_di_curve_feature",
+        "feature_id": "b3_di_curve:DI1:252bd",
+        "value_name": "rate_change_5bd_bp",
+        "unit": "bp",
+    },
+    "b3_di_curve_feature_log_discount_factor": {
+        "source_family": "b3_di_curve_feature",
+        "feature_id": "b3_di_curve:DI1:252bd",
+        "value_name": "log_discount_factor",
+        "unit": "log_discount_factor",
+    },
+    "b3_di_curve_feature_log_df_changes": {
+        "source_family": "b3_di_curve_feature",
+        "feature_id": "b3_di_curve:DI1:252bd",
+        "value_name": "log_df_change_5bd",
+        "unit": "log_change",
+    },
+    "b3_di_curve_feature_flags": {
+        "source_family": "b3_di_curve_feature",
+        "feature_id": "b3_di_curve:DI1:252bd",
+        "value_name": "is_interpolated",
+        "unit": "flag",
+    },
+    "b3_futures_feature_log_settlement": {
+        "source_family": "b3_futures_feature",
+        "feature_id": "b3_futures:DI1_R1",
+        "value_name": "log_settlement",
+        "unit": "log_quote",
+    },
+    "b3_futures_feature_log_returns": {
+        "source_family": "b3_futures_feature",
+        "feature_id": "b3_futures:DI1_R1",
+        "value_name": "log_return_5bd",
+        "unit": "log_return",
+    },
+    "b3_futures_feature_realized_vol": {
+        "source_family": "b3_futures_feature",
+        "feature_id": "b3_futures:DI1_R1",
+        "value_name": "realized_vol_21bd_ann",
+        "unit": "annualized_log_vol",
+    },
+    "b3_futures_feature_log_liquidity": {
+        "source_family": "b3_futures_feature",
+        "feature_id": "b3_futures:DI1_R1",
+        "value_name": "volume_log1p",
+        "unit": "log_count",
+    },
+    "b3_futures_feature_ratios_maturity": {
+        "source_family": "b3_futures_feature",
+        "feature_id": "b3_futures:DI1_R1",
+        "value_name": "volume_open_interest_ratio",
+        "unit": "ratio",
+    },
+    "b3_futures_feature_flags": {
+        "source_family": "b3_futures_feature",
+        "feature_id": "b3_futures:DI1_R1",
+        "value_name": "is_roll_date",
+        "unit": "flag",
+    },
+    "b3_index_feature_logs": {
+        "source_family": "b3_index_feature",
+        "feature_id": "b3_index:IBOV",
+        "value_name": "log_close",
+        "unit": "log_points",
+    },
+    "b3_index_feature_returns": {
+        "source_family": "b3_index_feature",
+        "feature_id": "b3_index:IBOV",
+        "value_name": "log_return_21bd",
+        "unit": "log_return",
+    },
+    "b3_index_feature_vol_drawdown": {
+        "source_family": "b3_index_feature",
+        "feature_id": "b3_index:IBOV",
+        "value_name": "close_drawdown_252bd_pct",
+        "unit": "percent",
+    },
+    "b3_index_composition_feature_counts": {
+        "source_family": "b3_index_composition_feature",
+        "feature_id": "b3_index_composition:IBOV",
+        "value_name": "constituent_count",
+        "unit": "count",
+    },
+    "b3_index_composition_feature_concentration": {
+        "source_family": "b3_index_composition_feature",
+        "feature_id": "b3_index_composition:IBOV",
+        "value_name": "hhi_weight",
+        "unit": "hhi",
     },
     "bcb_raw_sgs_engineered_replacements": {
         "source_family": "sgs",

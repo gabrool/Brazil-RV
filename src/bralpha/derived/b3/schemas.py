@@ -160,6 +160,21 @@ INDEX_COMPOSITION_DAILY_COLUMNS = [
     "source_version",
 ]
 
+B3_FEATURE_DAILY_COLUMNS = [
+    "ref_date",
+    "available_date",
+    "source_family",
+    "feature_id",
+    "value_name",
+    "value",
+    "unit",
+    "observation_ref_date",
+    "observation_available_date",
+    "is_available",
+    "staleness_days",
+    "source_version",
+]
+
 TARGETS_DAILY_COLUMNS = [
     "ref_date",
     "label_available_date",
@@ -178,8 +193,17 @@ PANEL_PRIMARY_KEYS = {
     "continuous_futures_daily": ["ref_date", "continuous_id"],
     "di_curve_contract_daily": ["ref_date", "contract_id"],
     "di_curve_grid_daily": ["ref_date", "curve_id", "tenor_days"],
+    "di_feature_daily": ["ref_date", "source_family", "feature_id", "value_name"],
     "listed_market_daily": ["ref_date", "symbol", "market_type"],
     "index_daily": ["ref_date", "index_id"],
+    "index_feature_daily": ["ref_date", "source_family", "feature_id", "value_name"],
     "index_composition_daily": ["ref_date", "index_id", "symbol", "source_dataset"],
+    "index_composition_feature_daily": [
+        "ref_date",
+        "source_family",
+        "feature_id",
+        "value_name",
+    ],
+    "futures_feature_daily": ["ref_date", "source_family", "feature_id", "value_name"],
     "targets_daily": ["ref_date", "target_id", "horizon", "target_type"],
 }
