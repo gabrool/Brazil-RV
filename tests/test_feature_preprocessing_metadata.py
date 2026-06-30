@@ -159,7 +159,7 @@ def test_annotate_feature_frame_adds_metadata_columns_without_transforming_value
         "bcb_focus_min_max",
     ]
     assert annotated["preprocess_transform"].to_list() == ["percent_to_bp", "identity"]
-    assert annotated["model_default"].to_list() == [True, False]
+    assert annotated["model_default"].to_list() == [False, False]
 
 
 def test_key_model_default_decisions(repo_root):
@@ -235,6 +235,26 @@ def test_key_model_default_decisions(repo_root):
     )
     assert _rule(config, source_family="focus", value_name="min_value").model_default is False
     assert _rule(config, source_family="focus", value_name="max_value").model_default is False
+    assert (
+        _rule(
+            config,
+            source_family="fred_market_feature",
+            feature_id="fred_market:dcoilwtico",
+            value_name="signed_log_level",
+            unit="signed_log_level",
+        ).preprocessing.transform
+        == "already_log"
+    )
+    assert (
+        _rule(
+            config,
+            source_family="fred_market_feature",
+            feature_id="fred_market:dcoilwtico",
+            value_name="signed_log_change_1bd",
+            unit="signed_log_change",
+        ).preprocessing.transform
+        == "already_return"
+    )
 
 
 def test_staleness_and_ons_ena_unit_specific_rules(repo_root):
@@ -558,11 +578,41 @@ _FEATURE_ROWS_BY_RULE_ID = {
         "value_name": "reserves_pct_change_20bd",
         "unit": "percent",
     },
+    "bcb_sgs_feature_real_policy_rates": {
+        "source_family": "bcb_sgs_feature",
+        "feature_id": "bcb_sgs_feature:rates:real_policy_rate_12m_ipca_bp",
+        "value_name": "real_policy_rate_12m_ipca_bp",
+        "unit": "basis_points",
+    },
     "bcb_ptax_fx_rates": {
         "source_family": "ptax",
         "feature_id": "ptax:USD",
         "value_name": "bid_rate",
         "unit": None,
+    },
+    "bcb_ptax_feature_logs": {
+        "source_family": "bcb_ptax_feature",
+        "feature_id": "bcb_ptax:USD",
+        "value_name": "log_mid_rate",
+        "unit": "log_fx_rate",
+    },
+    "bcb_ptax_feature_returns": {
+        "source_family": "bcb_ptax_feature",
+        "feature_id": "bcb_ptax:USD",
+        "value_name": "log_return_5bd",
+        "unit": "log_return",
+    },
+    "bcb_ptax_feature_vol_spreads": {
+        "source_family": "bcb_ptax_feature",
+        "feature_id": "bcb_ptax:USD",
+        "value_name": "bid_ask_spread_bp",
+        "unit": "bp",
+    },
+    "bcb_ptax_feature_raw_mid_levels": {
+        "source_family": "bcb_ptax_feature",
+        "feature_id": "bcb_ptax:USD",
+        "value_name": "mid_rate",
+        "unit": "brl_per_currency",
     },
     "bcb_focus_mean_median": {
         "source_family": "focus",
@@ -611,6 +661,48 @@ _FEATURE_ROWS_BY_RULE_ID = {
         "feature_id": "fred|dcoilwtico",
         "value_name": "value",
         "unit": "usd_per_barrel",
+    },
+    "fred_rate_feature_levels_spreads": {
+        "source_family": "fred_rate_feature",
+        "feature_id": "fred_rate:dgs10",
+        "value_name": "level_bp",
+        "unit": "bp",
+    },
+    "fred_rate_feature_changes": {
+        "source_family": "fred_rate_feature",
+        "feature_id": "fred_rate:dgs10",
+        "value_name": "change_5bd_bp",
+        "unit": "bp",
+    },
+    "fred_market_feature_logs": {
+        "source_family": "fred_market_feature",
+        "feature_id": "fred_market:sp500",
+        "value_name": "log_level",
+        "unit": "log_level",
+    },
+    "fred_market_feature_returns_changes": {
+        "source_family": "fred_market_feature",
+        "feature_id": "fred_market:sp500",
+        "value_name": "log_return_5bd",
+        "unit": "log_return",
+    },
+    "fred_market_feature_realized_vol": {
+        "source_family": "fred_market_feature",
+        "feature_id": "fred_market:sp500",
+        "value_name": "realized_vol_21bd_ann",
+        "unit": "annualized_log_vol",
+    },
+    "br_rv_cross_feature_bp": {
+        "source_family": "br_rv_cross_feature",
+        "feature_id": "br_rv_cross:rates",
+        "value_name": "brl_di_2y_minus_ust_2y_bp",
+        "unit": "bp",
+    },
+    "br_rv_cross_feature_returns": {
+        "source_family": "br_rv_cross_feature",
+        "feature_id": "br_rv_cross:fx",
+        "value_name": "brl_fx_idiosyncratic_return_5bd",
+        "unit": "log_return",
     },
     "ibge_sidra_inflation_percent": {
         "source_family": "ibge_sidra",
@@ -689,6 +781,48 @@ _FEATURE_ROWS_BY_RULE_ID = {
         "feature_id": "tesouro_dpf_stock|dpmfi|lft|selic|0_a_1_ano",
         "value_name": "stock_value",
         "unit": "BRL",
+    },
+    "tesouro_feature_rates": {
+        "source_family": "tesouro_feature",
+        "feature_id": "tesouro_price:tesouro_direto_prices_rates|tesouro_selic",
+        "value_name": "mid_rate_bp",
+        "unit": "bp",
+    },
+    "tesouro_feature_price_stock_logs": {
+        "source_family": "tesouro_feature",
+        "feature_id": "tesouro_price:tesouro_direto_prices_rates|tesouro_selic",
+        "value_name": "log_mid_price",
+        "unit": "log_brl",
+    },
+    "tesouro_feature_price_returns": {
+        "source_family": "tesouro_feature",
+        "feature_id": "tesouro_price:tesouro_direto_prices_rates|tesouro_selic",
+        "value_name": "price_log_return_5bd",
+        "unit": "log_return",
+    },
+    "tesouro_feature_raw_mid_price": {
+        "source_family": "tesouro_feature",
+        "feature_id": "tesouro_price:tesouro_direto_prices_rates|tesouro_selic",
+        "value_name": "mid_price",
+        "unit": "brl",
+    },
+    "tesouro_feature_flow_amounts": {
+        "source_family": "tesouro_feature",
+        "feature_id": "tesouro_flow:tesouro_direto_flows|tesouro_selic",
+        "value_name": "net_flow_value",
+        "unit": "brl",
+    },
+    "tesouro_feature_counts": {
+        "source_family": "tesouro_feature",
+        "feature_id": "tesouro_flow:tesouro_direto_flows|tesouro_selic",
+        "value_name": "sales_quantity",
+        "unit": "count",
+    },
+    "tesouro_feature_shares_ratios": {
+        "source_family": "tesouro_feature",
+        "feature_id": "tesouro_flow:tesouro_direto_flows|tesouro_selic",
+        "value_name": "redemption_share_pct",
+        "unit": "percent",
     },
     "anp_fuel_price_levels": {
         "source_family": "anp_fuel_price",

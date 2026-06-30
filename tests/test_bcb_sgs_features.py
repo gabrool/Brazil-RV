@@ -48,9 +48,17 @@ def test_sgs_feature_panel_calculates_ipca_from_available_observation_history():
                 staleness_days=0,
             )
         )
+    rows.append(
+        _asof_row(
+            last_ref_date := date(2024, 12, 15),
+            "selic_target",
+            "rates",
+            15.0,
+            "percent_annualized",
+        )
+    )
 
     panel = build_sgs_feature_daily(pl.DataFrame(rows))
-    last_ref_date = date(2024, 12, 15)
 
     assert _value(panel, last_ref_date, "bcb_sgs_feature:inflation:ipca_monthly_pct") == 12.0
     assert _value(panel, last_ref_date, "bcb_sgs_feature:inflation:ipca_3m_sum_pct") == 33.0
@@ -58,6 +66,14 @@ def test_sgs_feature_panel_calculates_ipca_from_available_observation_history():
     assert isclose(
         _value(panel, last_ref_date, "bcb_sgs_feature:inflation:ipca_3m_ann_pct"),
         ((1 + 33.0 / 100) ** 4 - 1) * 100,
+    )
+    assert isclose(
+        _value(panel, last_ref_date, "bcb_sgs_feature:rates:real_policy_rate_12m_ipca_bp"),
+        (15.0 - 78.0) * 100.0,
+    )
+    assert isclose(
+        _value(panel, last_ref_date, "bcb_sgs_feature:rates:real_policy_rate_3m_ann_ipca_bp"),
+        (15.0 - ((1 + 33.0 / 100) ** 4 - 1) * 100) * 100.0,
     )
     assert panel.filter(
         (pl.col("ref_date") == date(2024, 2, 15))
@@ -89,6 +105,10 @@ def test_sgs_feature_panel_calculates_reserves_features():
         log(120.0) - log(115.0),
     )
     assert isclose(
+        _value(panel, ref_21, "bcb_sgs_feature:external_reserves:reserves_log_change_21bd"),
+        log(110.0) - log(100.0),
+    )
+    assert isclose(
         _value(panel, ref_20, "bcb_sgs_feature:external_reserves:reserves_pct_change_20bd"),
         20.0,
     )
@@ -97,6 +117,14 @@ def test_sgs_feature_panel_calculates_reserves_features():
             panel,
             ref_21,
             "bcb_sgs_feature:external_reserves:reserves_drawdown_from_252bd_high_pct",
+        ),
+        (110.0 / 120.0 - 1) * 100,
+    )
+    assert isclose(
+        _value(
+            panel,
+            ref_21,
+            "bcb_sgs_feature:external_reserves:reserves_drawdown_from_504bd_high_pct",
         ),
         (110.0 / 120.0 - 1) * 100,
     )

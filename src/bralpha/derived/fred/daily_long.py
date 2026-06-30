@@ -12,19 +12,34 @@ from bralpha.derived.fred.schemas import (
 def build_fred_daily_long(
     *,
     asof_daily: pl.DataFrame | None = None,
+    rate_feature_daily: pl.DataFrame | None = None,
+    market_feature_daily: pl.DataFrame | None = None,
     include_observations: bool,
 ) -> pl.DataFrame:
-    if not include_observations or asof_daily is None or asof_daily.is_empty():
+    frames = []
+    if include_observations and asof_daily is not None and not asof_daily.is_empty():
+        frames.append(
+            _ensure_columns(asof_daily, FRED_DAILY_LONG_COLUMNS)
+            .with_columns(
+                source_family=pl.lit("fred"),
+                value_name=pl.lit("value"),
+                value=pl.col("value").cast(pl.Float64),
+            )
+            .filter(pl.col("value").is_not_null())
+            .select(FRED_DAILY_LONG_COLUMNS)
+        )
+    for feature_frame in [rate_feature_daily, market_feature_daily]:
+        if feature_frame is not None and not feature_frame.is_empty():
+            frames.append(
+                _ensure_columns(feature_frame, FRED_DAILY_LONG_COLUMNS)
+                .filter(pl.col("value").is_not_null())
+                .select(FRED_DAILY_LONG_COLUMNS)
+            )
+    if not frames:
         return _empty()
 
-    asof_daily = _ensure_columns(asof_daily, FRED_DAILY_LONG_COLUMNS)
     frame = (
-        asof_daily.with_columns(
-            source_family=pl.lit("fred"),
-            value_name=pl.lit("value"),
-            value=pl.col("value").cast(pl.Float64),
-        )
-        .filter(pl.col("value").is_not_null())
+        pl.concat(frames, how="diagonal_relaxed")
         .select(FRED_DAILY_LONG_COLUMNS)
         .unique(subset=PANEL_PRIMARY_KEYS["daily_long"], keep="last", maintain_order=True)
     )
