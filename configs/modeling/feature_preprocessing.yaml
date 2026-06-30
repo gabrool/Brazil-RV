@@ -929,8 +929,8 @@ rules:
   - rule_id: anp_fuel_price_levels
     priority: 1500
     selector: {source_family: anp_fuel_price, value_name_regex: '^(sale_price|purchase_price)$'}
-    model_default: true
-    model_default_reason: Include ANP fuel sale and purchase price levels.
+    model_default: false
+    model_default_reason: Superseded by anp_fuel_feature log price and spread rows.
     semantic_type: fuel_price_level
     raw_unit: BRL_per_unit
     stationarity: nonstationary_level
@@ -938,8 +938,8 @@ rules:
   - rule_id: anp_fuel_price_counts
     priority: 1510
     selector: {source_family: anp_fuel_price, value_name_regex: '^(station_count|sale_price_count|purchase_price_count)$'}
-    model_default: true
-    model_default_reason: Include ANP fuel price coverage counts.
+    model_default: false
+    model_default_reason: Superseded by anp_fuel_feature coverage-count log rows.
     semantic_type: fuel_price_coverage_count
     raw_unit: count
     stationarity: count
@@ -947,8 +947,8 @@ rules:
   - rule_id: anp_fuel_sales_volume
     priority: 1520
     selector: {source_family: anp_fuel_sales, value_name: sales_volume_m3}
-    model_default: true
-    model_default_reason: Include ANP fuel sales physical volume.
+    model_default: false
+    model_default_reason: Superseded by anp_fuel_feature sales log, yoy, and rolling-sum rows.
     semantic_type: fuel_sales_volume_m3
     raw_unit: m3
     stationarity: flow
@@ -956,8 +956,8 @@ rules:
   - rule_id: anp_fuel_sales_counts
     priority: 1530
     selector: {source_family: anp_fuel_sales, value_name_regex: '^(sales_volume_count|state_count)$'}
-    model_default: true
-    model_default_reason: Include ANP fuel sales coverage counts.
+    model_default: false
+    model_default_reason: Superseded by anp_fuel_feature coverage-count log rows.
     semantic_type: fuel_sales_coverage_count
     raw_unit: count
     stationarity: count
@@ -965,8 +965,8 @@ rules:
   - rule_id: anp_oil_gas_metric_value
     priority: 1540
     selector: {source_family: anp_oil_gas, value_name: metric_value}
-    model_default: true
-    model_default_reason: Include ANP oil and gas production metric values.
+    model_default: false
+    model_default_reason: Superseded by anp_fuel_feature production log, yoy, and rolling-sum rows.
     semantic_type: oil_gas_production_level
     raw_unit: source_unit
     stationarity: nonstationary_level
@@ -974,17 +974,44 @@ rules:
   - rule_id: anp_oil_gas_counts
     priority: 1550
     selector: {source_family: anp_oil_gas, value_name_regex: '^(metric_value_count|state_count)$'}
-    model_default: true
-    model_default_reason: Include ANP oil and gas coverage counts.
+    model_default: false
+    model_default_reason: Superseded by anp_fuel_feature coverage-count log rows.
     semantic_type: oil_gas_coverage_count
     raw_unit: count
     stationarity: count
     preprocessing: {transform: count_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Coverage counts use the count/log1p rule.}
+  - rule_id: anp_fuel_feature_logs
+    priority: 1560
+    selector: {source_family: anp_fuel_feature, value_name_regex: '^(sale_price_log|purchase_price_log|sales_volume_log|sales_volume_3obs_sum_log|production_log|production_3obs_sum_log|station_count_log1p|state_count_log1p)$'}
+    model_default: true
+    model_default_reason: Include upgraded ANP log-level, rolling-sum, and coverage features.
+    semantic_type: anp_log_feature
+    raw_unit: log_level_or_count
+    stationarity: nonstationary_level
+    preprocessing: {transform: already_log, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: ANP feature builder emits log/log1p values; do not log twice.}
+  - rule_id: anp_fuel_feature_log_changes
+    priority: 1570
+    selector: {source_family: anp_fuel_feature, value_name_regex: '^(sale_price_log_change_1obs|sale_price_log_change_4obs|sales_volume_yoy_log_change|production_yoy_log_change)$'}
+    model_default: true
+    model_default_reason: Include upgraded ANP observation-sequence log changes.
+    semantic_type: anp_log_change
+    raw_unit: log_return
+    stationarity: stationaryish
+    preprocessing: {transform: already_return, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: ANP log changes are already return-like.}
+  - rule_id: anp_fuel_feature_ratios_spreads
+    priority: 1580
+    selector: {source_family: anp_fuel_feature, value_name_regex: '^(sale_purchase_spread_pct|ethanol_gasoline_parity|diesel_gasoline_spread_pct)$'}
+    model_default: true
+    model_default_reason: Include upgraded ANP parity and spread features.
+    semantic_type: anp_ratio_or_spread
+    raw_unit: ratio_or_percent
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Fuel parity and spreads are already scaled feature values.}
   - rule_id: ons_ear_stored_energy_levels
     priority: 1600
     selector: {source_family: ons_ear_subsystem, value_name_regex: '^(stored_energy_mwmes|stored_energy_max_mwmes)$'}
-    model_default: true
-    model_default_reason: Include ONS EAR stored energy levels.
+    model_default: false
+    model_default_reason: Superseded by ons_power_feature stored-energy log rows.
     semantic_type: hydro_stored_energy_level
     raw_unit: MWmes
     stationarity: nonstationary_level
@@ -992,8 +1019,8 @@ rules:
   - rule_id: ons_ear_stored_energy_percent
     priority: 1610
     selector: {source_family: ons_ear_subsystem, value_name: stored_energy_percent}
-    model_default: true
-    model_default_reason: Include ONS EAR stored energy percent.
+    model_default: false
+    model_default_reason: Superseded by ons_power_feature percent level, change, and seasonal rows.
     semantic_type: hydro_stored_energy_percent
     raw_unit: percent
     stationarity: bounded
@@ -1001,8 +1028,8 @@ rules:
   - rule_id: ons_ena_percent_mlt
     priority: 1620
     selector: {source_family: ons_ena_subsystem, value_name: ena_value, unit_regex: percent_mlt}
-    model_default: true
-    model_default_reason: Include ONS ENA percent-MLT values.
+    model_default: false
+    model_default_reason: Superseded by ons_power_feature ENA percent-MLT features.
     semantic_type: hydro_ena_percent_mlt
     raw_unit: percent_mlt
     stationarity: bounded
@@ -1010,8 +1037,8 @@ rules:
   - rule_id: ons_ena_positive_level
     priority: 1630
     selector: {source_family: ons_ena_subsystem, value_name: ena_value, unit_regex: '^(?!.*percent_mlt).+'}
-    model_default: true
-    model_default_reason: Include ONS ENA non-percent physical values.
+    model_default: false
+    model_default_reason: Superseded by ons_power_feature where model-ready ENA features exist.
     semantic_type: hydro_ena_positive_level
     raw_unit: source_unit
     stationarity: nonstationary_level
@@ -1019,8 +1046,8 @@ rules:
   - rule_id: ons_load_daily_load
     priority: 1640
     selector: {source_family: ons_load_daily, value_name: load_mwmed}
-    model_default: true
-    model_default_reason: Include ONS daily load level.
+    model_default: false
+    model_default_reason: Superseded by ons_power_feature load log and deviation rows.
     semantic_type: power_load_level
     raw_unit: MWmed
     stationarity: nonstationary_level
@@ -1028,8 +1055,8 @@ rules:
   - rule_id: ons_cmo_weekly_cost
     priority: 1650
     selector: {source_family: ons_cmo_weekly, value_name: cmo_brl_mwh}
-    model_default: true
-    model_default_reason: Include ONS weekly CMO marginal cost.
+    model_default: false
+    model_default_reason: Superseded by ons_power_feature CMO log and change rows.
     semantic_type: power_marginal_cost
     raw_unit: BRL_MWh
     stationarity: stationaryish
@@ -1037,8 +1064,8 @@ rules:
   - rule_id: ons_energy_balance_positive_generation
     priority: 1660
     selector: {source_family: ons_energy_balance_daily, value_name_regex: '^(load_mwmed|hydro_generation_mwmed|thermal_generation_mwmed|wind_generation_mwmed|solar_generation_mwmed|other_generation_mwmed)$'}
-    model_default: true
-    model_default_reason: Include ONS energy-balance generation and load levels.
+    model_default: false
+    model_default_reason: Superseded by ons_power_feature generation-share and load rows.
     semantic_type: power_generation_or_load_level
     raw_unit: MWmed
     stationarity: nonstationary_level
@@ -1046,8 +1073,8 @@ rules:
   - rule_id: ons_energy_balance_interchange
     priority: 1670
     selector: {source_family: ons_energy_balance_daily, value_name: interchange_mwmed}
-    model_default: true
-    model_default_reason: Include signed ONS energy-balance interchange.
+    model_default: false
+    model_default_reason: Superseded by ons_power_feature interchange-to-load rows.
     semantic_type: signed_power_flow
     raw_unit: MWmed
     stationarity: stationaryish
@@ -1055,8 +1082,8 @@ rules:
   - rule_id: ons_energy_balance_hour_count
     priority: 1680
     selector: {source_family: ons_energy_balance_daily, value_name: hour_count}
-    model_default: true
-    model_default_reason: Include ONS energy-balance hour count as a coverage/quality signal.
+    model_default: false
+    model_default_reason: Superseded by ons_power_feature hour-count log rows.
     semantic_type: coverage_count
     raw_unit: count
     stationarity: count
@@ -1064,8 +1091,8 @@ rules:
   - rule_id: ons_interchange_signed_flows
     priority: 1690
     selector: {source_family: ons_interchange_daily, value_name_regex: '^(interchange_mwmed|programmed_interchange_mwmed)$'}
-    model_default: true
-    model_default_reason: Include signed ONS interchange flows.
+    model_default: false
+    model_default_reason: Raw interchange flows remain available for audit; upgraded power features are preferred.
     semantic_type: signed_power_flow
     raw_unit: MWmed
     stationarity: stationaryish
@@ -1073,17 +1100,53 @@ rules:
   - rule_id: ons_interchange_hour_count
     priority: 1695
     selector: {source_family: ons_interchange_daily, value_name: hour_count}
-    model_default: true
-    model_default_reason: Include ONS interchange hour count as a coverage signal.
+    model_default: false
+    model_default_reason: Raw interchange coverage remains available for audit; upgraded power features are preferred.
     semantic_type: coverage_count
     raw_unit: count
     stationarity: count
     preprocessing: {transform: count_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Hour count is a coverage count and uses count/log1p.}
+  - rule_id: ons_power_feature_percent_levels_shares
+    priority: 1696
+    selector: {source_family: ons_power_feature, value_name_regex: '^(stored_energy_percent_level|ena_percent_mlt_level|hydro_generation_share_pct|thermal_generation_share_pct|wind_generation_share_pct|solar_generation_share_pct|interchange_to_load_pct|load_deviation_21bd_pct)$'}
+    model_default: true
+    model_default_reason: Include upgraded ONS percent, share, and load-deviation features.
+    semantic_type: ons_percent_or_share_feature
+    raw_unit: percent
+    stationarity: bounded
+    preprocessing: {transform: identity, winsorization: hard_clip_then_train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: -100, hard_max: 300, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: ONS percent and share rows are already scaled; clip broad physical ranges before train-only scaling.}
+  - rule_id: ons_power_feature_percent_changes_z
+    priority: 1697
+    selector: {source_family: ons_power_feature, value_name_regex: '^(stored_energy_percent_change_5bd|stored_energy_percent_change_21bd|ena_percent_mlt_change_5bd|stored_energy_percent_seasonal_z|ena_percent_mlt_seasonal_z)$'}
+    model_default: true
+    model_default_reason: Include upgraded ONS percent changes and backward-looking seasonal z-scores.
+    semantic_type: ons_change_or_z_feature
+    raw_unit: percentage_points_or_z
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Seasonal z-scores and percent changes are already centered feature values.}
+  - rule_id: ons_power_feature_log_levels
+    priority: 1698
+    selector: {source_family: ons_power_feature, value_name_regex: '^(stored_energy_mwmes_log|ena_mwmed_log|cmo_log1p|load_log|hour_count_log1p|interchange_mwmed_signed_log|programmed_interchange_mwmed_signed_log)$'}
+    model_default: true
+    model_default_reason: Include upgraded ONS log/log1p level and coverage features.
+    semantic_type: ons_log_feature
+    raw_unit: log_level_or_count
+    stationarity: nonstationary_level
+    preprocessing: {transform: already_log, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: ONS builder emits log/log1p values; do not log twice.}
+  - rule_id: ons_power_feature_log_changes
+    priority: 1699
+    selector: {source_family: ons_power_feature, value_name_regex: '^(cmo_log_change_1obs|ena_mwmed_log_change_5bd)$'}
+    model_default: true
+    model_default_reason: Include upgraded ONS CMO observation-sequence log change.
+    semantic_type: ons_log_change
+    raw_unit: log_return
+    stationarity: stationaryish
+    preprocessing: {transform: already_return, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: CMO log change is already return-like.}
   - rule_id: cvm_fund_flows_amounts
     priority: 1700
     selector: {source_family: cvm_fund_flows, value_name_regex: '^(subscriptions|redemptions)$'}
-    model_default: true
-    model_default_reason: Include CVM fund subscription and redemption BRL amounts.
+    model_default: false
+    model_default_reason: Superseded by cvm_fund_feature flow logs and NAV ratios.
     semantic_type: fund_flow_amount_brl
     raw_unit: BRL
     stationarity: flow
@@ -1091,8 +1154,8 @@ rules:
   - rule_id: cvm_fund_flows_counts
     priority: 1710
     selector: {source_family: cvm_fund_flows, value_name_regex: '^(subscriptions_count|redemptions_count|fund_count)$'}
-    model_default: true
-    model_default_reason: Include CVM fund flow coverage counts.
+    model_default: false
+    model_default_reason: Superseded by cvm_fund_feature count/log-count rows.
     semantic_type: fund_flow_coverage_count
     raw_unit: count
     stationarity: count
@@ -1100,8 +1163,8 @@ rules:
   - rule_id: cvm_fund_state_amounts
     priority: 1720
     selector: {source_family: cvm_fund_state, value_name_regex: '^(portfolio_value|nav)$'}
-    model_default: true
-    model_default_reason: Include CVM fund balance levels.
+    model_default: false
+    model_default_reason: Superseded by cvm_fund_feature NAV and portfolio log rows.
     semantic_type: fund_balance_level_brl
     raw_unit: BRL
     stationarity: nonstationary_level
@@ -1109,17 +1172,44 @@ rules:
   - rule_id: cvm_fund_state_counts
     priority: 1730
     selector: {source_family: cvm_fund_state, value_name_regex: '^(shareholder_count|portfolio_value_count|nav_count|shareholder_count_count|fund_count)$'}
-    model_default: true
-    model_default_reason: Include CVM fund state coverage and shareholder counts.
+    model_default: false
+    model_default_reason: Superseded by cvm_fund_feature count/log-count rows.
     semantic_type: fund_state_count
     raw_unit: count
     stationarity: count
     preprocessing: {transform: count_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Count features use the count/log1p rule.}
+  - rule_id: cvm_fund_feature_logs
+    priority: 1740
+    selector: {source_family: cvm_fund_feature, value_name_regex: '^(subscriptions_log|redemptions_log|nav_log|portfolio_value_log|shareholder_count_log1p|fund_count_log1p)$'}
+    model_default: true
+    model_default_reason: Include upgraded CVM flow, balance, shareholder, and fund-count log rows.
+    semantic_type: cvm_log_feature
+    raw_unit: log_level_or_count
+    stationarity: nonstationary_level
+    preprocessing: {transform: already_log, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: CVM builder emits log/log1p values; do not log twice.}
+  - rule_id: cvm_fund_feature_flows
+    priority: 1750
+    selector: {source_family: cvm_fund_feature, value_name_regex: '^(net_flow_brl|gross_flow_brl)$'}
+    model_default: true
+    model_default_reason: Include upgraded CVM net and gross flow features.
+    semantic_type: cvm_flow_brl
+    raw_unit: BRL
+    stationarity: flow
+    preprocessing: {transform: signed_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Net flows can be signed; gross flow is non-negative but shares this robust signed-flow rule.}
+  - rule_id: cvm_fund_feature_ratios
+    priority: 1760
+    selector: {source_family: cvm_fund_feature, value_name_regex: '^(net_flow_to_nav_pct|gross_flow_to_nav_pct|redemption_share_pct|shareholder_count_change_21bd_pct)$'}
+    model_default: true
+    model_default_reason: Include upgraded CVM NAV-scaled ratios, redemption share, and shareholder-count change.
+    semantic_type: cvm_ratio_or_change
+    raw_unit: percent
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: CVM ratio and change features are already scaled percentages.}
   - rule_id: novo_caged_movement_counts
     priority: 1800
     selector: {source_family: novo_caged_movements, value_name_regex: '^(movement_count|wage_count|contract_hours_count)$'}
-    model_default: true
-    model_default_reason: Include Novo CAGED movement and coverage counts.
+    model_default: false
+    model_default_reason: Superseded by novo_caged_feature combined admissions/dismissals/net/gross rows.
     semantic_type: labor_movement_or_coverage_count
     raw_unit: count
     stationarity: count
@@ -1127,8 +1217,8 @@ rules:
   - rule_id: novo_caged_wage_mean
     priority: 1810
     selector: {source_family: novo_caged_movements, value_name: wage_mean}
-    model_default: true
-    model_default_reason: Include Novo CAGED mean wage levels.
+    model_default: false
+    model_default_reason: Superseded by novo_caged_feature wage log and wage yoy rows.
     semantic_type: labor_wage_level_brl
     raw_unit: BRL
     stationarity: nonstationary_level
@@ -1136,8 +1226,62 @@ rules:
   - rule_id: novo_caged_contract_hours_mean
     priority: 1820
     selector: {source_family: novo_caged_movements, value_name: contract_hours_mean}
+    model_default: false
+    model_default_reason: Superseded by novo_caged_feature contract-hours rows.
+    semantic_type: labor_contract_hours
+    raw_unit: hours
+    stationarity: bounded
+    preprocessing: {transform: identity, winsorization: hard_clip_then_train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: 0, hard_max: 80, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Contract hours are bounded to 0 to 80 before robust scaling.}
+  - rule_id: novo_caged_feature_counts
+    priority: 1830
+    selector: {source_family: novo_caged_feature, value_name_regex: '^(admissions_count|dismissals_count|gross_jobs)$'}
     model_default: true
-    model_default_reason: Include Novo CAGED mean contract hours.
+    model_default_reason: Include upgraded Novo CAGED admissions, dismissals, and gross jobs.
+    semantic_type: labor_count
+    raw_unit: count
+    stationarity: count
+    preprocessing: {transform: count_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Count-like labor rows use count/log1p preprocessing metadata.}
+  - rule_id: novo_caged_feature_net_jobs
+    priority: 1840
+    selector: {source_family: novo_caged_feature, value_name_regex: '^(net_jobs|net_jobs_yoy_change)$'}
+    model_default: true
+    model_default_reason: Include upgraded Novo CAGED signed net-jobs levels and yoy changes.
+    semantic_type: signed_labor_flow
+    raw_unit: jobs
+    stationarity: flow
+    preprocessing: {transform: signed_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Net jobs can be signed and use signed log1p metadata.}
+  - rule_id: novo_caged_feature_ratios_shares
+    priority: 1850
+    selector: {source_family: novo_caged_feature, value_name_regex: '^(admission_dismissal_ratio|net_jobs_to_gross_pct|state_positive_diffusion_share_pct|sector_positive_diffusion_share_pct)$'}
+    model_default: true
+    model_default_reason: Include upgraded Novo CAGED ratios and diffusion shares.
+    semantic_type: labor_ratio_or_share
+    raw_unit: ratio_or_percent
+    stationarity: bounded
+    preprocessing: {transform: identity, winsorization: hard_clip_then_train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: -100, hard_max: 100, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Ratios and shares are already scaled; broad clipping covers signed net-to-gross values and diffusion shares.}
+  - rule_id: novo_caged_feature_wage
+    priority: 1860
+    selector: {source_family: novo_caged_feature, value_name: wage_mean_log}
+    model_default: true
+    model_default_reason: Include upgraded Novo CAGED wage log rows.
+    semantic_type: labor_wage_feature
+    raw_unit: log_brl
+    stationarity: nonstationary_level
+    preprocessing: {transform: already_log, winsorization: train_quantile, winsor_lower: 0.005, winsor_upper: 0.995, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Wage level is emitted as a log; do not log twice.}
+  - rule_id: novo_caged_feature_wage_change
+    priority: 1865
+    selector: {source_family: novo_caged_feature, value_name: wage_mean_yoy_log_change}
+    model_default: true
+    model_default_reason: Include upgraded Novo CAGED wage yoy log-change rows.
+    semantic_type: labor_wage_change
+    raw_unit: log_return
+    stationarity: stationaryish
+    preprocessing: {transform: already_return, winsorization: train_quantile, winsor_lower: 0.005, winsor_upper: 0.995, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Wage yoy is emitted as a log return.}
+  - rule_id: novo_caged_feature_contract_hours
+    priority: 1870
+    selector: {source_family: novo_caged_feature, value_name: contract_hours_mean}
+    model_default: true
+    model_default_reason: Include upgraded Novo CAGED combined contract-hours mean.
     semantic_type: labor_contract_hours
     raw_unit: hours
     stationarity: bounded
@@ -1145,9 +1289,36 @@ rules:
   - rule_id: receita_tax_collection_amount
     priority: 1900
     selector: {source_family: receita_tax_collection, value_name: collection_amount_brl}
-    model_default: true
-    model_default_reason: Include Receita tax collection amount.
+    model_default: false
+    model_default_reason: Superseded by receita_feature signed-log, yoy, and category-share rows.
     semantic_type: tax_collection_amount_brl
     raw_unit: BRL
     stationarity: flow
     preprocessing: {transform: signed_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: "Tax collection amount can include corrections/refunds, so use signed log1p."}
+  - rule_id: receita_feature_signed_logs
+    priority: 1910
+    selector: {source_family: receita_feature, value_name_regex: '^(collection_signed_log|collection_3obs_sum_signed_log|collection_12obs_sum_signed_log)$'}
+    model_default: true
+    model_default_reason: Include upgraded Receita signed-log collection level and rolling-sum rows.
+    semantic_type: receita_signed_log_feature
+    raw_unit: signed_log_brl
+    stationarity: flow
+    preprocessing: {transform: already_log, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Receita builder emits signed-log values; do not log twice.}
+  - rule_id: receita_feature_yoy
+    priority: 1920
+    selector: {source_family: receita_feature, value_name_regex: '^(collection_yoy_pct|real_collection_yoy_pct)$'}
+    model_default: true
+    model_default_reason: Include upgraded Receita nominal and real yoy percent features.
+    semantic_type: receita_yoy_feature
+    raw_unit: percent
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Receita yoy rows are already percent changes.}
+  - rule_id: receita_feature_category_share
+    priority: 1930
+    selector: {source_family: receita_feature, value_name: category_share_pct}
+    model_default: true
+    model_default_reason: Include upgraded Receita category-share feature.
+    semantic_type: receita_category_share
+    raw_unit: percent
+    stationarity: bounded
+    preprocessing: {transform: identity, winsorization: hard_clip_then_train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: 0, hard_max: 100, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Category share is clipped to 0 to 100 before train-only robust scaling.}

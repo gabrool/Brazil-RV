@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from bralpha.derived.pit_metadata import PIT_METADATA_COLUMNS
+
 CVM_FUND_DAILY_OBSERVATION_COLUMNS = [
     "ref_date",
     "available_date",
@@ -132,11 +134,14 @@ CVM_DAILY_LONG_COLUMNS = [
     "source_version",
 ]
 
+CVM_FUND_FEATURE_DAILY_COLUMNS = [*CVM_DAILY_LONG_COLUMNS, *PIT_METADATA_COLUMNS]
+
 PANEL_PRIMARY_KEYS = {
     "fund_daily_observation": ["ref_date", "fund_id"],
     "fund_group_observation": ["ref_date", "group_type", "group_value"],
     "fund_flows_daily": ["ref_date", "group_type", "group_value", "observation_ref_date"],
     "fund_state_asof_daily": ["ref_date", "feature_id"],
+    "fund_feature_daily": ["ref_date", "source_family", "feature_id", "value_name"],
     "fund_registry_current_reference": ["fund_id"],
     "daily_long": [
         "ref_date",

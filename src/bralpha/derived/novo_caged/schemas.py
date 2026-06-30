@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from bralpha.derived.pit_metadata import PIT_METADATA_COLUMNS
+
 NOVO_CAGED_MOVEMENT_RECORD_OBSERVATION_COLUMNS = [
     "movement_record_id",
     "ref_date",
@@ -98,6 +100,8 @@ NOVO_CAGED_DAILY_LONG_COLUMNS = [
     "source_version",
 ]
 
+NOVO_CAGED_FEATURE_DAILY_COLUMNS = [*NOVO_CAGED_DAILY_LONG_COLUMNS, *PIT_METADATA_COLUMNS]
+
 PANEL_PRIMARY_KEYS = {
     "movement_record_observation": ["movement_record_id"],
     "release_calendar_reference": ["ref_date"],
@@ -108,5 +112,6 @@ PANEL_PRIMARY_KEYS = {
         "movement_sign",
     ],
     "state_asof_daily": ["ref_date", "source_family", "feature_id", "value_name"],
+    "feature_daily": ["ref_date", "source_family", "feature_id", "value_name"],
     "daily_long": ["ref_date", "source_family", "feature_id", "value_name"],
 }

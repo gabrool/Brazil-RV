@@ -7,6 +7,7 @@ from pathlib import Path
 import polars as pl
 
 from bralpha.derived.cvm.daily_long import build_cvm_daily_long
+from bralpha.derived.cvm.features import build_cvm_fund_feature_daily
 from bralpha.derived.cvm.fund_reports import (
     build_fund_daily_observation,
     build_fund_flows_daily,
@@ -21,17 +22,20 @@ from bralpha.derived.cvm.io import (
 )
 from bralpha.derived.cvm.registry import build_fund_registry_current_reference
 from bralpha.derived.cvm.schemas import PANEL_PRIMARY_KEYS
+from bralpha.derived.feature_utils import feature_warmup_start
 from bralpha.infra.config import (
     load_cvm_research_config,
     load_paths_config,
     resolve_project_paths,
 )
+from bralpha.modeling.config import load_model_dataset_config
 
 PANEL_ORDER = [
     "fund_daily_observation",
     "fund_group_observation",
     "fund_flows_daily",
     "fund_state_asof_daily",
+    "fund_feature_daily",
     "fund_registry_current_reference",
     "daily_long",
 ]
@@ -52,6 +56,8 @@ def run_cvm_research_spine(
     explicit = panels is not None
     paths = resolve_project_paths(repo_root, load_paths_config(repo_root))
     config = load_cvm_research_config(repo_root).cvm_research
+    model_config = load_model_dataset_config(repo_root)
+    warmup_start = feature_warmup_start(start, model_config.feature_warmup_business_days)
     built: dict[str, pl.DataFrame] = {}
     status: dict[str, str] = {}
 
@@ -66,6 +72,7 @@ def run_cvm_research_spine(
                 built,
                 start,
                 end,
+                warmup_start=warmup_start,
                 required=explicit,
             )
         except CVMResearchInputMissingError as exc:
@@ -100,6 +107,7 @@ def _build_panel(
     start: date,
     end: date,
     *,
+    warmup_start: date,
     required: bool,
 ) -> pl.DataFrame | None:
     fund_reports = config.fund_reports
@@ -152,6 +160,24 @@ def _build_panel(
             max_groups=fund_reports.max_groups,
         )
 
+    if panel == "fund_feature_daily":
+        groups = _group_observation_history(paths, config, end, required=required)
+        if groups is None:
+            return None
+        flows = build_fund_flows_daily(groups, start=warmup_start, end=end)
+        state = build_fund_state_asof_daily(
+            groups,
+            start=warmup_start,
+            end=end,
+            max_groups=fund_reports.max_groups,
+        )
+        return build_cvm_fund_feature_daily(
+            fund_flows_daily=flows,
+            fund_state_asof_daily=state,
+            start=start,
+            end=end,
+        )
+
     if panel == "fund_registry_current_reference":
         if not config.registry.include_current_reference:
             return None
@@ -168,13 +194,15 @@ def _build_panel(
     if panel == "daily_long":
         flows = _dependency(paths, built, "fund_flows_daily", start, end, required=False)
         state = _dependency(paths, built, "fund_state_asof_daily", start, end, required=False)
-        if flows is None and state is None:
+        features = _dependency(paths, built, "fund_feature_daily", start, end, required=False)
+        if flows is None and state is None and features is None:
             if required:
                 raise CVMResearchInputMissingError("Missing CVM flow/state panels for daily_long")
             return None
         return build_cvm_daily_long(
             fund_flows_daily=flows,
             fund_state_asof_daily=state,
+            fund_feature_daily=features,
             include_fund_flows=config.daily_long.include_fund_flows,
             include_fund_state=config.daily_long.include_fund_state,
         )

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from bralpha.derived.pit_metadata import PIT_METADATA_COLUMNS
+
 ONS_EAR_SUBSYSTEM_OBSERVATION_COLUMNS = [
     "ref_date",
     "available_date",
@@ -134,6 +136,8 @@ ONS_DAILY_LONG_COLUMNS = [
     "source_version",
 ]
 
+ONS_POWER_FEATURE_DAILY_COLUMNS = [*ONS_DAILY_LONG_COLUMNS, *PIT_METADATA_COLUMNS]
+
 PANEL_PRIMARY_KEYS = {
     "ear_subsystem_observation": ["ref_date", "subsystem_id"],
     "ena_subsystem_observation": ["ref_date", "subsystem_id", "ena_type"],
@@ -146,5 +150,6 @@ PANEL_PRIMARY_KEYS = {
         "target_subsystem_id",
     ],
     "state_asof_daily": ["ref_date", "source_family", "feature_id", "value_name"],
+    "power_feature_daily": ["ref_date", "source_family", "feature_id", "value_name"],
     "daily_long": ["ref_date", "source_family", "feature_id", "value_name"],
 }

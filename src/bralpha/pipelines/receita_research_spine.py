@@ -6,10 +6,12 @@ from pathlib import Path
 
 import polars as pl
 
+from bralpha.derived.feature_utils import feature_warmup_start
 from bralpha.derived.receita.daily_long import (
     build_receita_daily_long,
     build_receita_state_asof_daily,
 )
+from bralpha.derived.receita.features import build_receita_feature_daily
 from bralpha.derived.receita.io import (
     ReceitaResearchInputMissingError,
     read_gold_panel,
@@ -26,11 +28,13 @@ from bralpha.infra.config import (
     load_receita_research_config,
     resolve_project_paths,
 )
+from bralpha.modeling.config import load_model_dataset_config
 
 PANEL_ORDER = [
     "tax_collection_observation",
     "tax_collection_feature_observation",
     "state_asof_daily",
+    "feature_daily",
     "daily_long",
 ]
 
@@ -50,6 +54,8 @@ def run_receita_research_spine(
     explicit = panels is not None
     paths = resolve_project_paths(repo_root, load_paths_config(repo_root))
     config = load_receita_research_config(repo_root).receita_research
+    model_config = load_model_dataset_config(repo_root)
+    warmup_start = feature_warmup_start(start, model_config.feature_warmup_business_days)
     built: dict[str, pl.DataFrame] = {}
     status: dict[str, str] = {}
 
@@ -64,6 +70,7 @@ def run_receita_research_spine(
                 built,
                 start,
                 end,
+                warmup_start=warmup_start,
                 required=explicit,
             )
         except ReceitaResearchInputMissingError as exc:
@@ -97,6 +104,7 @@ def _build_panel(
     start: date,
     end: date,
     *,
+    warmup_start: date,
     required: bool,
 ) -> pl.DataFrame | None:
     if panel == "tax_collection_observation":
@@ -149,12 +157,20 @@ def _build_panel(
             max_features=config.asof.max_features,
         )
 
+    if panel == "feature_daily":
+        state = _state_asof_history(paths, config, warmup_start, end, required=required)
+        if state is None:
+            return None
+        return build_receita_feature_daily(state, start=start, end=end)
+
     if panel == "daily_long":
         state = _dependency(paths, built, "state_asof_daily", start, end, required=required)
-        if state is None:
+        features = _dependency(paths, built, "feature_daily", start, end, required=False)
+        if state is None and features is None:
             return None
         return build_receita_daily_long(
             state_asof_daily=state,
+            feature_daily=features,
             include_tax_collection=config.daily_long.include_tax_collection,
         )
 
@@ -202,6 +218,31 @@ def _tax_collection_feature_history(paths, config, end: date) -> pl.DataFrame | 
             end=end,
         )
     return read_gold_panel(paths, "tax_collection_feature_observation", start=None, end=end)
+
+
+def _state_asof_history(
+    paths,
+    config,
+    start: date,
+    end: date,
+    *,
+    required: bool,
+) -> pl.DataFrame | None:
+    if not config.asof.include_state_asof_daily:
+        return None
+    feature_history = _tax_collection_feature_history(paths, config, end)
+    if feature_history is None:
+        if required:
+            raise ReceitaResearchInputMissingError(
+                "Missing Receita feature observations for feature_daily"
+            )
+        return None
+    return build_receita_state_asof_daily(
+        feature_observations=feature_history,
+        start=start,
+        end=end,
+        max_features=config.asof.max_features,
+    )
 
 
 def _dependency(

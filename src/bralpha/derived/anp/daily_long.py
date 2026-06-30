@@ -121,25 +121,42 @@ def build_anp_state_asof_daily(
 def build_anp_daily_long(
     *,
     state_asof_daily: pl.DataFrame | None = None,
+    fuel_feature_daily: pl.DataFrame | None = None,
     include_fuel_prices: bool,
     include_fuel_sales: bool,
     include_oil_gas: bool,
 ) -> pl.DataFrame:
+    parts: list[pl.DataFrame] = []
+    if fuel_feature_daily is not None and not fuel_feature_daily.is_empty():
+        parts.append(fuel_feature_daily.select(ANP_DAILY_LONG_COLUMNS))
+
     if state_asof_daily is None or state_asof_daily.is_empty():
-        return _empty_daily_long()
+        if not parts:
+            return _empty_daily_long()
+        frame = _concat(parts)
+        return _validated_daily_long(frame)
 
     families = _included_families(
         include_fuel_prices=include_fuel_prices,
         include_fuel_sales=include_fuel_sales,
         include_oil_gas=include_oil_gas,
     )
-    if not families:
+    if families:
+        parts.append(
+            state_asof_daily.filter(pl.col("source_family").is_in(families)).select(
+                ANP_DAILY_LONG_COLUMNS
+            )
+        )
+
+    if not parts:
         return _empty_daily_long()
 
+    return _validated_daily_long(_concat(parts))
+
+
+def _validated_daily_long(frame: pl.DataFrame) -> pl.DataFrame:
     frame = (
-        state_asof_daily.filter(pl.col("source_family").is_in(families))
-        .filter(pl.col("value").is_not_null())
-        .select(ANP_DAILY_LONG_COLUMNS)
+        frame.filter(pl.col("value").is_not_null())
         .unique(subset=PANEL_PRIMARY_KEYS["daily_long"], keep="last", maintain_order=True)
     )
     validate_asof_panel(

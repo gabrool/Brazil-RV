@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from bralpha.derived.pit_metadata import PIT_METADATA_COLUMNS
+
 RECEITA_TAX_COLLECTION_OBSERVATION_COLUMNS = [
     "ref_date",
     "available_date",
@@ -70,6 +72,8 @@ RECEITA_DAILY_LONG_COLUMNS = [
     "source_version",
 ]
 
+RECEITA_FEATURE_DAILY_COLUMNS = [*RECEITA_DAILY_LONG_COLUMNS, *PIT_METADATA_COLUMNS]
+
 PANEL_PRIMARY_KEYS = {
     "tax_collection_observation": [
         "ref_date",
@@ -81,5 +85,6 @@ PANEL_PRIMARY_KEYS = {
     ],
     "tax_collection_feature_observation": ["ref_date", "feature_id"],
     "state_asof_daily": ["ref_date", "source_family", "feature_id", "value_name"],
+    "feature_daily": ["ref_date", "source_family", "feature_id", "value_name"],
     "daily_long": ["ref_date", "source_family", "feature_id", "value_name"],
 }

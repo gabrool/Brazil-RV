@@ -7,6 +7,7 @@ from pathlib import Path
 import polars as pl
 
 from bralpha.derived.anp.daily_long import build_anp_daily_long, build_anp_state_asof_daily
+from bralpha.derived.anp.features import build_anp_fuel_feature_daily
 from bralpha.derived.anp.fuel_prices import (
     build_fuel_price_group_observation,
     build_fuel_price_station_observation,
@@ -26,11 +27,13 @@ from bralpha.derived.anp.oil_gas import (
     build_oil_gas_production_observation,
 )
 from bralpha.derived.anp.schemas import PANEL_PRIMARY_KEYS
+from bralpha.derived.feature_utils import feature_warmup_start
 from bralpha.infra.config import (
     load_anp_research_config,
     load_paths_config,
     resolve_project_paths,
 )
+from bralpha.modeling.config import load_model_dataset_config
 
 PANEL_ORDER = [
     "fuel_price_station_observation",
@@ -40,6 +43,7 @@ PANEL_ORDER = [
     "oil_gas_production_observation",
     "oil_gas_group_observation",
     "state_asof_daily",
+    "fuel_feature_daily",
     "daily_long",
 ]
 
@@ -59,6 +63,8 @@ def run_anp_research_spine(
     explicit = panels is not None
     paths = resolve_project_paths(repo_root, load_paths_config(repo_root))
     config = load_anp_research_config(repo_root).anp_research
+    model_config = load_model_dataset_config(repo_root)
+    warmup_start = feature_warmup_start(start, model_config.feature_warmup_business_days)
     built: dict[str, pl.DataFrame] = {}
     status: dict[str, str] = {}
 
@@ -73,6 +79,7 @@ def run_anp_research_spine(
                 built,
                 start,
                 end,
+                warmup_start=warmup_start,
                 required=explicit,
             )
         except ANPResearchInputMissingError as exc:
@@ -106,6 +113,7 @@ def _build_panel(
     start: date,
     end: date,
     *,
+    warmup_start: date,
     required: bool,
 ) -> pl.DataFrame | None:
     if panel == "fuel_price_station_observation":
@@ -215,12 +223,20 @@ def _build_panel(
             max_features=config.asof.max_features,
         )
 
+    if panel == "fuel_feature_daily":
+        state = _state_asof_history(paths, config, warmup_start, end, required=required)
+        if state is None:
+            return None
+        return build_anp_fuel_feature_daily(state, start=start, end=end)
+
     if panel == "daily_long":
         state = _dependency(paths, built, "state_asof_daily", start, end, required=required)
-        if state is None:
+        features = _dependency(paths, built, "fuel_feature_daily", start, end, required=False)
+        if state is None and features is None:
             return None
         return build_anp_daily_long(
             state_asof_daily=state,
+            fuel_feature_daily=features,
             include_fuel_prices=config.daily_long.include_fuel_prices,
             include_fuel_sales=config.daily_long.include_fuel_sales,
             include_oil_gas=config.daily_long.include_oil_gas,
@@ -344,6 +360,33 @@ def _oil_gas_group_history(paths, config, end: date) -> pl.DataFrame | None:
             end=end,
         )
     return read_gold_panel(paths, "oil_gas_group_observation", start=None, end=end)
+
+
+def _state_asof_history(
+    paths,
+    config,
+    start: date,
+    end: date,
+    *,
+    required: bool,
+) -> pl.DataFrame | None:
+    if not config.asof.include_state_asof_daily:
+        return None
+    fuel_prices = _fuel_price_group_history(paths, config, end)
+    fuel_sales = _fuel_sales_group_history(paths, config, end)
+    oil_gas = _oil_gas_group_history(paths, config, end)
+    if fuel_prices is None and fuel_sales is None and oil_gas is None:
+        if required:
+            raise ANPResearchInputMissingError("Missing ANP group observations for features")
+        return None
+    return build_anp_state_asof_daily(
+        fuel_prices=fuel_prices,
+        fuel_sales=fuel_sales,
+        oil_gas=oil_gas,
+        start=start,
+        end=end,
+        max_features=config.asof.max_features,
+    )
 
 
 def _dependency(

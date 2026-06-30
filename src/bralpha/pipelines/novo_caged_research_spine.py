@@ -6,10 +6,12 @@ from pathlib import Path
 
 import polars as pl
 
+from bralpha.derived.feature_utils import feature_warmup_start
 from bralpha.derived.novo_caged.daily_long import (
     build_novo_caged_daily_long,
     build_novo_caged_state_asof_daily,
 )
+from bralpha.derived.novo_caged.features import build_novo_caged_feature_daily
 from bralpha.derived.novo_caged.io import (
     NovoCagedResearchInputMissingError,
     read_gold_panel,
@@ -27,12 +29,14 @@ from bralpha.infra.config import (
     load_paths_config,
     resolve_project_paths,
 )
+from bralpha.modeling.config import load_model_dataset_config
 
 PANEL_ORDER = [
     "movement_record_observation",
     "release_calendar_reference",
     "movement_group_observation",
     "state_asof_daily",
+    "feature_daily",
     "daily_long",
 ]
 
@@ -52,6 +56,8 @@ def run_novo_caged_research_spine(
     explicit = panels is not None
     paths = resolve_project_paths(repo_root, load_paths_config(repo_root))
     config = load_novo_caged_research_config(repo_root).novo_caged_research
+    model_config = load_model_dataset_config(repo_root)
+    warmup_start = feature_warmup_start(start, model_config.feature_warmup_business_days)
     built: dict[str, pl.DataFrame] = {}
     status: dict[str, str] = {}
 
@@ -66,6 +72,7 @@ def run_novo_caged_research_spine(
                 built,
                 start,
                 end,
+                warmup_start=warmup_start,
                 required=explicit,
             )
         except NovoCagedResearchInputMissingError as exc:
@@ -99,6 +106,7 @@ def _build_panel(
     start: date,
     end: date,
     *,
+    warmup_start: date,
     required: bool,
 ) -> pl.DataFrame | None:
     if panel == "movement_record_observation":
@@ -172,11 +180,18 @@ def _build_panel(
             max_features=config.asof.max_features,
         )
 
-    if panel == "daily_long":
-        state = _dependency(paths, built, "state_asof_daily", start, end, required=required)
+    if panel == "feature_daily":
+        state = _state_asof_history(paths, config, warmup_start, end, required=required)
         if state is None:
             return None
-        return build_novo_caged_daily_long(state_asof_daily=state)
+        return build_novo_caged_feature_daily(state, start=start, end=end)
+
+    if panel == "daily_long":
+        state = _dependency(paths, built, "state_asof_daily", start, end, required=required)
+        features = _dependency(paths, built, "feature_daily", start, end, required=False)
+        if state is None and features is None:
+            return None
+        return build_novo_caged_daily_long(state_asof_daily=state, feature_daily=features)
 
     raise ValueError(f"Unknown panel: {panel}")
 
@@ -264,6 +279,33 @@ def _release_reference_history(paths, end: date) -> pl.DataFrame | None:
     if silver is not None:
         return build_release_calendar_reference(silver, start=None, end=end)
     return read_gold_panel(paths, "release_calendar_reference", start=None, end=end)
+
+
+def _state_asof_history(
+    paths,
+    config,
+    start: date,
+    end: date,
+    *,
+    required: bool,
+) -> pl.DataFrame | None:
+    if not config.asof.include_state_asof_daily:
+        return None
+    movement_groups = _movement_group_history(paths, config, end)
+    if movement_groups is None:
+        if required:
+            raise NovoCagedResearchInputMissingError(
+                "Missing Novo CAGED movement groups for feature_daily"
+            )
+        return None
+    return build_novo_caged_state_asof_daily(
+        movement_groups=movement_groups,
+        start=start,
+        end=end,
+        include_movement_counts=config.daily_long.include_movement_counts,
+        include_wage_hours=config.daily_long.include_wage_hours,
+        max_features=config.asof.max_features,
+    )
 
 
 def _dependency(

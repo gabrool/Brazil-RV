@@ -79,6 +79,7 @@ def test_ons_pipeline_full_run_skips_missing_inputs(repo_root, tmp_path):
         "energy_balance_daily_observation",
         "interchange_daily_observation",
         "state_asof_daily",
+        "power_feature_daily",
         "daily_long",
     }
     assert all(value.startswith("skipped:") for value in status.values())

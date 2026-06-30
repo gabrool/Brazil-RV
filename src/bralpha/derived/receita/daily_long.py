@@ -82,15 +82,28 @@ def build_receita_state_asof_daily(
 def build_receita_daily_long(
     *,
     state_asof_daily: pl.DataFrame | None = None,
+    feature_daily: pl.DataFrame | None = None,
     include_tax_collection: bool,
 ) -> pl.DataFrame:
-    if not include_tax_collection or state_asof_daily is None or state_asof_daily.is_empty():
+    parts: list[pl.DataFrame] = []
+    if feature_daily is not None and not feature_daily.is_empty():
+        parts.append(feature_daily.select(RECEITA_DAILY_LONG_COLUMNS))
+    if (
+        include_tax_collection
+        and state_asof_daily is not None
+        and not state_asof_daily.is_empty()
+    ):
+        parts.append(
+            state_asof_daily.filter(pl.col("source_family") == "receita_tax_collection").select(
+                RECEITA_DAILY_LONG_COLUMNS
+            )
+        )
+    if not parts:
         return _empty_daily_long()
 
     frame = (
-        state_asof_daily.filter(pl.col("source_family") == "receita_tax_collection")
+        pl.concat(parts, how="diagonal_relaxed")
         .filter(pl.col("value").is_not_null())
-        .select(RECEITA_DAILY_LONG_COLUMNS)
         .unique(subset=PANEL_PRIMARY_KEYS["daily_long"], keep="last", maintain_order=True)
     )
     validate_asof_panel(
