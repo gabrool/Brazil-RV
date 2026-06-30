@@ -1,0 +1,757 @@
+rules:
+  - rule_id: b3_continuous_futures_settlement
+    priority: 10
+    selector: {panel: continuous_futures_daily, value_name: settlement}
+    model_default: true
+    model_default_reason: Include continuous futures settlement levels in the first model.
+    semantic_type: futures_quote_level
+    raw_unit: quote
+    stationarity: nonstationary_level
+    preprocessing: {transform: signed_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Generic safe transform across positive price-like and non-price futures quotes; later source-specific futures transforms may replace this.}
+  - rule_id: b3_continuous_futures_quote_diff
+    priority: 20
+    selector: {panel: continuous_futures_daily, value_name_regex: '^(quote_diff_1d|same_contract_quote_diff_1d)$'}
+    model_default: true
+    model_default_reason: Include one-day continuous futures quote changes in the first model.
+    semantic_type: quote_change
+    raw_unit: quote_change
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Return-style quote changes are already differenced and only require train-only robust treatment.}
+  - rule_id: b3_continuous_futures_quote_return
+    priority: 30
+    selector: {panel: continuous_futures_daily, value_name_regex: '^(quote_pct_change_1d|same_contract_quote_pct_change_1d)$'}
+    model_default: true
+    model_default_reason: Include one-day continuous futures percentage returns in the first model.
+    semantic_type: return
+    raw_unit: return_fraction
+    stationarity: stationaryish
+    preprocessing: {transform: already_return, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Percentage-change features are already return-like.}
+  - rule_id: b3_continuous_futures_liquidity
+    priority: 40
+    selector: {panel: continuous_futures_daily, value_name_regex: '^(volume|open_interest)$'}
+    model_default: true
+    model_default_reason: Include continuous futures liquidity and open-interest signals.
+    semantic_type: liquidity_count_or_notional
+    raw_unit: count_or_notional
+    stationarity: count
+    preprocessing: {transform: count_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Liquidity/count-like values use train-only log1p and robust scaling.}
+  - rule_id: b3_continuous_futures_maturity_distance
+    priority: 50
+    selector: {panel: continuous_futures_daily, value_name_regex: '^(business_days_to_maturity|days_to_maturity_calendar)$'}
+    model_default: true
+    model_default_reason: Include contract maturity-distance controls.
+    semantic_type: contract_maturity_distance
+    raw_unit: days
+    stationarity: bounded
+    preprocessing: {transform: identity, winsorization: hard_clip_then_train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: 0, hard_max: 3000, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Maturity distance is bounded and clipped before train-only robust scaling.}
+  - rule_id: b3_continuous_futures_flags
+    priority: 60
+    selector: {panel: continuous_futures_daily, value_name_regex: '^(is_roll_date|is_tradeable)$'}
+    model_default: true
+    model_default_reason: Include tradeability and roll flags as binary controls.
+    semantic_type: contract_flag
+    raw_unit: boolean
+    stationarity: binary
+    preprocessing: {transform: binary, winsorization: none, winsor_lower: null, winsor_upper: null, hard_min: null, hard_max: null, scaler: none, fit_scope: train_only, missing_policy: false_fill, positive_required: false, allow_negative: false, notes: Binary flags use false-fill and no fitted statistics.}
+  - rule_id: b3_di_grid_implied_annual_rate_bp
+    priority: 100
+    selector: {panel: di_curve_grid_daily, value_name: implied_annual_rate_bp}
+    model_default: true
+    model_default_reason: Canonical DI curve rate level in basis points.
+    semantic_type: brl_di_rate_level_bp
+    raw_unit: basis_points
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_mad, winsor_lower: -10, winsor_upper: 10, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: DI rate levels are already basis points; train MAD bounds are MAD multiples.}
+  - rule_id: b3_di_grid_log_discount_factor
+    priority: 110
+    selector: {panel: di_curve_grid_daily, value_name: log_discount_factor}
+    model_default: true
+    model_default_reason: Canonical DI curve log discount-factor level.
+    semantic_type: brl_di_log_discount_factor
+    raw_unit: log_discount_factor
+    stationarity: stationaryish
+    preprocessing: {transform: already_log, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Log discount factors are already logged and can be negative.}
+  - rule_id: b3_di_grid_tenor_business_days
+    priority: 120
+    selector: {panel: di_curve_grid_daily, value_name: tenor_business_days}
+    model_default: true
+    model_default_reason: Include curve tenor as a bounded curve-coordinate feature.
+    semantic_type: curve_tenor
+    raw_unit: business_days
+    stationarity: bounded
+    preprocessing: {transform: identity, winsorization: hard_clip_then_train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: 0, hard_max: 3000, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Curve tenors are clipped to non-negative business-day distances.}
+  - rule_id: b3_di_grid_flags
+    priority: 130
+    selector: {panel: di_curve_grid_daily, value_name_regex: '^(is_interpolated|is_extrapolated|has_curve_value)$'}
+    model_default: true
+    model_default_reason: Include DI curve construction flags as diagnostics.
+    semantic_type: curve_construction_flag
+    raw_unit: boolean
+    stationarity: binary
+    preprocessing: {transform: binary, winsorization: none, winsor_lower: null, winsor_upper: null, hard_min: null, hard_max: null, scaler: none, fit_scope: train_only, missing_policy: false_fill, positive_required: false, allow_negative: false, notes: Binary interpolation/extrapolation/value flags use false-fill and no fitted statistics.}
+  - rule_id: b3_di_grid_redundant_levels
+    priority: 140
+    selector: {panel: di_curve_grid_daily, value_name_regex: '^(curve_value|implied_annual_rate|discount_factor)$'}
+    model_default: false
+    model_default_reason: Duplicated by implied_annual_rate_bp and log_discount_factor; avoid double-counting the same curve state.
+    semantic_type: redundant_di_curve_level
+    raw_unit: curve_level
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Compatibility level columns remain emitted but are not first-model defaults.}
+  - rule_id: b3_di_contract_raw_settlement_pu
+    priority: 200
+    selector: {panel: di_curve_contract_daily, value_name: raw_settlement_pu}
+    model_default: false
+    model_default_reason: Raw PU is economically transformed into rate and discount-factor fields.
+    semantic_type: raw_di_pu
+    raw_unit: pu
+    stationarity: nonstationary_level
+    preprocessing: {transform: log_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: true, allow_negative: false, notes: Raw PU preprocessing is defined for audit or future opt-in use only.}
+  - rule_id: b3_di_contract_implied_annual_rate_bp
+    priority: 210
+    selector: {panel: di_curve_contract_daily, value_name: implied_annual_rate_bp}
+    model_default: true
+    model_default_reason: Canonical DI contract rate level in basis points.
+    semantic_type: brl_di_rate_level_bp
+    raw_unit: basis_points
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_mad, winsor_lower: -10, winsor_upper: 10, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: DI rate levels are already basis points; train MAD bounds are MAD multiples.}
+  - rule_id: b3_di_contract_log_discount_factor
+    priority: 220
+    selector: {panel: di_curve_contract_daily, value_name: log_discount_factor}
+    model_default: true
+    model_default_reason: Canonical DI contract log discount-factor level.
+    semantic_type: brl_di_log_discount_factor
+    raw_unit: log_discount_factor
+    stationarity: stationaryish
+    preprocessing: {transform: already_log, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Log discount factors are already logged and can be negative.}
+  - rule_id: b3_di_contract_maturity_distance
+    priority: 230
+    selector: {panel: di_curve_contract_daily, value_name: business_days_to_maturity}
+    model_default: true
+    model_default_reason: Include contract business-day maturity distance.
+    semantic_type: contract_maturity_distance
+    raw_unit: business_days
+    stationarity: bounded
+    preprocessing: {transform: identity, winsorization: hard_clip_then_train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: 0, hard_max: 3000, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Maturity distance is bounded and clipped before train-only robust scaling.}
+  - rule_id: b3_di_contract_liquidity
+    priority: 240
+    selector: {panel: di_curve_contract_daily, value_name_regex: '^(volume|open_interest)$'}
+    model_default: true
+    model_default_reason: Include DI contract liquidity and open-interest signals.
+    semantic_type: liquidity_count_or_notional
+    raw_unit: count_or_notional
+    stationarity: count
+    preprocessing: {transform: count_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Liquidity/count-like values use train-only log1p and robust scaling.}
+  - rule_id: b3_di_contract_flags
+    priority: 250
+    selector: {panel: di_curve_contract_daily, value_name: is_observed}
+    model_default: true
+    model_default_reason: Include observed-contract flag as a diagnostic model feature.
+    semantic_type: curve_observation_flag
+    raw_unit: boolean
+    stationarity: binary
+    preprocessing: {transform: binary, winsorization: none, winsor_lower: null, winsor_upper: null, hard_min: null, hard_max: null, scaler: none, fit_scope: train_only, missing_policy: false_fill, positive_required: false, allow_negative: false, notes: Binary observed flag uses false-fill and no fitted statistics.}
+  - rule_id: b3_di_contract_rate_changes
+    priority: 260
+    selector: {panel: di_curve_contract_daily, value_name_regex: '^(curve_value_diff_1d|implied_annual_rate_bp_change_1d)$'}
+    model_default: true
+    model_default_reason: Include one-day DI rate changes after robust treatment.
+    semantic_type: brl_di_rate_change
+    raw_unit: basis_points_or_rate_change
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: DI rate changes are stationaryish change features.}
+  - rule_id: b3_di_contract_log_discount_factor_change
+    priority: 270
+    selector: {panel: di_curve_contract_daily, value_name: log_discount_factor_change_1d}
+    model_default: true
+    model_default_reason: Include one-day log discount-factor changes.
+    semantic_type: brl_di_log_discount_factor_change
+    raw_unit: log_change
+    stationarity: stationaryish
+    preprocessing: {transform: already_return, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Log discount-factor changes are already return-like.}
+  - rule_id: b3_di_contract_redundant_levels
+    priority: 280
+    selector: {panel: di_curve_contract_daily, value_name_regex: '^(curve_value|implied_annual_rate|discount_factor)$'}
+    model_default: false
+    model_default_reason: Duplicated by implied_annual_rate_bp and log_discount_factor; avoid double-counting the same curve state.
+    semantic_type: redundant_di_curve_level
+    raw_unit: curve_level
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Compatibility level columns remain emitted but are not first-model defaults.}
+  - rule_id: b3_di_contract_redundant_curve_pct_change
+    priority: 290
+    selector: {panel: di_curve_contract_daily, value_name: curve_value_pct_change_1d}
+    model_default: false
+    model_default_reason: Percent change of the redundant curve_value compatibility field is not a first-model default.
+    semantic_type: redundant_di_curve_change
+    raw_unit: return_fraction
+    stationarity: stationaryish
+    preprocessing: {transform: already_return, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Defined for audit or future opt-in use only; canonical changes are bp and log-DF changes.}
+  - rule_id: b3_index_daily_prices
+    priority: 300
+    selector: {panel: index_daily, value_name_regex: '^(close|open|high|low)$'}
+    model_default: true
+    model_default_reason: Include B3 index level features in the first model.
+    semantic_type: adjusted_or_index_level
+    raw_unit: index_points
+    stationarity: nonstationary_level
+    preprocessing: {transform: log_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: true, allow_negative: false, notes: Index levels must be positive and are logged before train-only robust scaling.}
+  - rule_id: b3_index_daily_liquidity
+    priority: 310
+    selector: {panel: index_daily, value_name_regex: '^(volume|financial_volume|number_of_trades)$'}
+    model_default: true
+    model_default_reason: Include B3 index liquidity features in the first model.
+    semantic_type: liquidity_count_or_notional
+    raw_unit: count_or_notional
+    stationarity: count
+    preprocessing: {transform: count_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Liquidity/count-like values use train-only log1p and robust scaling.}
+  - rule_id: b3_listed_market_price_levels
+    priority: 400
+    selector: {panel: listed_market_daily, value_name_regex: '^(open|high|low|close|average|best_bid|best_ask)$'}
+    model_default: false
+    model_default_reason: B3 COTAHIST individual-security quotes are not corporate-action adjusted; raw price levels should not enter the first model.
+    semantic_type: unadjusted_equity_quote_level
+    raw_unit: price
+    stationarity: nonstationary_level
+    preprocessing: {transform: log_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: true, allow_negative: false, notes: Preprocessing is defined only for future explicit opt-in after corporate-action handling.}
+  - rule_id: b3_listed_market_liquidity
+    priority: 410
+    selector: {panel: listed_market_daily, value_name_regex: '^(volume|financial_volume|number_of_trades)$'}
+    model_default: false
+    model_default_reason: Individual-security universe and liquidity features need security-master and corporate-action cleanup before model default.
+    semantic_type: unadjusted_security_liquidity
+    raw_unit: count_or_notional
+    stationarity: count
+    preprocessing: {transform: count_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Preprocessing is defined only for future explicit opt-in after security-master cleanup.}
+  - rule_id: b3_index_composition_weight
+    priority: 500
+    selector: {panel: index_composition_daily, value_name: weight}
+    model_default: true
+    model_default_reason: Include index composition weights in the first model.
+    semantic_type: index_weight_percent_or_fraction
+    raw_unit: percent_or_fraction
+    stationarity: bounded
+    preprocessing: {transform: identity, winsorization: hard_clip_then_train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: 0, hard_max: 100, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Current weights are treated as percent-like and clipped to 0 to 100 until a fraction unit is proven.}
+  - rule_id: b3_index_composition_theoretical_quantity
+    priority: 510
+    selector: {panel: index_composition_daily, value_name: theoretical_quantity}
+    model_default: false
+    model_default_reason: Large nonstationary security-specific quantity; use weights for the first model.
+    semantic_type: index_security_quantity
+    raw_unit: shares
+    stationarity: nonstationary_level
+    preprocessing: {transform: log1p_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Preprocessing is defined only for future explicit opt-in.}
+  - rule_id: bcb_raw_sgs_engineered_replacements
+    priority: 1000
+    selector: {source_family: sgs, feature_id_regex: '^sgs:(selic_over|selic_target|ipca|international_reserves_liquidity)$', value_name: value}
+    model_default: false
+    model_default_reason: Engineered bcb_sgs_feature rows are the canonical model inputs for these SGS series.
+    semantic_type: raw_sgs_reference_value
+    raw_unit: source_unit
+    stationarity: diagnostic
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Raw SGS rows are retained for audit/reference and not first-model defaults when engineered replacements exist.}
+  - rule_id: bcb_sgs_feature_selic_rate_levels
+    priority: 1010
+    selector: {source_family: bcb_sgs_feature, value_name_regex: '^(selic_over_level_pa|selic_target_level_pa)$'}
+    model_default: true
+    model_default_reason: Include engineered Selic annual rate levels.
+    semantic_type: policy_rate_level_percent_pa
+    raw_unit: percent_pa
+    stationarity: stationaryish
+    preprocessing: {transform: percent_to_bp, winsorization: train_mad, winsor_lower: -10, winsor_upper: 10, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Percent annual rates are converted to basis points with train MAD treatment.}
+  - rule_id: bcb_sgs_feature_selic_bp_changes
+    priority: 1020
+    selector: {source_family: bcb_sgs_feature, value_name_regex: '^(selic_over_minus_target_bp|selic_target_change_1bd_bp|selic_target_change_5bd_bp)$'}
+    model_default: true
+    model_default_reason: Include engineered Selic basis-point spreads and changes.
+    semantic_type: policy_rate_change_or_spread_bp
+    raw_unit: basis_points
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Basis-point features are already in model units.}
+  - rule_id: bcb_sgs_feature_policy_step_flag
+    priority: 1030
+    selector: {source_family: bcb_sgs_feature, value_name: selic_policy_step_flag}
+    model_default: true
+    model_default_reason: Include engineered Selic policy-step flag.
+    semantic_type: policy_step_flag
+    raw_unit: boolean
+    stationarity: binary
+    preprocessing: {transform: binary, winsorization: none, winsor_lower: null, winsor_upper: null, hard_min: null, hard_max: null, scaler: none, fit_scope: train_only, missing_policy: false_fill, positive_required: false, allow_negative: false, notes: Binary policy flags use false-fill and no fitted statistics.}
+  - rule_id: bcb_sgs_feature_inflation_percent
+    priority: 1040
+    selector: {source_family: bcb_sgs_feature, value_name_regex: '^(ipca_monthly_pct|ipca_3m_sum_pct|ipca_12m_sum_pct|ipca_3m_ann_pct)$'}
+    model_default: true
+    model_default_reason: Include engineered IPCA percent features.
+    semantic_type: inflation_percent_feature
+    raw_unit: percent
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Inflation percent features remain in percent units for this metadata layer.}
+  - rule_id: bcb_sgs_feature_staleness_days
+    priority: 1050
+    selector: {source_family: bcb_sgs_feature, value_name_regex: '.*staleness_days$'}
+    model_default: true
+    model_default_reason: Include engineered staleness as a capped diagnostic feature.
+    semantic_type: staleness_days
+    raw_unit: days
+    stationarity: diagnostic
+    preprocessing: {transform: clip_only, winsorization: none, winsor_lower: null, winsor_upper: null, hard_min: 0, hard_max: 756, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Staleness is clipped to 0 to 756 days and robust-scaled; it is not a count/log feature.}
+  - rule_id: bcb_sgs_feature_reserves_raw_level
+    priority: 1060
+    selector: {source_family: bcb_sgs_feature, value_name: reserves_usd_mn_level}
+    model_default: false
+    model_default_reason: reserves_log_level is the canonical level transform; avoid duplicate level exposure.
+    semantic_type: reserves_level_usd_mn
+    raw_unit: usd_mn
+    stationarity: nonstationary_level
+    preprocessing: {transform: log1p_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Raw reserve level is retained but not a first-model default.}
+  - rule_id: bcb_sgs_feature_reserves_log_level
+    priority: 1070
+    selector: {source_family: bcb_sgs_feature, value_name: reserves_log_level}
+    model_default: true
+    model_default_reason: Include canonical log reserves level.
+    semantic_type: reserves_log_level
+    raw_unit: log_usd_mn
+    stationarity: nonstationary_level
+    preprocessing: {transform: already_log, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Reserves log level is already logged.}
+  - rule_id: bcb_sgs_feature_reserves_log_changes
+    priority: 1080
+    selector: {source_family: bcb_sgs_feature, value_name_regex: '^(reserves_log_change_1bd|reserves_log_change_5bd)$'}
+    model_default: true
+    model_default_reason: Include engineered log reserves changes.
+    semantic_type: reserves_log_change
+    raw_unit: log_change
+    stationarity: stationaryish
+    preprocessing: {transform: already_return, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Log changes are already return-like.}
+  - rule_id: bcb_sgs_feature_reserves_percent_changes
+    priority: 1090
+    selector: {source_family: bcb_sgs_feature, value_name_regex: '^(reserves_pct_change_20bd|reserves_drawdown_from_252bd_high_pct)$'}
+    model_default: true
+    model_default_reason: Include engineered reserves percent change and drawdown features.
+    semantic_type: reserves_percent_change_or_drawdown
+    raw_unit: percent
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Percent return/drawdown features remain in percent units for this metadata layer.}
+  - rule_id: bcb_ptax_fx_rates
+    priority: 1100
+    selector: {source_family: ptax, value_name_regex: '^(bid_rate|ask_rate|bid_parity|ask_parity)$'}
+    model_default: true
+    model_default_reason: Include PTAX FX rate and parity levels.
+    semantic_type: fx_rate_or_parity_level
+    raw_unit: rate_or_parity
+    stationarity: nonstationary_level
+    preprocessing: {transform: log_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: true, allow_negative: false, notes: FX rate and parity levels must be positive and are logged.}
+  - rule_id: bcb_focus_mean_median
+    priority: 1110
+    selector: {source_family: focus, value_name_regex: '^(mean|median)$'}
+    model_default: true
+    model_default_reason: Include Focus mean and median expectations.
+    semantic_type: survey_expectation_level
+    raw_unit: source_unit
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Survey expectation levels are conservatively robust-scaled.}
+  - rule_id: bcb_focus_std_dev
+    priority: 1120
+    selector: {source_family: focus, value_name: std_dev}
+    model_default: true
+    model_default_reason: Include Focus respondent dispersion.
+    semantic_type: survey_expectation_dispersion
+    raw_unit: source_unit
+    stationarity: stationaryish
+    preprocessing: {transform: log1p_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Dispersion is non-negative and log1p transformed.}
+  - rule_id: bcb_focus_respondents
+    priority: 1130
+    selector: {source_family: focus, value_name: respondents}
+    model_default: true
+    model_default_reason: Include Focus respondent count.
+    semantic_type: survey_respondent_count
+    raw_unit: count
+    stationarity: count
+    preprocessing: {transform: count_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Respondent counts use the count/log1p rule.}
+  - rule_id: bcb_focus_min_max
+    priority: 1140
+    selector: {source_family: focus, value_name_regex: '^(min_value|max_value)$'}
+    model_default: false
+    model_default_reason: Raw Focus tails are respondent-noise heavy and often redundant with median, mean, dispersion, and respondents.
+    semantic_type: survey_expectation_tail
+    raw_unit: source_unit
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.005, winsor_upper: 0.995, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Tail statistics are retained but not first-model defaults.}
+  - rule_id: fred_rate_percent_levels
+    priority: 1200
+    selector: {source_family: fred, feature_id_regex: '^fred\|(dgs2|dgs5|dgs10|dgs30|dff|sofr|dfedtaru|dfedtarl|dfii5|dfii10|dfii30|t5yie|t10yie|baa10y|aaa10y|dbaa|daaa)$', value_name: value}
+    model_default: true
+    model_default_reason: Include FRED rate and spread percent levels.
+    semantic_type: usd_rate_or_spread_percent
+    raw_unit: percent
+    stationarity: stationaryish
+    preprocessing: {transform: percent_to_bp, winsorization: train_mad, winsor_lower: -10, winsor_upper: 10, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Percent rates and spreads are converted to basis points with train MAD treatment.}
+  - rule_id: fred_positive_index_fx_commodity_levels
+    priority: 1210
+    selector: {source_family: fred, feature_id_regex: '^fred\|(dtwexbgs|dtwexafegs|dtwexemegs|dexchus|sp500|nasdaqcom|pcoppusdm)$', value_name: value}
+    model_default: true
+    model_default_reason: Include FRED positive index, FX, and commodity levels.
+    semantic_type: global_positive_level
+    raw_unit: source_unit
+    stationarity: nonstationary_level
+    preprocessing: {transform: log_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: true, allow_negative: false, notes: Positive FRED levels are logged before train-only robust scaling.}
+  - rule_id: fred_vix_positive_volatility
+    priority: 1220
+    selector: {source_family: fred, feature_id_regex: '^fred\|vixcls$', value_name: value}
+    model_default: true
+    model_default_reason: Include VIX volatility index level.
+    semantic_type: volatility_index_level
+    raw_unit: index
+    stationarity: stationaryish
+    preprocessing: {transform: log1p_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Volatility index is positive and can use log1p for stability.}
+  - rule_id: fred_oil_signed_price_levels
+    priority: 1230
+    selector: {source_family: fred, feature_id_regex: '^fred\|(dcoilwtico|dcoilbrenteu)$', value_name: value}
+    model_default: true
+    model_default_reason: Include FRED oil price levels with signed-safe transform.
+    semantic_type: oil_price_level
+    raw_unit: usd_per_barrel
+    stationarity: nonstationary_level
+    preprocessing: {transform: signed_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: "WTI can be non-positive in stress periods, so use signed log1p."}
+  - rule_id: ibge_sidra_inflation_percent
+    priority: 1300
+    selector: {source_family: ibge_sidra, feature_id_regex: '^ibge_sidra:(ipca|ipca15|inpc):.*$', value_name: value}
+    model_default: true
+    model_default_reason: Include current raw SIDRA inflation values conservatively.
+    semantic_type: ibge_inflation_percent_or_weight
+    raw_unit: percent_or_weight
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Current raw SIDRA values are not yet surprise/yoy engineered; keep metadata conservative.}
+  - rule_id: ibge_sidra_gdp_volume_change
+    priority: 1310
+    selector: {source_family: ibge_sidra, feature_id_regex: '^ibge_sidra:gdp_volume_change:.*$', value_name: value}
+    model_default: true
+    model_default_reason: Include GDP volume change values.
+    semantic_type: ibge_percent_or_volume_change
+    raw_unit: percent_or_index_change
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: GDP change values are already change-like and robust-scaled.}
+  - rule_id: ibge_sidra_positive_index_levels
+    priority: 1320
+    selector: {source_family: ibge_sidra, feature_id_regex: '^ibge_sidra:(gdp_volume_index|pim_industrial_production|pmc_retail_index|pmc_broad_retail_index|pmc_retail_by_activity|pmc_broad_retail_by_activity|pms_services_index|pms_services_segments|pms_services_activities|sinapi_cost_m2):.*$', value_name: value}
+    model_default: true
+    model_default_reason: Include positive IBGE index and cost levels.
+    semantic_type: ibge_positive_index_or_cost_level
+    raw_unit: source_unit
+    stationarity: nonstationary_level
+    preprocessing: {transform: log_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: true, allow_negative: false, notes: Positive index/cost levels are logged before train-only robust scaling.}
+  - rule_id: ibge_sidra_gdp_current_values
+    priority: 1330
+    selector: {source_family: ibge_sidra, feature_id_regex: '^ibge_sidra:gdp_current_values:.*$', value_name: value}
+    model_default: true
+    model_default_reason: Include nominal GDP current-value levels with signed-safe transform.
+    semantic_type: ibge_nominal_current_value
+    raw_unit: brl_or_source_unit
+    stationarity: nonstationary_level
+    preprocessing: {transform: signed_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Nominal/current-value levels use signed log1p for safety.}
+  - rule_id: ibge_sidra_labor_rate_percent
+    priority: 1340
+    selector: {source_family: ibge_sidra, feature_id_regex: '^ibge_sidra:(pnad_unemployment_rate|pnad_participation_rate|pnad_underutilization_rate):.*$', value_name: value}
+    model_default: true
+    model_default_reason: Include bounded labor market percent/rate values.
+    semantic_type: ibge_labor_rate_percent
+    raw_unit: percent
+    stationarity: bounded
+    preprocessing: {transform: identity, winsorization: hard_clip_then_train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: 0, hard_max: 100, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Labor rate features are clipped to 0 to 100 before robust scaling.}
+  - rule_id: ibge_sidra_labor_positive_levels
+    priority: 1350
+    selector: {source_family: ibge_sidra, feature_id_regex: '^ibge_sidra:(pnad_occupation_level|pnad_underutilization_level|pnad_real_income|pnad_real_income_usual|pnad_real_income_mass|pnad_real_income_mass_usual):.*$', value_name: value}
+    model_default: true
+    model_default_reason: Include positive labor level, income, and mass values.
+    semantic_type: ibge_labor_positive_level
+    raw_unit: source_unit
+    stationarity: nonstationary_level
+    preprocessing: {transform: log1p_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Positive labor levels use log1p and train-only robust scaling.}
+  - rule_id: tesouro_direto_prices_rates_rates
+    priority: 1400
+    selector: {source_family: tesouro_direto_prices_rates, value_name_regex: '^(buy_rate|sell_rate)$'}
+    model_default: true
+    model_default_reason: Include Tesouro Direto buy and sell annual rate quotes.
+    semantic_type: tesouro_annual_rate_percent
+    raw_unit: percent
+    stationarity: stationaryish
+    preprocessing: {transform: percent_to_bp, winsorization: train_mad, winsor_lower: -10, winsor_upper: 10, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Annual percent rates are converted to basis points with train MAD treatment.}
+  - rule_id: tesouro_direto_prices_rates_prices
+    priority: 1410
+    selector: {source_family: tesouro_direto_prices_rates, value_name_regex: '^(buy_price|sell_price)$'}
+    model_default: true
+    model_default_reason: Include Tesouro Direto PU/price levels.
+    semantic_type: tesouro_price_level
+    raw_unit: brl_price
+    stationarity: nonstationary_level
+    preprocessing: {transform: log_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: true, allow_negative: false, notes: Tesouro price levels must be positive and are logged.}
+  - rule_id: tesouro_direto_flows_counts
+    priority: 1420
+    selector: {source_family: tesouro_direto_flows, value_name_regex: '^(quantity|investor_count)$'}
+    model_default: true
+    model_default_reason: Include Tesouro Direto flow quantity and investor counts.
+    semantic_type: tesouro_flow_count
+    raw_unit: count
+    stationarity: count
+    preprocessing: {transform: count_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Count features use the count/log1p rule.}
+  - rule_id: tesouro_direto_flows_value
+    priority: 1430
+    selector: {source_family: tesouro_direto_flows, value_name: value}
+    model_default: true
+    model_default_reason: Include Tesouro Direto BRL flow amount.
+    semantic_type: tesouro_flow_amount_brl
+    raw_unit: BRL
+    stationarity: flow
+    preprocessing: {transform: signed_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: BRL flow amount can be signed and uses signed log1p.}
+  - rule_id: tesouro_direto_stock_counts
+    priority: 1440
+    selector: {source_family: tesouro_direto_stock, value_name_regex: '^(quantity|investor_count)$'}
+    model_default: true
+    model_default_reason: Include Tesouro Direto stock quantity and investor counts.
+    semantic_type: tesouro_stock_count
+    raw_unit: count
+    stationarity: count
+    preprocessing: {transform: log1p_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Positive stock/count levels use log1p_positive.}
+  - rule_id: tesouro_direto_stock_value
+    priority: 1450
+    selector: {source_family: tesouro_direto_stock, value_name: stock_value}
+    model_default: true
+    model_default_reason: Include Tesouro Direto stock value with signed-safe transform.
+    semantic_type: tesouro_stock_value_brl
+    raw_unit: BRL
+    stationarity: nonstationary_level
+    preprocessing: {transform: signed_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Stock value uses signed log1p for safety.}
+  - rule_id: tesouro_dpf_stock_value
+    priority: 1460
+    selector: {source_family: tesouro_dpf_stock, value_name: stock_value}
+    model_default: true
+    model_default_reason: Include Tesouro DPF stock value with signed-safe transform.
+    semantic_type: tesouro_dpf_stock_value_brl
+    raw_unit: BRL
+    stationarity: nonstationary_level
+    preprocessing: {transform: signed_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: DPF stock value uses signed log1p for safety.}
+  - rule_id: anp_fuel_price_levels
+    priority: 1500
+    selector: {source_family: anp_fuel_price, value_name_regex: '^(sale_price|purchase_price)$'}
+    model_default: true
+    model_default_reason: Include ANP fuel sale and purchase price levels.
+    semantic_type: fuel_price_level
+    raw_unit: BRL_per_unit
+    stationarity: nonstationary_level
+    preprocessing: {transform: log_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: true, allow_negative: false, notes: Fuel price levels must be positive and are logged.}
+  - rule_id: anp_fuel_price_counts
+    priority: 1510
+    selector: {source_family: anp_fuel_price, value_name_regex: '^(station_count|sale_price_count|purchase_price_count)$'}
+    model_default: true
+    model_default_reason: Include ANP fuel price coverage counts.
+    semantic_type: fuel_price_coverage_count
+    raw_unit: count
+    stationarity: count
+    preprocessing: {transform: count_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Coverage counts use the count/log1p rule.}
+  - rule_id: anp_fuel_sales_volume
+    priority: 1520
+    selector: {source_family: anp_fuel_sales, value_name: sales_volume_m3}
+    model_default: true
+    model_default_reason: Include ANP fuel sales physical volume.
+    semantic_type: fuel_sales_volume_m3
+    raw_unit: m3
+    stationarity: flow
+    preprocessing: {transform: log1p_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Physical sales volume is non-negative and uses log1p.}
+  - rule_id: anp_fuel_sales_counts
+    priority: 1530
+    selector: {source_family: anp_fuel_sales, value_name_regex: '^(sales_volume_count|state_count)$'}
+    model_default: true
+    model_default_reason: Include ANP fuel sales coverage counts.
+    semantic_type: fuel_sales_coverage_count
+    raw_unit: count
+    stationarity: count
+    preprocessing: {transform: count_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Coverage counts use the count/log1p rule.}
+  - rule_id: anp_oil_gas_metric_value
+    priority: 1540
+    selector: {source_family: anp_oil_gas, value_name: metric_value}
+    model_default: true
+    model_default_reason: Include ANP oil and gas production metric values.
+    semantic_type: oil_gas_production_level
+    raw_unit: source_unit
+    stationarity: nonstationary_level
+    preprocessing: {transform: log1p_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Production levels are non-negative and use log1p.}
+  - rule_id: anp_oil_gas_counts
+    priority: 1550
+    selector: {source_family: anp_oil_gas, value_name_regex: '^(metric_value_count|state_count)$'}
+    model_default: true
+    model_default_reason: Include ANP oil and gas coverage counts.
+    semantic_type: oil_gas_coverage_count
+    raw_unit: count
+    stationarity: count
+    preprocessing: {transform: count_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Coverage counts use the count/log1p rule.}
+  - rule_id: ons_ear_stored_energy_levels
+    priority: 1600
+    selector: {source_family: ons_ear_subsystem, value_name_regex: '^(stored_energy_mwmes|stored_energy_max_mwmes)$'}
+    model_default: true
+    model_default_reason: Include ONS EAR stored energy levels.
+    semantic_type: hydro_stored_energy_level
+    raw_unit: MWmes
+    stationarity: nonstationary_level
+    preprocessing: {transform: log1p_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Hydro stock levels are non-negative and use log1p.}
+  - rule_id: ons_ear_stored_energy_percent
+    priority: 1610
+    selector: {source_family: ons_ear_subsystem, value_name: stored_energy_percent}
+    model_default: true
+    model_default_reason: Include ONS EAR stored energy percent.
+    semantic_type: hydro_stored_energy_percent
+    raw_unit: percent
+    stationarity: bounded
+    preprocessing: {transform: identity, winsorization: hard_clip_then_train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: 0, hard_max: 100, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Stored energy percent is clipped to 0 to 100 before robust scaling.}
+  - rule_id: ons_ena_percent_mlt
+    priority: 1620
+    selector: {source_family: ons_ena_subsystem, value_name: ena_value, unit_regex: percent_mlt}
+    model_default: true
+    model_default_reason: Include ONS ENA percent-MLT values.
+    semantic_type: hydro_ena_percent_mlt
+    raw_unit: percent_mlt
+    stationarity: bounded
+    preprocessing: {transform: identity, winsorization: hard_clip_then_train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: 0, hard_max: 300, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Percent-MLT ENA values are clipped to 0 to 300 before robust scaling.}
+  - rule_id: ons_ena_positive_level
+    priority: 1630
+    selector: {source_family: ons_ena_subsystem, value_name: ena_value, unit_regex: '^(?!.*percent_mlt).+'}
+    model_default: true
+    model_default_reason: Include ONS ENA non-percent physical values.
+    semantic_type: hydro_ena_positive_level
+    raw_unit: source_unit
+    stationarity: nonstationary_level
+    preprocessing: {transform: log1p_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Non-percent ENA values are non-negative physical levels and use log1p.}
+  - rule_id: ons_load_daily_load
+    priority: 1640
+    selector: {source_family: ons_load_daily, value_name: load_mwmed}
+    model_default: true
+    model_default_reason: Include ONS daily load level.
+    semantic_type: power_load_level
+    raw_unit: MWmed
+    stationarity: nonstationary_level
+    preprocessing: {transform: log1p_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Load levels are non-negative and use log1p.}
+  - rule_id: ons_cmo_weekly_cost
+    priority: 1650
+    selector: {source_family: ons_cmo_weekly, value_name: cmo_brl_mwh}
+    model_default: true
+    model_default_reason: Include ONS weekly CMO marginal cost.
+    semantic_type: power_marginal_cost
+    raw_unit: BRL_MWh
+    stationarity: stationaryish
+    preprocessing: {transform: log1p_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.995, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: "CMO is positive and spike-prone, so use upper quantile 0.995."}
+  - rule_id: ons_energy_balance_positive_generation
+    priority: 1660
+    selector: {source_family: ons_energy_balance_daily, value_name_regex: '^(load_mwmed|hydro_generation_mwmed|thermal_generation_mwmed|wind_generation_mwmed|solar_generation_mwmed|other_generation_mwmed)$'}
+    model_default: true
+    model_default_reason: Include ONS energy-balance generation and load levels.
+    semantic_type: power_generation_or_load_level
+    raw_unit: MWmed
+    stationarity: nonstationary_level
+    preprocessing: {transform: log1p_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Generation and load levels are non-negative and use log1p.}
+  - rule_id: ons_energy_balance_interchange
+    priority: 1670
+    selector: {source_family: ons_energy_balance_daily, value_name: interchange_mwmed}
+    model_default: true
+    model_default_reason: Include signed ONS energy-balance interchange.
+    semantic_type: signed_power_flow
+    raw_unit: MWmed
+    stationarity: stationaryish
+    preprocessing: {transform: signed_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Interchange can be signed and uses signed log1p.}
+  - rule_id: ons_energy_balance_hour_count
+    priority: 1680
+    selector: {source_family: ons_energy_balance_daily, value_name: hour_count}
+    model_default: true
+    model_default_reason: Include ONS energy-balance hour count as a coverage/quality signal.
+    semantic_type: coverage_count
+    raw_unit: count
+    stationarity: count
+    preprocessing: {transform: count_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Hour count is a coverage/quality count and remains model-default.}
+  - rule_id: ons_interchange_signed_flows
+    priority: 1690
+    selector: {source_family: ons_interchange_daily, value_name_regex: '^(interchange_mwmed|programmed_interchange_mwmed)$'}
+    model_default: true
+    model_default_reason: Include signed ONS interchange flows.
+    semantic_type: signed_power_flow
+    raw_unit: MWmed
+    stationarity: stationaryish
+    preprocessing: {transform: signed_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Interchange flows can be signed and use signed log1p.}
+  - rule_id: ons_interchange_hour_count
+    priority: 1695
+    selector: {source_family: ons_interchange_daily, value_name: hour_count}
+    model_default: true
+    model_default_reason: Include ONS interchange hour count as a coverage signal.
+    semantic_type: coverage_count
+    raw_unit: count
+    stationarity: count
+    preprocessing: {transform: count_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Hour count is a coverage count and uses count/log1p.}
+  - rule_id: cvm_fund_flows_amounts
+    priority: 1700
+    selector: {source_family: cvm_fund_flows, value_name_regex: '^(subscriptions|redemptions)$'}
+    model_default: true
+    model_default_reason: Include CVM fund subscription and redemption BRL amounts.
+    semantic_type: fund_flow_amount_brl
+    raw_unit: BRL
+    stationarity: flow
+    preprocessing: {transform: log1p_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Fund flow amounts are non-negative in current panels and use log1p.}
+  - rule_id: cvm_fund_flows_counts
+    priority: 1710
+    selector: {source_family: cvm_fund_flows, value_name_regex: '^(subscriptions_count|redemptions_count|fund_count)$'}
+    model_default: true
+    model_default_reason: Include CVM fund flow coverage counts.
+    semantic_type: fund_flow_coverage_count
+    raw_unit: count
+    stationarity: count
+    preprocessing: {transform: count_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Coverage counts use the count/log1p rule.}
+  - rule_id: cvm_fund_state_amounts
+    priority: 1720
+    selector: {source_family: cvm_fund_state, value_name_regex: '^(portfolio_value|nav)$'}
+    model_default: true
+    model_default_reason: Include CVM fund balance levels.
+    semantic_type: fund_balance_level_brl
+    raw_unit: BRL
+    stationarity: nonstationary_level
+    preprocessing: {transform: log1p_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Fund balances are non-negative and use log1p.}
+  - rule_id: cvm_fund_state_counts
+    priority: 1730
+    selector: {source_family: cvm_fund_state, value_name_regex: '^(shareholder_count|portfolio_value_count|nav_count|shareholder_count_count|fund_count)$'}
+    model_default: true
+    model_default_reason: Include CVM fund state coverage and shareholder counts.
+    semantic_type: fund_state_count
+    raw_unit: count
+    stationarity: count
+    preprocessing: {transform: count_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Count features use the count/log1p rule.}
+  - rule_id: novo_caged_movement_counts
+    priority: 1800
+    selector: {source_family: novo_caged_movements, value_name_regex: '^(movement_count|wage_count|contract_hours_count)$'}
+    model_default: true
+    model_default_reason: Include Novo CAGED movement and coverage counts.
+    semantic_type: labor_movement_or_coverage_count
+    raw_unit: count
+    stationarity: count
+    preprocessing: {transform: count_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Movement and coverage counts use the count/log1p rule.}
+  - rule_id: novo_caged_wage_mean
+    priority: 1810
+    selector: {source_family: novo_caged_movements, value_name: wage_mean}
+    model_default: true
+    model_default_reason: Include Novo CAGED mean wage levels.
+    semantic_type: labor_wage_level_brl
+    raw_unit: BRL
+    stationarity: nonstationary_level
+    preprocessing: {transform: log1p_positive, winsorization: train_quantile, winsor_lower: 0.005, winsor_upper: 0.995, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: "Wage mean is positive and outlier-prone, so use 0.005/0.995 train quantiles."}
+  - rule_id: novo_caged_contract_hours_mean
+    priority: 1820
+    selector: {source_family: novo_caged_movements, value_name: contract_hours_mean}
+    model_default: true
+    model_default_reason: Include Novo CAGED mean contract hours.
+    semantic_type: labor_contract_hours
+    raw_unit: hours
+    stationarity: bounded
+    preprocessing: {transform: identity, winsorization: hard_clip_then_train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: 0, hard_max: 80, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Contract hours are bounded to 0 to 80 before robust scaling.}
+  - rule_id: receita_tax_collection_amount
+    priority: 1900
+    selector: {source_family: receita_tax_collection, value_name: collection_amount_brl}
+    model_default: true
+    model_default_reason: Include Receita tax collection amount.
+    semantic_type: tax_collection_amount_brl
+    raw_unit: BRL
+    stationarity: flow
+    preprocessing: {transform: signed_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: "Tax collection amount can include corrections/refunds, so use signed log1p."}
