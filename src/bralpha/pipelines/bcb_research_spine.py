@@ -19,6 +19,7 @@ from bralpha.derived.bcb.io import (
     write_gold_panel,
 )
 from bralpha.derived.bcb.ptax import build_ptax_selected_daily
+from bralpha.derived.bcb.ptax_features import build_ptax_feature_daily
 from bralpha.derived.bcb.schemas import PANEL_PRIMARY_KEYS
 from bralpha.derived.bcb.sgs import build_sgs_asof_daily, build_sgs_observation_daily
 from bralpha.derived.bcb.sgs_features import build_sgs_feature_daily
@@ -33,6 +34,7 @@ PANEL_ORDER = [
     "sgs_asof_daily",
     "sgs_feature_daily",
     "ptax_selected_daily",
+    "ptax_feature_daily",
     "focus_expectation_observation_daily",
     "focus_expectation_asof_daily",
     "focus_reference_dates",
@@ -135,6 +137,18 @@ def _build_panel(
             start=start,
             end=end,
         )
+    if panel == "ptax_feature_daily":
+        ptax = _feature_dependency(
+            paths,
+            built,
+            "ptax_selected_daily",
+            _sgs_feature_warmup_start(start),
+            end,
+            required=required,
+        )
+        if ptax is None:
+            return None
+        return build_ptax_feature_daily(ptax, start=start, end=end)
     if panel == "focus_expectation_observation_daily":
         general = read_silver_dataset(
             paths,
@@ -188,8 +202,15 @@ def _build_panel(
         sgs = _dependency(paths, built, "sgs_asof_daily", start, end)
         sgs_features = _dependency(paths, built, "sgs_feature_daily", start, end)
         ptax = _dependency(paths, built, "ptax_selected_daily", start, end)
+        ptax_features = _dependency(paths, built, "ptax_feature_daily", start, end)
         focus = _dependency(paths, built, "focus_expectation_asof_daily", start, end)
-        if sgs is None and sgs_features is None and ptax is None and focus is None:
+        if (
+            sgs is None
+            and sgs_features is None
+            and ptax is None
+            and ptax_features is None
+            and focus is None
+        ):
             if required:
                 raise BCBResearchInputMissingError("Missing daily_long source panels")
             return None
@@ -197,6 +218,7 @@ def _build_panel(
             sgs_asof_daily=sgs,
             sgs_feature_daily=sgs_features,
             ptax_selected_daily=ptax,
+            ptax_feature_daily=ptax_features,
             focus_expectation_asof_daily=focus,
             include_sgs=config.daily_long.include_sgs,
             include_ptax=config.daily_long.include_ptax,
@@ -294,6 +316,34 @@ def _dependency(
     if panel in built:
         return built[panel]
     return read_gold_panel(paths, panel, required=required, start=start, end=end)
+
+
+def _feature_dependency(
+    paths,
+    built: dict[str, pl.DataFrame],
+    panel: str,
+    start: date,
+    end: date,
+    *,
+    required: bool = False,
+) -> pl.DataFrame | None:
+    frames = []
+    history = read_gold_panel(paths, panel, start=start, end=end)
+    if history is not None:
+        frames.append(history)
+    if panel in built:
+        frames.append(built[panel])
+    if not frames:
+        if required:
+            raise BCBResearchInputMissingError(f"Missing feature dependency panel: {panel}")
+        return None
+    if len(frames) == 1:
+        return frames[0]
+    return (
+        pl.concat(frames, how="diagonal_relaxed")
+        .unique(subset=PANEL_PRIMARY_KEYS[panel], keep="last", maintain_order=True)
+        .sort("ref_date")
+    )
 
 
 def main(argv: list[str] | None = None) -> None:

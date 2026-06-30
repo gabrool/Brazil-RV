@@ -116,6 +116,42 @@ def _rate_features(frame: pl.DataFrame) -> list[dict[str, object]]:
                         "flag",
                     )
                 )
+    rows.extend(_real_policy_rate_features(frame, target_rows))
+    return rows
+
+
+def _real_policy_rate_features(
+    frame: pl.DataFrame,
+    target_rows: list[dict[str, Any]],
+) -> list[dict[str, object]]:
+    ipca_metrics = _ipca_metrics_by_ref_date(frame)
+    rows: list[dict[str, object]] = []
+    for target_row in target_rows:
+        ref_date = target_row["ref_date"]
+        metrics = ipca_metrics.get(ref_date)
+        if metrics is None:
+            continue
+        target_rate = _float(target_row["value"])
+        if metrics.get("ipca_12m_sum_pct") is not None:
+            rows.append(
+                _feature_row(
+                    _combined_base([target_row, metrics["base_row"]]),
+                    "rates",
+                    "real_policy_rate_12m_ipca_bp",
+                    (target_rate - _float(metrics["ipca_12m_sum_pct"])) * 100.0,
+                    "basis_points",
+                )
+            )
+        if metrics.get("ipca_3m_ann_pct") is not None:
+            rows.append(
+                _feature_row(
+                    _combined_base([target_row, metrics["base_row"]]),
+                    "rates",
+                    "real_policy_rate_3m_ann_ipca_bp",
+                    (target_rate - _float(metrics["ipca_3m_ann_pct"])) * 100.0,
+                    "basis_points",
+                )
+            )
     return rows
 
 
@@ -180,6 +216,33 @@ def _ipca_features(frame: pl.DataFrame) -> list[dict[str, object]]:
     return rows
 
 
+def _ipca_metrics_by_ref_date(frame: pl.DataFrame) -> dict[date, dict[str, Any]]:
+    ipca_rows = _series_rows(frame, "ipca")
+    observations: dict[date, float] = {}
+    for row in ipca_rows:
+        observation_ref_date = row.get("observation_ref_date")
+        if isinstance(observation_ref_date, date) and row.get("value") is not None:
+            observations[observation_ref_date] = _float(row["value"])
+    observation_months = sorted(observations)
+
+    metrics_by_ref_date: dict[date, dict[str, Any]] = {}
+    for row in ipca_rows:
+        observation_ref_date = row.get("observation_ref_date")
+        if not isinstance(observation_ref_date, date):
+            continue
+        available_months = [month for month in observation_months if month <= observation_ref_date]
+        last_3 = [_float(observations[month]) for month in available_months[-3:]]
+        last_12 = [_float(observations[month]) for month in available_months[-12:]]
+        metrics: dict[str, Any] = {"base_row": row}
+        if len(last_3) == 3:
+            value_3m = sum(last_3)
+            metrics["ipca_3m_ann_pct"] = ((1 + value_3m / 100) ** 4 - 1) * 100
+        if len(last_12) == 12:
+            metrics["ipca_12m_sum_pct"] = sum(last_12)
+        metrics_by_ref_date[row["ref_date"]] = metrics
+    return metrics_by_ref_date
+
+
 def _reserves_features(frame: pl.DataFrame) -> list[dict[str, object]]:
     reserves = _series_rows(frame, "international_reserves_liquidity")
     rows: list[dict[str, object]] = []
@@ -210,6 +273,8 @@ def _reserves_features(frame: pl.DataFrame) -> list[dict[str, object]]:
         for offset, feature_name in [
             (1, "reserves_log_change_1bd"),
             (5, "reserves_log_change_5bd"),
+            (21, "reserves_log_change_21bd"),
+            (63, "reserves_log_change_63bd"),
         ]:
             if index >= offset and log_value is not None and logs[index - offset] is not None:
                 rows.append(
@@ -239,6 +304,17 @@ def _reserves_features(frame: pl.DataFrame) -> list[dict[str, object]]:
                     "external_reserves",
                     "reserves_drawdown_from_252bd_high_pct",
                     (value / trailing_high - 1) * 100,
+                    "percent",
+                )
+            )
+        trailing_high_504 = max(levels[max(0, index - 503) : index + 1])
+        if trailing_high_504 > 0:
+            rows.append(
+                _feature_row(
+                    row,
+                    "external_reserves",
+                    "reserves_drawdown_from_504bd_high_pct",
+                    (value / trailing_high_504 - 1) * 100,
                     "percent",
                 )
             )

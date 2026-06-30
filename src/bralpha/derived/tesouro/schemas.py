@@ -141,6 +141,8 @@ TESOURO_DAILY_LONG_COLUMNS = [
     "source_version",
 ]
 
+TESOURO_FEATURE_DAILY_COLUMNS = list(TESOURO_DAILY_LONG_COLUMNS)
+
 PANEL_PRIMARY_KEYS = {
     "direto_prices_rates_observation": ["ref_date", "security_name", "maturity_date"],
     "direto_prices_rates_asof_daily": ["ref_date", "feature_id"],
@@ -160,5 +162,6 @@ PANEL_PRIMARY_KEYS = {
         "holder_or_maturity_bucket",
     ],
     "dpf_stock_asof_daily": ["ref_date", "feature_id"],
+    "feature_daily": ["ref_date", "source_family", "feature_id", "value_name"],
     "daily_long": ["ref_date", "source_family", "feature_id", "value_name"],
 }

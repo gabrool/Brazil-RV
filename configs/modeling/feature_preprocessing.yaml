@@ -460,7 +460,7 @@ rules:
     preprocessing: {transform: already_log, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Reserves log level is already logged.}
   - rule_id: bcb_sgs_feature_reserves_log_changes
     priority: 1080
-    selector: {source_family: bcb_sgs_feature, value_name_regex: '^(reserves_log_change_1bd|reserves_log_change_5bd)$'}
+    selector: {source_family: bcb_sgs_feature, value_name_regex: '^(reserves_log_change_1bd|reserves_log_change_5bd|reserves_log_change_21bd|reserves_log_change_63bd)$'}
     model_default: true
     model_default_reason: Include engineered log reserves changes.
     semantic_type: reserves_log_change
@@ -469,22 +469,67 @@ rules:
     preprocessing: {transform: already_return, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Log changes are already return-like.}
   - rule_id: bcb_sgs_feature_reserves_percent_changes
     priority: 1090
-    selector: {source_family: bcb_sgs_feature, value_name_regex: '^(reserves_pct_change_20bd|reserves_drawdown_from_252bd_high_pct)$'}
+    selector: {source_family: bcb_sgs_feature, value_name_regex: '^(reserves_pct_change_20bd|reserves_drawdown_from_252bd_high_pct|reserves_drawdown_from_504bd_high_pct)$'}
     model_default: true
     model_default_reason: Include engineered reserves percent change and drawdown features.
     semantic_type: reserves_percent_change_or_drawdown
     raw_unit: percent
     stationarity: stationaryish
     preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Percent return/drawdown features remain in percent units for this metadata layer.}
+  - rule_id: bcb_sgs_feature_real_policy_rates
+    priority: 1095
+    selector: {source_family: bcb_sgs_feature, value_name_regex: '^real_policy_rate_(12m|3m_ann)_ipca_bp$'}
+    model_default: true
+    model_default_reason: Include engineered ex-post real policy rate proxies.
+    semantic_type: real_policy_rate_bp
+    raw_unit: basis_points
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_mad, winsor_lower: -10, winsor_upper: 10, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Real policy rate proxies are already emitted in basis points.}
   - rule_id: bcb_ptax_fx_rates
     priority: 1100
     selector: {source_family: ptax, value_name_regex: '^(bid_rate|ask_rate|bid_parity|ask_parity)$'}
-    model_default: true
-    model_default_reason: Include PTAX FX rate and parity levels.
+    model_default: false
+    model_default_reason: Superseded by bcb_ptax_feature log FX, return, spread, and parity rows.
     semantic_type: fx_rate_or_parity_level
     raw_unit: rate_or_parity
     stationarity: nonstationary_level
     preprocessing: {transform: log_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: true, allow_negative: false, notes: FX rate and parity levels must be positive and are logged.}
+  - rule_id: bcb_ptax_feature_logs
+    priority: 1102
+    selector: {source_family: bcb_ptax_feature, value_name_regex: '^(log_mid_rate|log_mid_parity)$'}
+    model_default: true
+    model_default_reason: Include upgraded PTAX log FX and parity levels.
+    semantic_type: brl_fx_log_level
+    raw_unit: log_rate_or_parity
+    stationarity: stationaryish
+    preprocessing: {transform: already_log, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: PTAX log features are emitted already logged.}
+  - rule_id: bcb_ptax_feature_returns
+    priority: 1104
+    selector: {source_family: bcb_ptax_feature, value_name_regex: '^log_return_[0-9]+bd$'}
+    model_default: true
+    model_default_reason: Include upgraded PTAX log-return features.
+    semantic_type: brl_fx_log_return
+    raw_unit: log_return
+    stationarity: stationaryish
+    preprocessing: {transform: already_return, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: PTAX log returns are already return-like.}
+  - rule_id: bcb_ptax_feature_vol_spreads
+    priority: 1106
+    selector: {source_family: bcb_ptax_feature, value_name_regex: '^(realized_vol_[0-9]+bd_ann|bid_ask_spread_bp|parity_bid_ask_spread_bp)$'}
+    model_default: true
+    model_default_reason: Include PTAX realized-volatility and spread features.
+    semantic_type: brl_fx_volatility_or_spread
+    raw_unit: vol_or_percent
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: PTAX volatility and spreads are non-negative robust-scaled features.}
+  - rule_id: bcb_ptax_feature_raw_mid_levels
+    priority: 1108
+    selector: {source_family: bcb_ptax_feature, value_name_regex: '^(mid_rate|mid_parity)$'}
+    model_default: false
+    model_default_reason: Log PTAX mid-level features are the canonical first-model defaults.
+    semantic_type: brl_fx_mid_level
+    raw_unit: rate_or_parity
+    stationarity: nonstationary_level
+    preprocessing: {transform: log_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: true, allow_negative: false, notes: Raw mid levels are retained for audit/reference but are not first-model defaults.}
   - rule_id: bcb_focus_mean_median
     priority: 1110
     selector: {source_family: focus, value_name_regex: '^(mean|median)$'}
@@ -524,8 +569,8 @@ rules:
   - rule_id: fred_rate_percent_levels
     priority: 1200
     selector: {source_family: fred, feature_id_regex: '^fred\|(dgs2|dgs5|dgs10|dgs30|dff|sofr|dfedtaru|dfedtarl|dfii5|dfii10|dfii30|t5yie|t10yie|baa10y|aaa10y|dbaa|daaa)$', value_name: value}
-    model_default: true
-    model_default_reason: Include FRED rate and spread percent levels.
+    model_default: false
+    model_default_reason: Superseded by fred_rate_feature level, change, curve, and spread rows.
     semantic_type: usd_rate_or_spread_percent
     raw_unit: percent
     stationarity: stationaryish
@@ -533,8 +578,8 @@ rules:
   - rule_id: fred_positive_index_fx_commodity_levels
     priority: 1210
     selector: {source_family: fred, feature_id_regex: '^fred\|(dtwexbgs|dtwexafegs|dtwexemegs|dexchus|sp500|nasdaqcom|pcoppusdm)$', value_name: value}
-    model_default: true
-    model_default_reason: Include FRED positive index, FX, and commodity levels.
+    model_default: false
+    model_default_reason: Superseded by fred_market_feature log level, return, and volatility rows.
     semantic_type: global_positive_level
     raw_unit: source_unit
     stationarity: nonstationary_level
@@ -542,8 +587,8 @@ rules:
   - rule_id: fred_vix_positive_volatility
     priority: 1220
     selector: {source_family: fred, feature_id_regex: '^fred\|vixcls$', value_name: value}
-    model_default: true
-    model_default_reason: Include VIX volatility index level.
+    model_default: false
+    model_default_reason: Superseded by fred_market_feature VIX log1p and change rows.
     semantic_type: volatility_index_level
     raw_unit: index
     stationarity: stationaryish
@@ -551,12 +596,75 @@ rules:
   - rule_id: fred_oil_signed_price_levels
     priority: 1230
     selector: {source_family: fred, feature_id_regex: '^fred\|(dcoilwtico|dcoilbrenteu)$', value_name: value}
-    model_default: true
-    model_default_reason: Include FRED oil price levels with signed-safe transform.
+    model_default: false
+    model_default_reason: Superseded by fred_market_feature oil log level, return, and volatility rows.
     semantic_type: oil_price_level
     raw_unit: usd_per_barrel
     stationarity: nonstationary_level
     preprocessing: {transform: signed_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: "WTI can be non-positive in stress periods, so use signed log1p."}
+  - rule_id: fred_rate_feature_levels_spreads
+    priority: 1240
+    selector: {source_family: fred_rate_feature, value_name_regex: '^(level_bp|ust_slope_.*_bp|real_rate_.*_bp|breakeven_.*_bp|credit_spread_.*_bp|fed_target_mid_bp)$'}
+    model_default: true
+    model_default_reason: Include upgraded FRED rate, curve, real-rate, breakeven, and credit-spread features.
+    semantic_type: usd_rate_curve_or_spread_bp
+    raw_unit: basis_points
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_mad, winsor_lower: -10, winsor_upper: 10, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: FRED rate features are emitted in basis points and use train-only MAD clipping.}
+  - rule_id: fred_rate_feature_changes
+    priority: 1250
+    selector: {source_family: fred_rate_feature, value_name_regex: '^(change_[0-9]+bd_bp|fed_target_mid_change_[0-9]+bd_bp)$'}
+    model_default: true
+    model_default_reason: Include upgraded FRED rate-change features.
+    semantic_type: usd_rate_change_bp
+    raw_unit: basis_points
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: FRED rate changes are already differenced in basis points.}
+  - rule_id: fred_market_feature_logs
+    priority: 1260
+    selector: {source_family: fred_market_feature, value_name_regex: '^(log_level|log1p_level|signed_log_level)$'}
+    model_default: true
+    model_default_reason: Include upgraded FRED market log level features.
+    semantic_type: global_market_log_level
+    raw_unit: log_level
+    stationarity: stationaryish
+    preprocessing: {transform: already_log, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: "FRED market levels are emitted already logged, log1p-transformed, or signed-log transformed."}
+  - rule_id: fred_market_feature_returns_changes
+    priority: 1270
+    selector: {source_family: fred_market_feature, value_name_regex: '^(log_return_[0-9]+bd|signed_log_change_[0-9]+bd|change_[0-9]+bd)$'}
+    model_default: true
+    model_default_reason: Include upgraded FRED market return and VIX change features.
+    semantic_type: global_market_return_or_change
+    raw_unit: log_return_or_index_change
+    stationarity: stationaryish
+    preprocessing: {transform: already_return, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: "Market log returns, signed-log oil changes, and VIX changes are already stationary change features."}
+  - rule_id: fred_market_feature_realized_vol
+    priority: 1280
+    selector: {source_family: fred_market_feature, value_name_regex: '^realized_vol_[0-9]+bd_ann$'}
+    model_default: true
+    model_default_reason: Include upgraded FRED market realized-volatility features.
+    semantic_type: global_market_realized_volatility
+    raw_unit: annualized_log_vol
+    stationarity: bounded
+    preprocessing: {transform: identity, winsorization: hard_clip_then_train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: 0, hard_max: 10, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Realized volatility is non-negative and clipped before train-only robust scaling.}
+  - rule_id: br_rv_cross_feature_bp
+    priority: 1290
+    selector: {source_family: br_rv_cross_feature, value_name_regex: '.*_bp$'}
+    model_default: true
+    model_default_reason: Include upgraded cross-market relative-value basis-point spreads.
+    semantic_type: cross_market_bp_spread
+    raw_unit: basis_points
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Cross-market spreads are deterministic same-date differences.}
+  - rule_id: br_rv_cross_feature_returns
+    priority: 1295
+    selector: {source_family: br_rv_cross_feature, value_name_regex: '.*return_[0-9]+bd$'}
+    model_default: true
+    model_default_reason: Include upgraded cross-market relative log-return features.
+    semantic_type: cross_market_relative_return
+    raw_unit: log_return
+    stationarity: stationaryish
+    preprocessing: {transform: already_return, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Cross-market return spreads are already return-like.}
   - rule_id: ibge_sidra_inflation_percent
     priority: 1300
     selector: {source_family: ibge_sidra, feature_id_regex: '^ibge_sidra:(ipca|ipca15|inpc):.*$', value_name: value}
@@ -614,8 +722,8 @@ rules:
   - rule_id: tesouro_direto_prices_rates_rates
     priority: 1400
     selector: {source_family: tesouro_direto_prices_rates, value_name_regex: '^(buy_rate|sell_rate)$'}
-    model_default: true
-    model_default_reason: Include Tesouro Direto buy and sell annual rate quotes.
+    model_default: false
+    model_default_reason: Superseded by tesouro_feature mid-rate, spread, and rate-change rows.
     semantic_type: tesouro_annual_rate_percent
     raw_unit: percent
     stationarity: stationaryish
@@ -623,8 +731,8 @@ rules:
   - rule_id: tesouro_direto_prices_rates_prices
     priority: 1410
     selector: {source_family: tesouro_direto_prices_rates, value_name_regex: '^(buy_price|sell_price)$'}
-    model_default: true
-    model_default_reason: Include Tesouro Direto PU/price levels.
+    model_default: false
+    model_default_reason: Superseded by tesouro_feature mid-price and log-return rows.
     semantic_type: tesouro_price_level
     raw_unit: brl_price
     stationarity: nonstationary_level
@@ -632,8 +740,8 @@ rules:
   - rule_id: tesouro_direto_flows_counts
     priority: 1420
     selector: {source_family: tesouro_direto_flows, value_name_regex: '^(quantity|investor_count)$'}
-    model_default: true
-    model_default_reason: Include Tesouro Direto flow quantity and investor counts.
+    model_default: false
+    model_default_reason: Superseded by tesouro_feature aggregate flow quantity and count rows.
     semantic_type: tesouro_flow_count
     raw_unit: count
     stationarity: count
@@ -641,8 +749,8 @@ rules:
   - rule_id: tesouro_direto_flows_value
     priority: 1430
     selector: {source_family: tesouro_direto_flows, value_name: value}
-    model_default: true
-    model_default_reason: Include Tesouro Direto BRL flow amount.
+    model_default: false
+    model_default_reason: Superseded by tesouro_feature net/gross/sales/redemption flow rows.
     semantic_type: tesouro_flow_amount_brl
     raw_unit: BRL
     stationarity: flow
@@ -650,8 +758,8 @@ rules:
   - rule_id: tesouro_direto_stock_counts
     priority: 1440
     selector: {source_family: tesouro_direto_stock, value_name_regex: '^(quantity|investor_count)$'}
-    model_default: true
-    model_default_reason: Include Tesouro Direto stock quantity and investor counts.
+    model_default: false
+    model_default_reason: Superseded by tesouro_feature log stock quantity and investor rows.
     semantic_type: tesouro_stock_count
     raw_unit: count
     stationarity: count
@@ -659,8 +767,8 @@ rules:
   - rule_id: tesouro_direto_stock_value
     priority: 1450
     selector: {source_family: tesouro_direto_stock, value_name: stock_value}
-    model_default: true
-    model_default_reason: Include Tesouro Direto stock value with signed-safe transform.
+    model_default: false
+    model_default_reason: Superseded by tesouro_feature log stock value rows.
     semantic_type: tesouro_stock_value_brl
     raw_unit: BRL
     stationarity: nonstationary_level
@@ -668,12 +776,75 @@ rules:
   - rule_id: tesouro_dpf_stock_value
     priority: 1460
     selector: {source_family: tesouro_dpf_stock, value_name: stock_value}
-    model_default: true
-    model_default_reason: Include Tesouro DPF stock value with signed-safe transform.
+    model_default: false
+    model_default_reason: Superseded by tesouro_feature DPF log stock value rows.
     semantic_type: tesouro_dpf_stock_value_brl
     raw_unit: BRL
     stationarity: nonstationary_level
     preprocessing: {transform: signed_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: DPF stock value uses signed log1p for safety.}
+  - rule_id: tesouro_feature_rates
+    priority: 1470
+    selector: {source_family: tesouro_feature, value_name_regex: '^(mid_rate_bp|rate_spread_bp|mid_rate_change_[0-9]+bd_bp)$'}
+    model_default: true
+    model_default_reason: Include upgraded Tesouro mid-rate, spread, and rate-change features.
+    semantic_type: tesouro_rate_or_spread
+    raw_unit: percent_or_basis_points
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_mad, winsor_lower: -10, winsor_upper: 10, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Tesouro upgraded rate features are deterministic mid/spread/change values.}
+  - rule_id: tesouro_feature_price_stock_logs
+    priority: 1475
+    selector: {source_family: tesouro_feature, value_name_regex: '^(log_mid_price|stock_value_log|quantity_log1p|investor_count_log1p)$'}
+    model_default: true
+    model_default_reason: Include upgraded Tesouro log price, stock-value, quantity, and investor features.
+    semantic_type: tesouro_log_level_or_count
+    raw_unit: log_value_or_count
+    stationarity: stationaryish
+    preprocessing: {transform: already_log, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Tesouro log and log1p features are emitted deterministically and are not transformed here.}
+  - rule_id: tesouro_feature_price_returns
+    priority: 1476
+    selector: {source_family: tesouro_feature, value_name_regex: '^price_log_return_[0-9]+bd$'}
+    model_default: true
+    model_default_reason: Include upgraded Tesouro price log-return features.
+    semantic_type: tesouro_price_log_return
+    raw_unit: log_return
+    stationarity: stationaryish
+    preprocessing: {transform: already_return, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Tesouro price log returns are already return-like.}
+  - rule_id: tesouro_feature_raw_mid_price
+    priority: 1480
+    selector: {source_family: tesouro_feature, value_name: mid_price}
+    model_default: false
+    model_default_reason: log_mid_price is the canonical first-model price feature.
+    semantic_type: tesouro_mid_price_level
+    raw_unit: BRL
+    stationarity: nonstationary_level
+    preprocessing: {transform: log_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: true, allow_negative: false, notes: Raw mid price is retained for audit/reference but is not a first-model default.}
+  - rule_id: tesouro_feature_flow_amounts
+    priority: 1485
+    selector: {source_family: tesouro_feature, value_name_regex: '^(sales_value|redemptions_value|net_flow_value|gross_flow_value)$'}
+    model_default: true
+    model_default_reason: Include upgraded Tesouro aggregate flow amount features.
+    semantic_type: tesouro_flow_amount
+    raw_unit: BRL
+    stationarity: flow
+    preprocessing: {transform: signed_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Net flows can be signed; all flow amounts use signed log1p in preprocessing metadata.}
+  - rule_id: tesouro_feature_counts
+    priority: 1490
+    selector: {source_family: tesouro_feature, value_name_regex: '^(sales_quantity|redemptions_quantity|net_quantity|investor_count)$'}
+    model_default: true
+    model_default_reason: Include upgraded Tesouro quantity and investor-count features.
+    semantic_type: tesouro_count_or_log_count
+    raw_unit: count_or_log_count
+    stationarity: count
+    preprocessing: {transform: count_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Count-like Tesouro features use count/log1p metadata; log1p emitted rows remain deterministic inputs.}
+  - rule_id: tesouro_feature_shares_ratios
+    priority: 1495
+    selector: {source_family: tesouro_feature, value_name_regex: '^(redemption_share_pct|net_flow_to_stock_value_pct|price_bid_ask_spread_pct|stock_value_change_21bd_pct)$'}
+    model_default: true
+    model_default_reason: Include upgraded Tesouro flow-share and flow-to-stock features.
+    semantic_type: tesouro_flow_share_or_ratio
+    raw_unit: share_or_percent
+    stationarity: bounded
+    preprocessing: {transform: identity, winsorization: hard_clip_then_train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: -100, hard_max: 100, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Flow shares and stock-scaled flows are bounded or clipped before train-only robust scaling.}
   - rule_id: anp_fuel_price_levels
     priority: 1500
     selector: {source_family: anp_fuel_price, value_name_regex: '^(sale_price|purchase_price)$'}

@@ -17,11 +17,18 @@ def build_daily_long(
     direto_flows_daily: pl.DataFrame | None = None,
     direto_stock_asof_daily: pl.DataFrame | None = None,
     dpf_stock_asof_daily: pl.DataFrame | None = None,
+    feature_daily: pl.DataFrame | None = None,
     include_prices_rates: bool,
     include_flows: bool,
     include_stock: bool,
 ) -> pl.DataFrame:
     frames = []
+    if feature_daily is not None and not feature_daily.is_empty():
+        frames.append(
+            _ensure_columns(feature_daily, TESOURO_DAILY_LONG_COLUMNS)
+            .filter(pl.col("value").is_not_null())
+            .select(TESOURO_DAILY_LONG_COLUMNS)
+        )
     if (
         include_prices_rates
         and direto_prices_rates_asof_daily is not None

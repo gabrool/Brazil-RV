@@ -103,9 +103,13 @@ FRED_DAILY_LONG_COLUMNS = [
     "source_version",
 ]
 
+FRED_FEATURE_DAILY_COLUMNS = list(FRED_DAILY_LONG_COLUMNS)
+
 PANEL_PRIMARY_KEYS = {
     "observation": ["series_id", "ref_date", "vintage_id"],
     "asof_daily": ["ref_date", "feature_id"],
+    "rate_feature_daily": ["ref_date", "source_family", "feature_id", "value_name"],
+    "market_feature_daily": ["ref_date", "source_family", "feature_id", "value_name"],
     "series_reference": ["series_id"],
     "daily_long": ["ref_date", "source_family", "feature_id", "value_name"],
 }

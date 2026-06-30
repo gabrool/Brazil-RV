@@ -6,7 +6,9 @@ from pathlib import Path
 
 import polars as pl
 
+from bralpha.derived.feature_utils import feature_warmup_start
 from bralpha.derived.tesouro.daily_long import build_daily_long
+from bralpha.derived.tesouro.features import build_tesouro_feature_daily
 from bralpha.derived.tesouro.flows import build_direto_flows_daily
 from bralpha.derived.tesouro.io import (
     TesouroResearchInputMissingError,
@@ -30,6 +32,7 @@ from bralpha.infra.config import (
     load_tesouro_research_config,
     resolve_project_paths,
 )
+from bralpha.modeling.config import load_model_dataset_config
 
 PANEL_ORDER = [
     "direto_prices_rates_observation",
@@ -39,6 +42,7 @@ PANEL_ORDER = [
     "direto_stock_asof_daily",
     "dpf_stock_observation",
     "dpf_stock_asof_daily",
+    "feature_daily",
     "daily_long",
 ]
 
@@ -58,6 +62,8 @@ def run_tesouro_research_spine(
     explicit = panels is not None
     paths = resolve_project_paths(repo_root, load_paths_config(repo_root))
     config = load_tesouro_research_config(repo_root).tesouro_research
+    model_config = load_model_dataset_config(repo_root)
+    warmup_start = feature_warmup_start(start, model_config.feature_warmup_business_days)
     built: dict[str, pl.DataFrame] = {}
     status: dict[str, str] = {}
 
@@ -65,7 +71,16 @@ def run_tesouro_research_spine(
         if panel not in requested:
             continue
         try:
-            frame = _build_panel(panel, paths, config, built, start, end, required=explicit)
+            frame = _build_panel(
+                panel,
+                paths,
+                config,
+                built,
+                start,
+                end,
+                warmup_start=warmup_start,
+                required=explicit,
+            )
         except TesouroResearchInputMissingError as exc:
             if explicit:
                 raise
@@ -97,6 +112,7 @@ def _build_panel(
     start: date,
     end: date,
     *,
+    warmup_start: date,
     required: bool,
 ) -> pl.DataFrame | None:
     if panel == "direto_prices_rates_observation":
@@ -182,12 +198,64 @@ def _build_panel(
             end=end,
             max_dense_keys=config.stock.max_dense_keys,
         )
+    if panel == "feature_daily":
+        prices = _feature_dependency(
+            paths,
+            built,
+            "direto_prices_rates_asof_daily",
+            warmup_start,
+            end,
+            required=False,
+        )
+        flows = _feature_dependency(
+            paths,
+            built,
+            "direto_flows_daily",
+            warmup_start,
+            end,
+            required=False,
+        )
+        direto_stock = _feature_dependency(
+            paths,
+            built,
+            "direto_stock_asof_daily",
+            warmup_start,
+            end,
+            required=False,
+        )
+        dpf_stock = _feature_dependency(
+            paths,
+            built,
+            "dpf_stock_asof_daily",
+            warmup_start,
+            end,
+            required=False,
+        )
+        if prices is None and flows is None and direto_stock is None and dpf_stock is None:
+            if required:
+                raise TesouroResearchInputMissingError("Missing Tesouro feature source panels")
+            return None
+        return build_tesouro_feature_daily(
+            direto_prices_rates_asof_daily=prices,
+            direto_flows_daily=flows,
+            direto_stock_asof_daily=direto_stock,
+            dpf_stock_asof_daily=dpf_stock,
+            start=start,
+            end=end,
+        )
     if panel == "daily_long":
         prices = _dependency(paths, built, "direto_prices_rates_asof_daily", start, end)
         flows = _dependency(paths, built, "direto_flows_daily", start, end)
         direto_stock = _dependency(paths, built, "direto_stock_asof_daily", start, end)
         dpf_stock = _dependency(paths, built, "dpf_stock_asof_daily", start, end)
-        if prices is None and flows is None and direto_stock is None and dpf_stock is None:
+        features = _dependency(paths, built, "feature_daily", start, end)
+        if (
+            prices is None
+            and flows is None
+            and direto_stock is None
+            and dpf_stock is None
+            and features is None
+        ):
             if required:
                 raise TesouroResearchInputMissingError("Missing daily_long source panels")
             return None
@@ -196,6 +264,7 @@ def _build_panel(
             direto_flows_daily=flows,
             direto_stock_asof_daily=direto_stock,
             dpf_stock_asof_daily=dpf_stock,
+            feature_daily=features,
             include_prices_rates=config.daily_long.include_prices_rates,
             include_flows=config.daily_long.include_flows,
             include_stock=config.daily_long.include_stock,
@@ -251,6 +320,34 @@ def _dependency(
     if panel in built:
         return built[panel]
     return read_gold_panel(paths, panel, required=required, start=start, end=end)
+
+
+def _feature_dependency(
+    paths,
+    built: dict[str, pl.DataFrame],
+    panel: str,
+    start: date,
+    end: date,
+    *,
+    required: bool = False,
+) -> pl.DataFrame | None:
+    frames = []
+    history = read_gold_panel(paths, panel, start=start, end=end)
+    if history is not None:
+        frames.append(history)
+    if panel in built:
+        frames.append(built[panel])
+    if not frames:
+        if required:
+            raise TesouroResearchInputMissingError(f"Missing feature dependency panel: {panel}")
+        return None
+    if len(frames) == 1:
+        return frames[0]
+    return (
+        pl.concat(frames, how="diagonal_relaxed")
+        .unique(subset=PANEL_PRIMARY_KEYS[panel], keep="last", maintain_order=True)
+        .sort("ref_date")
+    )
 
 
 def main(argv: list[str] | None = None) -> None:
