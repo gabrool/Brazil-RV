@@ -16,6 +16,7 @@ def build_daily_long(
     ptax_selected_daily: pl.DataFrame | None = None,
     ptax_feature_daily: pl.DataFrame | None = None,
     focus_expectation_asof_daily: pl.DataFrame | None = None,
+    focus_feature_daily: pl.DataFrame | None = None,
     include_sgs: bool,
     include_ptax: bool,
     include_focus: bool,
@@ -35,6 +36,8 @@ def build_daily_long(
         and not focus_expectation_asof_daily.is_empty()
     ):
         frames.extend(_focus_rows(focus_expectation_asof_daily))
+    if include_focus and focus_feature_daily is not None and not focus_feature_daily.is_empty():
+        frames.append(_sgs_feature_rows(focus_feature_daily))
 
     if not frames:
         return _empty()

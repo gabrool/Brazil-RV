@@ -12,6 +12,7 @@ from bralpha.derived.bcb.focus import (
     build_focus_expectation_observation_daily,
     build_focus_reference_dates,
 )
+from bralpha.derived.bcb.focus_features import build_focus_feature_daily
 from bralpha.derived.bcb.io import (
     BCBResearchInputMissingError,
     read_gold_panel,
@@ -37,6 +38,7 @@ PANEL_ORDER = [
     "ptax_feature_daily",
     "focus_expectation_observation_daily",
     "focus_expectation_asof_daily",
+    "focus_feature_daily",
     "focus_reference_dates",
     "daily_long",
 ]
@@ -186,6 +188,18 @@ def _build_panel(
             start=start,
             end=end,
         )
+    if panel == "focus_feature_daily":
+        focus = _feature_dependency(
+            paths,
+            built,
+            "focus_expectation_asof_daily",
+            _sgs_feature_warmup_start(start),
+            end,
+            required=required,
+        )
+        if focus is None:
+            return None
+        return build_focus_feature_daily(focus, start=start, end=end)
     if panel == "focus_reference_dates":
         refs = read_silver_dataset(
             paths,
@@ -204,12 +218,14 @@ def _build_panel(
         ptax = _dependency(paths, built, "ptax_selected_daily", start, end)
         ptax_features = _dependency(paths, built, "ptax_feature_daily", start, end)
         focus = _dependency(paths, built, "focus_expectation_asof_daily", start, end)
+        focus_features = _dependency(paths, built, "focus_feature_daily", start, end)
         if (
             sgs is None
             and sgs_features is None
             and ptax is None
             and ptax_features is None
             and focus is None
+            and focus_features is None
         ):
             if required:
                 raise BCBResearchInputMissingError("Missing daily_long source panels")
@@ -220,6 +236,7 @@ def _build_panel(
             ptax_selected_daily=ptax,
             ptax_feature_daily=ptax_features,
             focus_expectation_asof_daily=focus,
+            focus_feature_daily=focus_features,
             include_sgs=config.daily_long.include_sgs,
             include_ptax=config.daily_long.include_ptax,
             include_focus=config.daily_long.include_focus,

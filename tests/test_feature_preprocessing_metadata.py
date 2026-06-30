@@ -638,6 +638,36 @@ _FEATURE_ROWS_BY_RULE_ID = {
         "value_name": "min_value",
         "unit": None,
     },
+    "bcb_focus_feature_levels_spreads": {
+        "source_family": "bcb_focus_feature",
+        "feature_id": "bcb_focus:ipca",
+        "value_name": "median_level",
+        "unit": None,
+    },
+    "bcb_focus_feature_revisions": {
+        "source_family": "bcb_focus_feature",
+        "feature_id": "bcb_focus:ipca",
+        "value_name": "median_revision_5bd",
+        "unit": None,
+    },
+    "bcb_focus_feature_respondents_log": {
+        "source_family": "bcb_focus_feature",
+        "feature_id": "bcb_focus:ipca",
+        "value_name": "respondents_log1p",
+        "unit": "log_count",
+    },
+    "bcb_focus_feature_std_dev_log": {
+        "source_family": "bcb_focus_feature",
+        "feature_id": "bcb_focus:ipca",
+        "value_name": "std_dev_log1p",
+        "unit": "log_value",
+    },
+    "bcb_focus_feature_dispersion_ratio": {
+        "source_family": "bcb_focus_feature",
+        "feature_id": "bcb_focus:ipca",
+        "value_name": "dispersion_to_abs_median",
+        "unit": "ratio",
+    },
     "fred_rate_percent_levels": {
         "source_family": "fred",
         "feature_id": "fred|dgs10",
@@ -739,6 +769,30 @@ _FEATURE_ROWS_BY_RULE_ID = {
         "feature_id": "ibge_sidra:pnad_real_income:6390:5932:1",
         "value_name": "value",
         "unit": "BRL",
+    },
+    "ibge_sidra_feature_percent_levels_sums": {
+        "source_family": "ibge_sidra_feature",
+        "feature_id": "ibge_sidra_feature:ibge_sidra:ipca:7060:63:1:315=7169",
+        "value_name": "trailing_12obs_sum_pct",
+        "unit": "percent",
+    },
+    "ibge_sidra_feature_percentage_point_changes": {
+        "source_family": "ibge_sidra_feature",
+        "feature_id": "ibge_sidra_feature:ibge_sidra:gdp_volume_change:5932:6561:1",
+        "value_name": "yoy_change_pp",
+        "unit": "percentage_points",
+    },
+    "ibge_sidra_feature_log_levels": {
+        "source_family": "ibge_sidra_feature",
+        "feature_id": "ibge_sidra_feature:ibge_sidra:pim_industrial_production:8888:12606:1",
+        "value_name": "log_level",
+        "unit": "log_level",
+    },
+    "ibge_sidra_feature_log_changes": {
+        "source_family": "ibge_sidra_feature",
+        "feature_id": "ibge_sidra_feature:ibge_sidra:pim_industrial_production:8888:12606:1",
+        "value_name": "yoy_log_change",
+        "unit": "log_change",
     },
     "tesouro_direto_prices_rates_rates": {
         "source_family": "tesouro_direto_prices_rates",

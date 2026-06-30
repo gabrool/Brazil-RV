@@ -533,8 +533,8 @@ rules:
   - rule_id: bcb_focus_mean_median
     priority: 1110
     selector: {source_family: focus, value_name_regex: '^(mean|median)$'}
-    model_default: true
-    model_default_reason: Include Focus mean and median expectations.
+    model_default: false
+    model_default_reason: Superseded by bcb_focus_feature level, revision, dispersion, and Top5 spread rows.
     semantic_type: survey_expectation_level
     raw_unit: source_unit
     stationarity: stationaryish
@@ -542,8 +542,8 @@ rules:
   - rule_id: bcb_focus_std_dev
     priority: 1120
     selector: {source_family: focus, value_name: std_dev}
-    model_default: true
-    model_default_reason: Include Focus respondent dispersion.
+    model_default: false
+    model_default_reason: Superseded by bcb_focus_feature dispersion rows.
     semantic_type: survey_expectation_dispersion
     raw_unit: source_unit
     stationarity: stationaryish
@@ -551,8 +551,8 @@ rules:
   - rule_id: bcb_focus_respondents
     priority: 1130
     selector: {source_family: focus, value_name: respondents}
-    model_default: true
-    model_default_reason: Include Focus respondent count.
+    model_default: false
+    model_default_reason: Superseded by bcb_focus_feature log respondent-count rows.
     semantic_type: survey_respondent_count
     raw_unit: count
     stationarity: count
@@ -566,6 +566,51 @@ rules:
     raw_unit: source_unit
     stationarity: stationaryish
     preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.005, winsor_upper: 0.995, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Tail statistics are retained but not first-model defaults.}
+  - rule_id: bcb_focus_feature_levels_spreads
+    priority: 1150
+    selector: {source_family: bcb_focus_feature, value_name_regex: '^(median_level|mean_level|top5_minus_general_median|top5_minus_general_mean)$'}
+    model_default: true
+    model_default_reason: Include upgraded Focus level and matched Top5-minus-general features.
+    semantic_type: focus_level_or_matched_spread
+    raw_unit: source_unit
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Upgraded Focus level/spread rows are deterministic and robust-scaled.}
+  - rule_id: bcb_focus_feature_revisions
+    priority: 1160
+    selector: {source_family: bcb_focus_feature, value_name_regex: '^(median_revision_[0-9]+bd|mean_revision_[0-9]+bd)$'}
+    model_default: true
+    model_default_reason: Include upgraded Focus revision features.
+    semantic_type: focus_revision
+    raw_unit: source_unit_change
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Focus revisions are already differenced.}
+  - rule_id: bcb_focus_feature_respondents_log
+    priority: 1170
+    selector: {source_family: bcb_focus_feature, value_name: respondents_log1p}
+    model_default: true
+    model_default_reason: Include upgraded Focus log respondent count.
+    semantic_type: focus_log_respondent_count
+    raw_unit: log_count
+    stationarity: count
+    preprocessing: {transform: already_log, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Respondent counts are emitted as log1p values.}
+  - rule_id: bcb_focus_feature_std_dev_log
+    priority: 1175
+    selector: {source_family: bcb_focus_feature, value_name: std_dev_log1p}
+    model_default: true
+    model_default_reason: Include upgraded Focus log dispersion level.
+    semantic_type: focus_log_dispersion
+    raw_unit: log_value
+    stationarity: stationaryish
+    preprocessing: {transform: already_log, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Focus standard deviation is emitted as log1p(std_dev).}
+  - rule_id: bcb_focus_feature_dispersion_ratio
+    priority: 1180
+    selector: {source_family: bcb_focus_feature, value_name: dispersion_to_abs_median}
+    model_default: true
+    model_default_reason: Include upgraded Focus dispersion-to-level ratio.
+    semantic_type: focus_dispersion_ratio
+    raw_unit: ratio
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Dispersion ratio is non-negative and robust-scaled.}
   - rule_id: fred_rate_percent_levels
     priority: 1200
     selector: {source_family: fred, feature_id_regex: '^fred\|(dgs2|dgs5|dgs10|dgs30|dff|sofr|dfedtaru|dfedtarl|dfii5|dfii10|dfii30|t5yie|t10yie|baa10y|aaa10y|dbaa|daaa)$', value_name: value}
@@ -668,8 +713,8 @@ rules:
   - rule_id: ibge_sidra_inflation_percent
     priority: 1300
     selector: {source_family: ibge_sidra, feature_id_regex: '^ibge_sidra:(ipca|ipca15|inpc):.*$', value_name: value}
-    model_default: true
-    model_default_reason: Include current raw SIDRA inflation values conservatively.
+    model_default: false
+    model_default_reason: Superseded by ibge_sidra_feature inflation trailing and change rows.
     semantic_type: ibge_inflation_percent_or_weight
     raw_unit: percent_or_weight
     stationarity: stationaryish
@@ -677,8 +722,8 @@ rules:
   - rule_id: ibge_sidra_gdp_volume_change
     priority: 1310
     selector: {source_family: ibge_sidra, feature_id_regex: '^ibge_sidra:gdp_volume_change:.*$', value_name: value}
-    model_default: true
-    model_default_reason: Include GDP volume change values.
+    model_default: false
+    model_default_reason: Superseded by ibge_sidra_feature GDP volume change rows.
     semantic_type: ibge_percent_or_volume_change
     raw_unit: percent_or_index_change
     stationarity: stationaryish
@@ -686,8 +731,8 @@ rules:
   - rule_id: ibge_sidra_positive_index_levels
     priority: 1320
     selector: {source_family: ibge_sidra, feature_id_regex: '^ibge_sidra:(gdp_volume_index|pim_industrial_production|pmc_retail_index|pmc_broad_retail_index|pmc_retail_by_activity|pmc_broad_retail_by_activity|pms_services_index|pms_services_segments|pms_services_activities|sinapi_cost_m2):.*$', value_name: value}
-    model_default: true
-    model_default_reason: Include positive IBGE index and cost levels.
+    model_default: false
+    model_default_reason: Superseded by ibge_sidra_feature log level and change rows.
     semantic_type: ibge_positive_index_or_cost_level
     raw_unit: source_unit
     stationarity: nonstationary_level
@@ -695,8 +740,8 @@ rules:
   - rule_id: ibge_sidra_gdp_current_values
     priority: 1330
     selector: {source_family: ibge_sidra, feature_id_regex: '^ibge_sidra:gdp_current_values:.*$', value_name: value}
-    model_default: true
-    model_default_reason: Include nominal GDP current-value levels with signed-safe transform.
+    model_default: false
+    model_default_reason: Superseded by ibge_sidra_feature signed-log GDP current-value rows.
     semantic_type: ibge_nominal_current_value
     raw_unit: brl_or_source_unit
     stationarity: nonstationary_level
@@ -704,8 +749,8 @@ rules:
   - rule_id: ibge_sidra_labor_rate_percent
     priority: 1340
     selector: {source_family: ibge_sidra, feature_id_regex: '^ibge_sidra:(pnad_unemployment_rate|pnad_participation_rate|pnad_underutilization_rate):.*$', value_name: value}
-    model_default: true
-    model_default_reason: Include bounded labor market percent/rate values.
+    model_default: false
+    model_default_reason: Superseded by ibge_sidra_feature PNAD rate level and change rows.
     semantic_type: ibge_labor_rate_percent
     raw_unit: percent
     stationarity: bounded
@@ -713,12 +758,48 @@ rules:
   - rule_id: ibge_sidra_labor_positive_levels
     priority: 1350
     selector: {source_family: ibge_sidra, feature_id_regex: '^ibge_sidra:(pnad_occupation_level|pnad_underutilization_level|pnad_real_income|pnad_real_income_usual|pnad_real_income_mass|pnad_real_income_mass_usual):.*$', value_name: value}
-    model_default: true
-    model_default_reason: Include positive labor level, income, and mass values.
+    model_default: false
+    model_default_reason: Superseded by ibge_sidra_feature PNAD log level and change rows.
     semantic_type: ibge_labor_positive_level
     raw_unit: source_unit
     stationarity: nonstationary_level
     preprocessing: {transform: log1p_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Positive labor levels use log1p and train-only robust scaling.}
+  - rule_id: ibge_sidra_feature_percent_levels_sums
+    priority: 1360
+    selector: {source_family: ibge_sidra_feature, value_name_regex: '^(monthly_pct|level_pct|trailing_3obs_sum_pct|trailing_12obs_sum_pct|trailing_3obs_ann_pct)$'}
+    model_default: true
+    model_default_reason: Include upgraded SIDRA percent level, trailing sum, and annualized features.
+    semantic_type: ibge_percent_level_or_sum
+    raw_unit: percent
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: SIDRA percent features remain in percent units.}
+  - rule_id: ibge_sidra_feature_percentage_point_changes
+    priority: 1370
+    selector: {source_family: ibge_sidra_feature, value_name_regex: '^(change_1obs_pp|yoy_change_pp)$'}
+    model_default: true
+    model_default_reason: Include upgraded SIDRA percentage-point change features.
+    semantic_type: ibge_percentage_point_change
+    raw_unit: percentage_points
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: SIDRA change features are already differenced.}
+  - rule_id: ibge_sidra_feature_log_levels
+    priority: 1380
+    selector: {source_family: ibge_sidra_feature, value_name_regex: '^(log_level|signed_log_level)$'}
+    model_default: true
+    model_default_reason: Include upgraded SIDRA log and signed-log level features.
+    semantic_type: ibge_log_level
+    raw_unit: log_level
+    stationarity: nonstationary_level
+    preprocessing: {transform: already_log, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: SIDRA level features are emitted already logged.}
+  - rule_id: ibge_sidra_feature_log_changes
+    priority: 1390
+    selector: {source_family: ibge_sidra_feature, value_name_regex: '^(log_change_1obs|log_change_3obs|yoy_log_change|signed_log_change_1obs|yoy_signed_log_change)$'}
+    model_default: true
+    model_default_reason: Include upgraded SIDRA log change and yoy features.
+    semantic_type: ibge_log_change
+    raw_unit: log_change
+    stationarity: stationaryish
+    preprocessing: {transform: already_return, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: SIDRA log changes are already return-like.}
   - rule_id: tesouro_direto_prices_rates_rates
     priority: 1400
     selector: {source_family: tesouro_direto_prices_rates, value_name_regex: '^(buy_rate|sell_rate)$'}
