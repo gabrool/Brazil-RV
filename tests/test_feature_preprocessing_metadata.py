@@ -248,12 +248,57 @@ def test_key_model_default_decisions(repo_root):
     assert (
         _rule(
             config,
+            source_family="anp_fuel_price",
+            feature_id="anp_fuel_price|all|all|gasolina_c",
+            value_name="sale_price",
+        ).model_default
+        is False
+    )
+    assert (
+        _rule(
+            config,
             source_family="fred_market_feature",
             feature_id="fred_market:dcoilwtico",
             value_name="signed_log_change_1bd",
             unit="signed_log_change",
         ).preprocessing.transform
         == "already_return"
+    )
+    assert (
+        _rule(
+            config,
+            source_family="ons_ear_subsystem",
+            feature_id="ons_ear_subsystem|se",
+            value_name="stored_energy_percent",
+        ).model_default
+        is False
+    )
+    assert (
+        _rule(
+            config,
+            source_family="cvm_fund_state",
+            feature_id="cvm_fund_group|all|all",
+            value_name="nav",
+        ).model_default
+        is False
+    )
+    assert (
+        _rule(
+            config,
+            source_family="novo_caged_movements",
+            feature_id="novo_caged_movements|all|admitidos",
+            value_name="movement_count",
+        ).model_default
+        is False
+    )
+    assert (
+        _rule(
+            config,
+            source_family="receita_tax_collection",
+            feature_id="receita_tax_collection|all|principal|001_irpj",
+            value_name="collection_amount_brl",
+        ).model_default
+        is False
     )
 
 
@@ -914,6 +959,24 @@ _FEATURE_ROWS_BY_RULE_ID = {
         "value_name": "metric_value_count",
         "unit": "observations",
     },
+    "anp_fuel_feature_logs": {
+        "source_family": "anp_fuel_feature",
+        "feature_id": "anp_fuel:anp_fuel_price|state|sp|gasolina_comum",
+        "value_name": "sale_price_log",
+        "unit": "log_price",
+    },
+    "anp_fuel_feature_log_changes": {
+        "source_family": "anp_fuel_feature",
+        "feature_id": "anp_fuel:anp_fuel_price|state|sp|gasolina_comum",
+        "value_name": "sale_price_log_change_1obs",
+        "unit": "log_return",
+    },
+    "anp_fuel_feature_ratios_spreads": {
+        "source_family": "anp_fuel_feature",
+        "feature_id": "anp_fuel:state|sp:cross_product",
+        "value_name": "ethanol_gasoline_parity",
+        "unit": "ratio",
+    },
     "ons_ear_stored_energy_levels": {
         "source_family": "ons_ear_subsystem",
         "feature_id": "ons_ear_subsystem|se",
@@ -980,6 +1043,30 @@ _FEATURE_ROWS_BY_RULE_ID = {
         "value_name": "hour_count",
         "unit": "count",
     },
+    "ons_power_feature_percent_levels_shares": {
+        "source_family": "ons_power_feature",
+        "feature_id": "ons_power:ons_energy_balance_daily|se",
+        "value_name": "hydro_generation_share_pct",
+        "unit": "percent",
+    },
+    "ons_power_feature_percent_changes_z": {
+        "source_family": "ons_power_feature",
+        "feature_id": "ons_power:ons_ear_subsystem|se",
+        "value_name": "stored_energy_percent_seasonal_z",
+        "unit": "z_score",
+    },
+    "ons_power_feature_log_levels": {
+        "source_family": "ons_power_feature",
+        "feature_id": "ons_power:ons_ear_subsystem|se",
+        "value_name": "stored_energy_mwmes_log",
+        "unit": "log_mwmed",
+    },
+    "ons_power_feature_log_changes": {
+        "source_family": "ons_power_feature",
+        "feature_id": "ons_power:ons_cmo_weekly|se",
+        "value_name": "cmo_log_change_1obs",
+        "unit": "log_return",
+    },
     "cvm_fund_flows_amounts": {
         "source_family": "cvm_fund_flows",
         "feature_id": "cvm_fund_group|all|all",
@@ -1004,6 +1091,24 @@ _FEATURE_ROWS_BY_RULE_ID = {
         "value_name": "shareholder_count",
         "unit": "shareholders",
     },
+    "cvm_fund_feature_logs": {
+        "source_family": "cvm_fund_feature",
+        "feature_id": "cvm_fund:cvm_fund_group|all|all",
+        "value_name": "nav_log",
+        "unit": "log_brl",
+    },
+    "cvm_fund_feature_flows": {
+        "source_family": "cvm_fund_feature",
+        "feature_id": "cvm_fund:cvm_fund_group|all|all",
+        "value_name": "net_flow_brl",
+        "unit": "BRL",
+    },
+    "cvm_fund_feature_ratios": {
+        "source_family": "cvm_fund_feature",
+        "feature_id": "cvm_fund:cvm_fund_group|all|all",
+        "value_name": "net_flow_to_nav_pct",
+        "unit": "percent",
+    },
     "novo_caged_movement_counts": {
         "source_family": "novo_caged_movements",
         "feature_id": "novo_caged_movements|all|admitidos",
@@ -1022,10 +1127,64 @@ _FEATURE_ROWS_BY_RULE_ID = {
         "value_name": "contract_hours_mean",
         "unit": "hours",
     },
+    "novo_caged_feature_counts": {
+        "source_family": "novo_caged_feature",
+        "feature_id": "novo_caged:novo_caged_movement|state|sp",
+        "value_name": "admissions_count",
+        "unit": "jobs",
+    },
+    "novo_caged_feature_net_jobs": {
+        "source_family": "novo_caged_feature",
+        "feature_id": "novo_caged:novo_caged_movement|state|sp",
+        "value_name": "net_jobs",
+        "unit": "jobs",
+    },
+    "novo_caged_feature_ratios_shares": {
+        "source_family": "novo_caged_feature",
+        "feature_id": "novo_caged:novo_caged_movement|state|sp",
+        "value_name": "state_positive_diffusion_share_pct",
+        "unit": "percent",
+    },
+    "novo_caged_feature_wage": {
+        "source_family": "novo_caged_feature",
+        "feature_id": "novo_caged:novo_caged_movement|state|sp",
+        "value_name": "wage_mean_log",
+        "unit": "log_brl",
+    },
+    "novo_caged_feature_wage_change": {
+        "source_family": "novo_caged_feature",
+        "feature_id": "novo_caged:novo_caged_movement|state|sp",
+        "value_name": "wage_mean_yoy_log_change",
+        "unit": "log_return",
+    },
+    "novo_caged_feature_contract_hours": {
+        "source_family": "novo_caged_feature",
+        "feature_id": "novo_caged:novo_caged_movement|state|sp",
+        "value_name": "contract_hours_mean",
+        "unit": "hours",
+    },
     "receita_tax_collection_amount": {
         "source_family": "receita_tax_collection",
         "feature_id": "receita_tax_collection|all|principal|001_irpj",
         "value_name": "collection_amount_brl",
         "unit": "BRL",
+    },
+    "receita_feature_signed_logs": {
+        "source_family": "receita_feature",
+        "feature_id": "receita:receita_tax_collection|all|principal|001_irpj",
+        "value_name": "collection_signed_log",
+        "unit": "signed_log_brl",
+    },
+    "receita_feature_yoy": {
+        "source_family": "receita_feature",
+        "feature_id": "receita:receita_tax_collection|all|principal|001_irpj",
+        "value_name": "real_collection_yoy_pct",
+        "unit": "percent",
+    },
+    "receita_feature_category_share": {
+        "source_family": "receita_feature",
+        "feature_id": "receita:receita_tax_collection|all|principal|001_irpj",
+        "value_name": "category_share_pct",
+        "unit": "percent",
     },
 }

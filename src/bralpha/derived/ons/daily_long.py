@@ -136,13 +136,20 @@ def build_ons_state_asof_daily(
 def build_ons_daily_long(
     *,
     state_asof_daily: pl.DataFrame | None = None,
+    power_feature_daily: pl.DataFrame | None = None,
     include_hydro: bool,
     include_load_cmo: bool,
     include_energy_balance: bool,
     include_interchange: bool,
 ) -> pl.DataFrame:
+    parts: list[pl.DataFrame] = []
+    if power_feature_daily is not None and not power_feature_daily.is_empty():
+        parts.append(power_feature_daily.select(ONS_DAILY_LONG_COLUMNS))
+
     if state_asof_daily is None or state_asof_daily.is_empty():
-        return _empty_daily_long()
+        if not parts:
+            return _empty_daily_long()
+        return _validated_daily_long(_concat(parts))
 
     families = _included_families(
         include_hydro=include_hydro,
@@ -150,13 +157,22 @@ def build_ons_daily_long(
         include_energy_balance=include_energy_balance,
         include_interchange=include_interchange,
     )
-    if not families:
+    if families:
+        parts.append(
+            state_asof_daily.filter(pl.col("source_family").is_in(families)).select(
+                ONS_DAILY_LONG_COLUMNS
+            )
+        )
+
+    if not parts:
         return _empty_daily_long()
 
+    return _validated_daily_long(_concat(parts))
+
+
+def _validated_daily_long(frame: pl.DataFrame) -> pl.DataFrame:
     frame = (
-        state_asof_daily.filter(pl.col("source_family").is_in(families))
-        .filter(pl.col("value").is_not_null())
-        .select(ONS_DAILY_LONG_COLUMNS)
+        frame.filter(pl.col("value").is_not_null())
         .unique(subset=PANEL_PRIMARY_KEYS["daily_long"], keep="last", maintain_order=True)
     )
     validate_asof_panel(

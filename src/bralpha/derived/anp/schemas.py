@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from bralpha.derived.pit_metadata import PIT_METADATA_COLUMNS
+
 ANP_FUEL_PRICE_STATION_OBSERVATION_COLUMNS = [
     "observation_id",
     "ref_date",
@@ -134,6 +136,8 @@ ANP_DAILY_LONG_COLUMNS = [
     "source_version",
 ]
 
+ANP_FUEL_FEATURE_DAILY_COLUMNS = [*ANP_DAILY_LONG_COLUMNS, *PIT_METADATA_COLUMNS]
+
 PANEL_PRIMARY_KEYS = {
     "fuel_price_station_observation": ["observation_id"],
     "fuel_price_group_observation": ["ref_date", "group_type", "group_value", "product"],
@@ -149,5 +153,6 @@ PANEL_PRIMARY_KEYS = {
         "metric_type",
     ],
     "state_asof_daily": ["ref_date", "source_family", "feature_id", "value_name"],
+    "fuel_feature_daily": ["ref_date", "source_family", "feature_id", "value_name"],
     "daily_long": ["ref_date", "source_family", "feature_id", "value_name"],
 }

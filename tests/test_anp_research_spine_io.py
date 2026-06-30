@@ -79,6 +79,7 @@ def test_anp_pipeline_full_run_skips_missing_inputs(repo_root, tmp_path):
         "oil_gas_production_observation",
         "oil_gas_group_observation",
         "state_asof_daily",
+        "fuel_feature_daily",
         "daily_long",
     }
     assert all(value.startswith("skipped:") for value in status.values())

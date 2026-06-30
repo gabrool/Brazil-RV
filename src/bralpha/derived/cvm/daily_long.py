@@ -28,10 +28,13 @@ def build_cvm_daily_long(
     *,
     fund_flows_daily: pl.DataFrame | None = None,
     fund_state_asof_daily: pl.DataFrame | None = None,
+    fund_feature_daily: pl.DataFrame | None = None,
     include_fund_flows: bool,
     include_fund_state: bool,
 ) -> pl.DataFrame:
     parts: list[pl.DataFrame] = []
+    if fund_feature_daily is not None and not fund_feature_daily.is_empty():
+        parts.append(fund_feature_daily.select(CVM_DAILY_LONG_COLUMNS))
     if include_fund_flows and fund_flows_daily is not None and not fund_flows_daily.is_empty():
         parts.extend(_long_rows(fund_flows_daily, "cvm_fund_flows", _FLOW_VALUE_COLUMNS))
     if (

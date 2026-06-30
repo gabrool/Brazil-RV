@@ -105,14 +105,23 @@ def build_novo_caged_state_asof_daily(
 def build_novo_caged_daily_long(
     *,
     state_asof_daily: pl.DataFrame | None = None,
+    feature_daily: pl.DataFrame | None = None,
 ) -> pl.DataFrame:
-    if state_asof_daily is None or state_asof_daily.is_empty():
+    parts: list[pl.DataFrame] = []
+    if feature_daily is not None and not feature_daily.is_empty():
+        parts.append(feature_daily.select(NOVO_CAGED_DAILY_LONG_COLUMNS))
+    if state_asof_daily is not None and not state_asof_daily.is_empty():
+        parts.append(
+            state_asof_daily.filter(pl.col("source_family") == "novo_caged_movements").select(
+                NOVO_CAGED_DAILY_LONG_COLUMNS
+            )
+        )
+    if not parts:
         return _empty_daily_long()
 
     frame = (
-        state_asof_daily.filter(pl.col("source_family") == "novo_caged_movements")
+        pl.concat(parts, how="diagonal_relaxed")
         .filter(pl.col("value").is_not_null())
-        .select(NOVO_CAGED_DAILY_LONG_COLUMNS)
         .unique(subset=PANEL_PRIMARY_KEYS["daily_long"], keep="last", maintain_order=True)
     )
     validate_asof_panel(

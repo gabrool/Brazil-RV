@@ -7,7 +7,9 @@ from pathlib import Path
 
 import polars as pl
 
+from bralpha.derived.feature_utils import feature_warmup_start
 from bralpha.derived.ons.daily_long import build_ons_daily_long, build_ons_state_asof_daily
+from bralpha.derived.ons.features import build_ons_power_feature_daily
 from bralpha.derived.ons.hourly_daily import (
     build_energy_balance_daily_observation,
     build_interchange_daily_observation,
@@ -32,6 +34,7 @@ from bralpha.infra.config import (
     load_paths_config,
     resolve_project_paths,
 )
+from bralpha.modeling.config import load_model_dataset_config
 
 PANEL_ORDER = [
     "ear_subsystem_observation",
@@ -41,6 +44,7 @@ PANEL_ORDER = [
     "energy_balance_daily_observation",
     "interchange_daily_observation",
     "state_asof_daily",
+    "power_feature_daily",
     "daily_long",
 ]
 
@@ -60,6 +64,8 @@ def run_ons_research_spine(
     explicit = panels is not None
     paths = resolve_project_paths(repo_root, load_paths_config(repo_root))
     config = load_ons_research_config(repo_root).ons_research
+    model_config = load_model_dataset_config(repo_root)
+    warmup_start = feature_warmup_start(start, model_config.feature_warmup_business_days)
     built: dict[str, pl.DataFrame] = {}
     status: dict[str, str] = {}
 
@@ -67,7 +73,16 @@ def run_ons_research_spine(
         if panel not in requested:
             continue
         try:
-            frame = _build_panel(panel, paths, config, built, start, end, required=explicit)
+            frame = _build_panel(
+                panel,
+                paths,
+                config,
+                built,
+                start,
+                end,
+                warmup_start=warmup_start,
+                required=explicit,
+            )
         except ONSResearchInputMissingError as exc:
             if explicit:
                 raise
@@ -99,6 +114,7 @@ def _build_panel(
     start: date,
     end: date,
     *,
+    warmup_start: date,
     required: bool,
 ) -> pl.DataFrame | None:
     if panel == "ear_subsystem_observation":
@@ -210,18 +226,53 @@ def _build_panel(
             end=end,
             max_features=config.asof.max_features,
         )
+    if panel == "power_feature_daily":
+        asof = _state_asof_history(paths, config, warmup_start, end, required=required)
+        if asof is None:
+            return None
+        return build_ons_power_feature_daily(asof, start=start, end=end)
     if panel == "daily_long":
         asof = _dependency(paths, built, "state_asof_daily", start, end, required=required)
-        if asof is None:
+        features = _dependency(paths, built, "power_feature_daily", start, end, required=False)
+        if asof is None and features is None:
             return None
         return build_ons_daily_long(
             state_asof_daily=asof,
+            power_feature_daily=features,
             include_hydro=config.daily_long.include_hydro,
             include_load_cmo=config.daily_long.include_load_cmo,
             include_energy_balance=config.daily_long.include_energy_balance,
             include_interchange=config.daily_long.include_interchange,
         )
     raise ValueError(f"Unknown panel: {panel}")
+
+
+def _state_asof_history(
+    paths,
+    config,
+    start: date,
+    end: date,
+    *,
+    required: bool,
+) -> pl.DataFrame | None:
+    if not config.asof.include_state_asof_daily:
+        return None
+    histories = _observation_histories(paths, config, end, required=required)
+    if all(frame is None for frame in histories.values()):
+        if required:
+            raise ONSResearchInputMissingError("Missing ONS observation history for features")
+        return None
+    return build_ons_state_asof_daily(
+        ear=histories["ear"],
+        ena=histories["ena"],
+        load=histories["load"],
+        cmo=histories["cmo"],
+        energy_balance=histories["energy_balance"],
+        interchange=histories["interchange"],
+        start=start,
+        end=end,
+        max_features=config.asof.max_features,
+    )
 
 
 def _observation_histories(
