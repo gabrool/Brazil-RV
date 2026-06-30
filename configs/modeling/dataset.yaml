@@ -1,0 +1,15 @@
+model_start_date: 2013-01-02
+lookback_business_days: 256
+feature_warmup_business_days: 504
+target_horizons_business_days: [1, 5, 21]
+split_assignment_date: asof_date
+embargo_business_days: 0
+train:
+  start: 2013-01-02
+  end: 2021-12-31
+validation:
+  start: 2022-01-03
+  end: 2023-12-29
+test:
+  start: 2024-01-02
+  end: null
