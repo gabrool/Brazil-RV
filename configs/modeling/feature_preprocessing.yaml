@@ -2,8 +2,8 @@ rules:
   - rule_id: b3_continuous_futures_settlement
     priority: 10
     selector: {panel: continuous_futures_daily, value_name: settlement}
-    model_default: true
-    model_default_reason: Include continuous futures settlement levels in the first model.
+    model_default: false
+    model_default_reason: Superseded by b3_futures_feature log settlement and return rows.
     semantic_type: futures_quote_level
     raw_unit: quote
     stationarity: nonstationary_level
@@ -11,8 +11,8 @@ rules:
   - rule_id: b3_continuous_futures_quote_diff
     priority: 20
     selector: {panel: continuous_futures_daily, value_name_regex: '^(quote_diff_1d|same_contract_quote_diff_1d)$'}
-    model_default: true
-    model_default_reason: Include one-day continuous futures quote changes in the first model.
+    model_default: false
+    model_default_reason: Superseded by b3_futures_feature return and roll-gap rows.
     semantic_type: quote_change
     raw_unit: quote_change
     stationarity: stationaryish
@@ -20,8 +20,8 @@ rules:
   - rule_id: b3_continuous_futures_quote_return
     priority: 30
     selector: {panel: continuous_futures_daily, value_name_regex: '^(quote_pct_change_1d|same_contract_quote_pct_change_1d)$'}
-    model_default: true
-    model_default_reason: Include one-day continuous futures percentage returns in the first model.
+    model_default: false
+    model_default_reason: Superseded by b3_futures_feature log-return rows.
     semantic_type: return
     raw_unit: return_fraction
     stationarity: stationaryish
@@ -29,8 +29,8 @@ rules:
   - rule_id: b3_continuous_futures_liquidity
     priority: 40
     selector: {panel: continuous_futures_daily, value_name_regex: '^(volume|open_interest)$'}
-    model_default: true
-    model_default_reason: Include continuous futures liquidity and open-interest signals.
+    model_default: false
+    model_default_reason: Superseded by b3_futures_feature log liquidity and volume-to-open-interest rows.
     semantic_type: liquidity_count_or_notional
     raw_unit: count_or_notional
     stationarity: count
@@ -56,8 +56,8 @@ rules:
   - rule_id: b3_di_grid_implied_annual_rate_bp
     priority: 100
     selector: {panel: di_curve_grid_daily, value_name: implied_annual_rate_bp}
-    model_default: true
-    model_default_reason: Canonical DI curve rate level in basis points.
+    model_default: false
+    model_default_reason: Superseded by b3_di_curve_feature rate level, shape, and forward rows.
     semantic_type: brl_di_rate_level_bp
     raw_unit: basis_points
     stationarity: stationaryish
@@ -65,8 +65,8 @@ rules:
   - rule_id: b3_di_grid_log_discount_factor
     priority: 110
     selector: {panel: di_curve_grid_daily, value_name: log_discount_factor}
-    model_default: true
-    model_default_reason: Canonical DI curve log discount-factor level.
+    model_default: false
+    model_default_reason: Superseded by b3_di_curve_feature log discount-factor rows.
     semantic_type: brl_di_log_discount_factor
     raw_unit: log_discount_factor
     stationarity: stationaryish
@@ -110,8 +110,8 @@ rules:
   - rule_id: b3_di_contract_implied_annual_rate_bp
     priority: 210
     selector: {panel: di_curve_contract_daily, value_name: implied_annual_rate_bp}
-    model_default: true
-    model_default_reason: Canonical DI contract rate level in basis points.
+    model_default: false
+    model_default_reason: Superseded by b3_di_curve_feature rate level, shape, and forward rows.
     semantic_type: brl_di_rate_level_bp
     raw_unit: basis_points
     stationarity: stationaryish
@@ -119,8 +119,8 @@ rules:
   - rule_id: b3_di_contract_log_discount_factor
     priority: 220
     selector: {panel: di_curve_contract_daily, value_name: log_discount_factor}
-    model_default: true
-    model_default_reason: Canonical DI contract log discount-factor level.
+    model_default: false
+    model_default_reason: Superseded by b3_di_curve_feature log discount-factor rows.
     semantic_type: brl_di_log_discount_factor
     raw_unit: log_discount_factor
     stationarity: stationaryish
@@ -191,8 +191,8 @@ rules:
   - rule_id: b3_index_daily_prices
     priority: 300
     selector: {panel: index_daily, value_name_regex: '^(close|open|high|low)$'}
-    model_default: true
-    model_default_reason: Include B3 index level features in the first model.
+    model_default: false
+    model_default_reason: Superseded by b3_index_feature log close, returns, range, and drawdown rows.
     semantic_type: adjusted_or_index_level
     raw_unit: index_points
     stationarity: nonstationary_level
@@ -200,8 +200,8 @@ rules:
   - rule_id: b3_index_daily_liquidity
     priority: 310
     selector: {panel: index_daily, value_name_regex: '^(volume|financial_volume|number_of_trades)$'}
-    model_default: true
-    model_default_reason: Include B3 index liquidity features in the first model.
+    model_default: false
+    model_default_reason: Superseded by b3_index_feature log liquidity rows.
     semantic_type: liquidity_count_or_notional
     raw_unit: count_or_notional
     stationarity: count
@@ -227,8 +227,8 @@ rules:
   - rule_id: b3_index_composition_weight
     priority: 500
     selector: {panel: index_composition_daily, value_name: weight}
-    model_default: true
-    model_default_reason: Include index composition weights in the first model.
+    model_default: false
+    model_default_reason: Superseded by b3_index_composition_feature aggregate concentration rows.
     semantic_type: index_weight_percent_or_fraction
     raw_unit: percent_or_fraction
     stationarity: bounded
@@ -242,6 +242,150 @@ rules:
     raw_unit: shares
     stationarity: nonstationary_level
     preprocessing: {transform: log1p_positive, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Preprocessing is defined only for future explicit opt-in.}
+  - rule_id: b3_di_curve_feature_rate_levels_shapes_forwards
+    priority: 600
+    selector: {source_family: b3_di_curve_feature, value_name_regex: '^(rate_level_bp|slope_[0-9_]+_bp|butterfly_[0-9_]+_bp|forward_[0-9_]+_bp|rolldown_[0-9]+bd_bp)$'}
+    model_default: true
+    model_default_reason: Canonical upgraded DI curve level, shape, forward, and rolldown features.
+    semantic_type: brl_di_curve_rate_or_shape_bp
+    raw_unit: basis_points
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_mad, winsor_lower: -10, winsor_upper: 10, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Upgraded DI curve bp features are deterministic and use train-only MAD clipping.}
+  - rule_id: b3_di_curve_feature_rate_changes
+    priority: 610
+    selector: {source_family: b3_di_curve_feature, value_name_regex: '^rate_change_[0-9]+bd_bp$'}
+    model_default: true
+    model_default_reason: Canonical upgraded DI curve rate-change features.
+    semantic_type: brl_di_curve_rate_change_bp
+    raw_unit: basis_points
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: DI curve bp changes are already differenced and require only train-only robust treatment.}
+  - rule_id: b3_di_curve_feature_log_discount_factor
+    priority: 620
+    selector: {source_family: b3_di_curve_feature, value_name: log_discount_factor}
+    model_default: true
+    model_default_reason: Canonical upgraded DI curve log discount-factor feature.
+    semantic_type: brl_di_curve_log_discount_factor
+    raw_unit: log_discount_factor
+    stationarity: stationaryish
+    preprocessing: {transform: already_log, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Log discount factors are already logged and can be negative.}
+  - rule_id: b3_di_curve_feature_log_df_changes
+    priority: 630
+    selector: {source_family: b3_di_curve_feature, value_name_regex: '^log_df_change_[0-9]+bd$'}
+    model_default: true
+    model_default_reason: Canonical upgraded DI curve log discount-factor changes.
+    semantic_type: brl_di_curve_log_discount_factor_change
+    raw_unit: log_change
+    stationarity: stationaryish
+    preprocessing: {transform: already_return, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Log discount-factor changes are already return-like.}
+  - rule_id: b3_di_curve_feature_flags
+    priority: 640
+    selector: {source_family: b3_di_curve_feature, value_name_regex: '^(is_interpolated|is_extrapolated)$'}
+    model_default: true
+    model_default_reason: Include DI curve construction flags as binary diagnostics.
+    semantic_type: curve_construction_flag
+    raw_unit: boolean
+    stationarity: binary
+    preprocessing: {transform: binary, winsorization: none, winsor_lower: null, winsor_upper: null, hard_min: null, hard_max: null, scaler: none, fit_scope: train_only, missing_policy: false_fill, positive_required: false, allow_negative: false, notes: Binary interpolation and extrapolation flags use false-fill and no fitted statistics.}
+  - rule_id: b3_futures_feature_log_settlement
+    priority: 650
+    selector: {source_family: b3_futures_feature, value_name: log_settlement}
+    model_default: true
+    model_default_reason: Canonical upgraded continuous-futures log settlement feature.
+    semantic_type: futures_log_quote_level
+    raw_unit: log_quote
+    stationarity: stationaryish
+    preprocessing: {transform: already_log, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Emitted log settlements are already transformed and remain unpreprocessed in the feature panel.}
+  - rule_id: b3_futures_feature_log_returns
+    priority: 660
+    selector: {source_family: b3_futures_feature, value_name_regex: '^(log_return_[0-9]+bd|same_contract_log_return_1bd)$'}
+    model_default: true
+    model_default_reason: Canonical upgraded continuous-futures return features.
+    semantic_type: futures_log_return
+    raw_unit: log_return
+    stationarity: stationaryish
+    preprocessing: {transform: already_return, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Log returns are already return-like and use train-only robust treatment.}
+  - rule_id: b3_futures_feature_realized_vol
+    priority: 670
+    selector: {source_family: b3_futures_feature, value_name_regex: '^realized_vol_[0-9]+bd_ann$'}
+    model_default: true
+    model_default_reason: Include realized volatility features from continuous-futures returns.
+    semantic_type: futures_realized_volatility
+    raw_unit: annualized_log_vol
+    stationarity: bounded
+    preprocessing: {transform: identity, winsorization: hard_clip_then_train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: 0, hard_max: 10, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Realized volatility is non-negative and clipped before train-only robust scaling.}
+  - rule_id: b3_futures_feature_log_liquidity
+    priority: 680
+    selector: {source_family: b3_futures_feature, value_name_regex: '^(volume_log1p|open_interest_log1p)$'}
+    model_default: true
+    model_default_reason: Include upgraded continuous-futures log liquidity features.
+    semantic_type: futures_log_liquidity
+    raw_unit: log_count
+    stationarity: count
+    preprocessing: {transform: already_log, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Liquidity fields are emitted as log1p values and remain metadata-only here.}
+  - rule_id: b3_futures_feature_ratios_maturity
+    priority: 690
+    selector: {source_family: b3_futures_feature, value_name_regex: '^(volume_open_interest_ratio|roll_gap_pct|business_days_to_maturity)$'}
+    model_default: true
+    model_default_reason: Include continuous-futures roll, liquidity-ratio, and maturity-distance controls.
+    semantic_type: futures_ratio_or_maturity_control
+    raw_unit: ratio_or_days
+    stationarity: stationaryish
+    preprocessing: {transform: identity, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Ratio and maturity controls are deterministic upgraded features with train-only robust treatment.}
+  - rule_id: b3_futures_feature_flags
+    priority: 700
+    selector: {source_family: b3_futures_feature, value_name_regex: '^(is_roll_date|is_tradeable)$'}
+    model_default: true
+    model_default_reason: Include continuous-futures roll and tradeability flags.
+    semantic_type: futures_binary_flag
+    raw_unit: boolean
+    stationarity: binary
+    preprocessing: {transform: binary, winsorization: none, winsor_lower: null, winsor_upper: null, hard_min: null, hard_max: null, scaler: none, fit_scope: train_only, missing_policy: false_fill, positive_required: false, allow_negative: false, notes: Binary futures flags use false-fill and no fitted statistics.}
+  - rule_id: b3_index_feature_logs
+    priority: 710
+    selector: {source_family: b3_index_feature, value_name_regex: '^(log_close|intraday_range_log|volume_log1p|financial_volume_log1p|number_of_trades_log1p)$'}
+    model_default: true
+    model_default_reason: Include upgraded B3 index log level, range, and liquidity features.
+    semantic_type: index_log_level_or_liquidity
+    raw_unit: log_value
+    stationarity: stationaryish
+    preprocessing: {transform: already_log, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: B3 index log fields are emitted already logged and remain unpreprocessed.}
+  - rule_id: b3_index_feature_returns
+    priority: 720
+    selector: {source_family: b3_index_feature, value_name_regex: '^log_return_[0-9]+bd$'}
+    model_default: true
+    model_default_reason: Include upgraded B3 index log-return features.
+    semantic_type: index_log_return
+    raw_unit: log_return
+    stationarity: stationaryish
+    preprocessing: {transform: already_return, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Index log returns are already return-like.}
+  - rule_id: b3_index_feature_vol_drawdown
+    priority: 730
+    selector: {source_family: b3_index_feature, value_name_regex: '^(realized_vol_[0-9]+bd_ann|close_drawdown_252bd_pct)$'}
+    model_default: true
+    model_default_reason: Include upgraded B3 index realized-volatility and drawdown features.
+    semantic_type: index_volatility_or_drawdown
+    raw_unit: vol_or_percent
+    stationarity: bounded
+    preprocessing: {transform: identity, winsorization: hard_clip_then_train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: -100, hard_max: 10, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: true, notes: Drawdowns and volatility are bounded in practice and clipped before train-only robust scaling.}
+  - rule_id: b3_index_composition_feature_counts
+    priority: 740
+    selector: {source_family: b3_index_composition_feature, value_name_regex: '^(constituent_count|effective_constituents)$'}
+    model_default: true
+    model_default_reason: Include upgraded B3 index breadth/count features.
+    semantic_type: index_composition_count
+    raw_unit: count
+    stationarity: count
+    preprocessing: {transform: count_log1p, winsorization: train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: null, hard_max: null, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Composition counts use train-only log1p and robust scaling.}
+  - rule_id: b3_index_composition_feature_concentration
+    priority: 750
+    selector: {source_family: b3_index_composition_feature, value_name_regex: '^(weight_top1_pct|top5_weight_pct|top10_weight_pct|hhi_weight)$'}
+    model_default: true
+    model_default_reason: Include upgraded B3 index concentration features.
+    semantic_type: index_composition_concentration
+    raw_unit: percent_or_hhi
+    stationarity: bounded
+    preprocessing: {transform: identity, winsorization: hard_clip_then_train_quantile, winsor_lower: 0.001, winsor_upper: 0.999, hard_min: 0, hard_max: 100, scaler: train_robust_zscore, fit_scope: train_only, missing_policy: preserve_null_add_mask, positive_required: false, allow_negative: false, notes: Composition concentration features are bounded and clipped before train-only robust scaling.}
   - rule_id: bcb_raw_sgs_engineered_replacements
     priority: 1000
     selector: {source_family: sgs, feature_id_regex: '^sgs:(selic_over|selic_target|ipca|international_reserves_liquidity)$', value_name: value}

@@ -8,7 +8,13 @@ import polars as pl
 
 from bralpha.derived.b3.continuous_futures import build_continuous_futures_daily
 from bralpha.derived.b3.di_curve import build_di_curve_contract_daily, build_di_curve_grid_daily
+from bralpha.derived.b3.di_features import build_di_curve_feature_daily
 from bralpha.derived.b3.futures_contract_panel import build_futures_contract_daily
+from bralpha.derived.b3.futures_features import build_futures_feature_daily
+from bralpha.derived.b3.index_features import (
+    build_index_composition_feature_daily,
+    build_index_feature_daily,
+)
 from bralpha.derived.b3.io import (
     ResearchInputMissingError,
     read_gold_panel,
@@ -22,16 +28,22 @@ from bralpha.derived.b3.listed_market import (
 )
 from bralpha.derived.b3.schemas import PANEL_PRIMARY_KEYS
 from bralpha.derived.b3.targets import build_targets_daily
+from bralpha.derived.feature_utils import feature_warmup_start
 from bralpha.infra.config import load_b3_research_config, load_paths_config, resolve_project_paths
+from bralpha.modeling.config import load_model_dataset_config
 
 PANEL_ORDER = [
     "futures_contract_daily",
     "continuous_futures_daily",
+    "futures_feature_daily",
     "di_curve_contract_daily",
     "di_curve_grid_daily",
+    "di_feature_daily",
     "listed_market_daily",
     "index_daily",
+    "index_feature_daily",
     "index_composition_daily",
+    "index_composition_feature_daily",
     "targets_daily",
 ]
 
@@ -51,6 +63,8 @@ def run_b3_research_spine(
     explicit = panels is not None
     paths = resolve_project_paths(repo_root, load_paths_config(repo_root))
     config = load_b3_research_config(repo_root).b3_research
+    model_config = load_model_dataset_config(repo_root)
+    warmup_start = feature_warmup_start(start, model_config.feature_warmup_business_days)
     built: dict[str, pl.DataFrame] = {}
     status: dict[str, str] = {}
 
@@ -58,7 +72,16 @@ def run_b3_research_spine(
         if panel not in requested:
             continue
         try:
-            frame = _build_panel(panel, paths, config, built, start, end, required=explicit)
+            frame = _build_panel(
+                panel,
+                paths,
+                config,
+                built,
+                start,
+                end,
+                warmup_start=warmup_start,
+                required=explicit,
+            )
         except ResearchInputMissingError as exc:
             if explicit:
                 raise
@@ -96,6 +119,7 @@ def _build_panel(
     start: date,
     end: date,
     *,
+    warmup_start: date,
     required: bool,
 ) -> pl.DataFrame | None:
     if panel == "futures_contract_daily":
@@ -134,6 +158,18 @@ def _build_panel(
             start=start,
             end=end,
         )
+    if panel == "futures_feature_daily":
+        continuous = _feature_dependency(
+            paths,
+            built,
+            "continuous_futures_daily",
+            warmup_start,
+            end,
+            required=required,
+        )
+        if continuous is None:
+            return None
+        return build_futures_feature_daily(continuous, start=start, end=end)
     if panel == "di_curve_contract_daily":
         contracts = _dependency(
             paths,
@@ -169,6 +205,18 @@ def _build_panel(
             start=start,
             end=end,
         )
+    if panel == "di_feature_daily":
+        grid = _feature_dependency(
+            paths,
+            built,
+            "di_curve_grid_daily",
+            warmup_start,
+            end,
+            required=required,
+        )
+        if grid is None:
+            return None
+        return build_di_curve_feature_daily(grid, start=start, end=end)
     if panel == "listed_market_daily":
         yearly = _silver(paths, "b3_cotahist_yearly", start, end)
         daily = _silver(paths, "b3_cotahist_daily", start, end)
@@ -189,6 +237,18 @@ def _build_panel(
         if indexes is None:
             return None
         return build_index_daily(indexes, start=start, end=end)
+    if panel == "index_feature_daily":
+        indexes = _feature_dependency(
+            paths,
+            built,
+            "index_daily",
+            warmup_start,
+            end,
+            required=required,
+        )
+        if indexes is None:
+            return None
+        return build_index_feature_daily(indexes, start=start, end=end)
     if panel == "index_composition_daily":
         composition = _silver(paths, "b3_indexes_composition", start, end)
         current = _silver(paths, "b3_indexes_current_portfolio", start, end)
@@ -204,6 +264,18 @@ def _build_panel(
             start=start,
             end=end,
         )
+    if panel == "index_composition_feature_daily":
+        composition = _feature_dependency(
+            paths,
+            built,
+            "index_composition_daily",
+            warmup_start,
+            end,
+            required=required,
+        )
+        if composition is None:
+            return None
+        return build_index_composition_feature_daily(composition, start=start, end=end)
     if panel == "targets_daily":
         continuous = _dependency(paths, built, "continuous_futures_daily", start, end)
         grid = _dependency(paths, built, "di_curve_grid_daily", start, end)
@@ -247,6 +319,34 @@ def _dependency(
     if panel in built:
         return built[panel]
     return read_gold_panel(paths, panel, required=required, start=start, end=end)
+
+
+def _feature_dependency(
+    paths,
+    built: dict[str, pl.DataFrame],
+    panel: str,
+    start: date,
+    end: date,
+    *,
+    required: bool = False,
+) -> pl.DataFrame | None:
+    frames = []
+    history = read_gold_panel(paths, panel, start=start, end=end)
+    if history is not None:
+        frames.append(history)
+    if panel in built:
+        frames.append(built[panel])
+    if not frames:
+        if required:
+            raise ResearchInputMissingError(f"Missing feature dependency panel: {panel}")
+        return None
+    if len(frames) == 1:
+        return frames[0]
+    return (
+        pl.concat(frames, how="diagonal_relaxed")
+        .unique(subset=PANEL_PRIMARY_KEYS[panel], keep="last", maintain_order=True)
+        .sort("ref_date")
+    )
 
 
 def main(argv: list[str] | None = None) -> None:
