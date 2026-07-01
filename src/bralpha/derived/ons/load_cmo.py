@@ -11,6 +11,10 @@ from bralpha.derived.ons.schemas import (
     ONS_LOAD_DAILY_OBSERVATION_COLUMNS,
     PANEL_PRIMARY_KEYS,
 )
+from bralpha.timing.vintages import (
+    AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE,
+    REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY,
+)
 
 
 def build_load_daily_observation(
@@ -111,11 +115,11 @@ def _empty_cmo() -> pl.DataFrame:
 def _ensure_pit_columns(frame: pl.DataFrame) -> pl.DataFrame:
     additions = []
     if "availability_basis" not in frame.columns:
-        additions.append(pl.lit("fixture_or_legacy_model_usable").alias("availability_basis"))
+        additions.append(pl.lit(AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE).alias("availability_basis"))
     if "revision_policy" not in frame.columns:
-        additions.append(pl.lit("fixture_or_legacy").alias("revision_policy"))
+        additions.append(pl.lit(REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY).alias("revision_policy"))
     if "model_usable" not in frame.columns:
-        additions.append(pl.lit(True).alias("model_usable"))
+        additions.append(pl.lit(False).alias("model_usable"))
     if "availability_note" not in frame.columns:
         additions.append(pl.lit(None, dtype=pl.Utf8).alias("availability_note"))
     return frame.with_columns(additions) if additions else frame

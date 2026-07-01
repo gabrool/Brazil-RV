@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 
 import polars as pl
 
+from bralpha.domain.b3_calendar import add_business_days
 from bralpha.normalization.tesouro_fiscal import (
     TESOURO_DPF_STOCK_COLUMNS,
     normalize_dpf_stock_to_silver,
 )
-from bralpha.timing.availability import usable_date_from_date_only
 
 
-def test_tesouro_dpf_stock_uses_45_day_lag_then_next_business_day():
+def test_tesouro_dpf_stock_uses_45_b3_business_day_lag():
     silver = normalize_dpf_stock_to_silver(
         pl.DataFrame(
             [
@@ -31,9 +31,7 @@ def test_tesouro_dpf_stock_uses_45_day_lag_then_next_business_day():
     assert silver.columns == TESOURO_DPF_STOCK_COLUMNS
     expected_ref_date = date(2024, 1, 31)
     assert row["ref_date"] == expected_ref_date
-    assert row["available_date"] == usable_date_from_date_only(
-        expected_ref_date + timedelta(days=45)
-    )
+    assert row["available_date"] == add_business_days(expected_ref_date, 45)
     assert row["debt_category"] == "DPMFi"
     assert row["instrument_type"] == "LFT"
     assert row["indexer"] == "Selic"

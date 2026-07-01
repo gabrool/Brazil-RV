@@ -54,7 +54,15 @@ def test_release_calendar_reference_is_used_by_movement_group_availability():
                 "movement_record_id": "r1",
                 "ref_date": date(2024, 1, 31),
                 "available_date": date(2024, 3, 15),
-                "availability_policy": "novo_caged_conservative_next_month_end_plus_2bd",
+                "availability_policy": (
+                    "novo_caged_conservative_next_month_end_plus_2bd_reference_only"
+                ),
+                "availability_basis": "conservative_heuristic",
+                "revision_policy": "current_snapshot_reference_only",
+                "model_usable": False,
+                "non_model_usable_reason": (
+                    "novo_caged_movement_requires_official_release_calendar"
+                ),
                 "competence": "202401",
                 "year": 2024,
                 "month": 1,

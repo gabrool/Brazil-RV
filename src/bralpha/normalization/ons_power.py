@@ -11,13 +11,25 @@ from bralpha.parsing.common import normalize_column_name, parse_decimal
 from bralpha.timing.availability import usable_date_from_date_only
 from bralpha.timing.vintages import (
     AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE,
+    AVAILABILITY_EXACT_SOURCE_TIMESTAMP,
+    AVAILABILITY_FIRST_SEEN_DOWNLOAD_TIMESTAMP,
+    AVAILABILITY_SOURCE_LAST_MODIFIED,
     REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY,
+    REVISION_REVISED_USE_FIRST_SEEN,
+    REVISION_UNREVISED,
+    available_date_from_first_seen,
+    available_date_from_source_datetime,
 )
 
 ONS_AVAILABILITY_POLICY = "ons_conservative_next_business_day"
+ONS_SOURCE_TIMESTAMP_POLICY = "ons_source_timestamp_cutoff"
+ONS_RESOURCE_TIMESTAMP_POLICY = "ons_resource_timestamp_cutoff"
+ONS_FIRST_SEEN_POLICY = "ons_first_seen_timestamp_cutoff"
 ONS_AVAILABILITY_NOTE = (
     "timestampless_ons_snapshot_reference_only_requires_last_modified_or_first_seen"
 )
+ONS_TIMESTAMP_AVAILABILITY_NOTE = "ons_timestamp_cutoff_model_usable"
+ONS_FIRST_SEEN_AVAILABILITY_NOTE = "ons_first_seen_cutoff_model_usable"
 
 ONS_LINEAGE_COLUMNS = [
     "source",
@@ -191,9 +203,7 @@ def normalize_ons_ear_subsystem_daily(
         rows.append(
             {
                 "ref_date": ref_date,
-                "available_date": _available_date(ref_date),
-                "availability_policy": ONS_AVAILABILITY_POLICY,
-                **_pit_reference_only(),
+                **_pit_timing(row, ref_date),
                 "subsystem_id": _text(_field(row, "id_subsistema")),
                 "subsystem": _text(_field(row, "nom_subsistema")),
                 "stored_energy_mwmes": _decimal(_field(row, "ear_verif_subsistema_mwmes")),
@@ -235,9 +245,7 @@ def normalize_ons_ena_subsystem_daily(
         ref_date = _parse_date(_field(row, "ena_data"))
         common = {
             "ref_date": ref_date,
-            "available_date": _available_date(ref_date),
-            "availability_policy": ONS_AVAILABILITY_POLICY,
-            **_pit_reference_only(),
+            **_pit_timing(row, ref_date),
             "subsystem_id": _text(_field(row, "id_subsistema")),
             "subsystem": _text(_field(row, "nom_subsistema")),
             **_lineage(row, source_version=source_version),
@@ -268,9 +276,7 @@ def normalize_ons_load_daily(
         rows.append(
             {
                 "ref_date": ref_date,
-                "available_date": _available_date(ref_date),
-                "availability_policy": ONS_AVAILABILITY_POLICY,
-                **_pit_reference_only(),
+                **_pit_timing(row, ref_date),
                 "subsystem_id": _text(_field(row, "id_subsistema")),
                 "subsystem": _text(_field(row, "nom_subsistema")),
                 "load_mwmed": _decimal(raw_load),
@@ -299,9 +305,7 @@ def normalize_ons_cmo_weekly(
         ref_date = _parse_date(_field(row, "din_instante"))
         common = {
             "ref_date": ref_date,
-            "available_date": _available_date(ref_date),
-            "availability_policy": ONS_AVAILABILITY_POLICY,
-            **_pit_reference_only(),
+            **_pit_timing(row, ref_date),
             "subsystem_id": _text(_field(row, "id_subsistema")),
             "subsystem": _text(_field(row, "nom_subsistema")),
             **_lineage(row, source_version=source_version),
@@ -339,9 +343,7 @@ def normalize_ons_energy_balance_subsystem(
             {
                 "ref_datetime": ref_datetime,
                 "ref_date": ref_date,
-                "available_date": _available_date(ref_date),
-                "availability_policy": ONS_AVAILABILITY_POLICY,
-                **_pit_reference_only(),
+                **_pit_timing(row, ref_date),
                 "subsystem_id": _text(_field(row, "id_subsistema")),
                 "subsystem": _text(_field(row, "nom_subsistema")),
                 "load_mwmed": _decimal(raw_load),
@@ -379,9 +381,7 @@ def normalize_ons_interchange_subsystem_hourly(
             {
                 "ref_datetime": ref_datetime,
                 "ref_date": ref_date,
-                "available_date": _available_date(ref_date),
-                "availability_policy": ONS_AVAILABILITY_POLICY,
-                **_pit_reference_only(),
+                **_pit_timing(row, ref_date),
                 "source_subsystem_id": _text(_field(row, "id_subsistema_origem")),
                 "source_subsystem": _text(_field(row, "nom_subsistema_origem")),
                 "target_subsystem_id": _text(_field(row, "id_subsistema_destino")),
@@ -433,6 +433,61 @@ def _lineage(row: dict[str, object], *, source_version: str) -> dict[str, object
         "resource_name": row.get("resource_name"),
         "source_version": source_version,
     }
+
+
+def _pit_timing(row: dict[str, object], ref_date: date | None) -> dict[str, object]:
+    source_timestamp = _timestamp_field(row, "source_publication_datetime_utc")
+    if source_timestamp is not None:
+        return {
+            "available_date": available_date_from_source_datetime(source_timestamp),
+            "availability_policy": ONS_SOURCE_TIMESTAMP_POLICY,
+            "availability_basis": AVAILABILITY_EXACT_SOURCE_TIMESTAMP,
+            "revision_policy": REVISION_UNREVISED,
+            "model_usable": True,
+            "availability_note": ONS_TIMESTAMP_AVAILABILITY_NOTE,
+        }
+
+    resource_timestamp = _timestamp_field(row, "resource_last_modified", "http_last_modified")
+    if resource_timestamp is not None:
+        return {
+            "available_date": available_date_from_source_datetime(resource_timestamp),
+            "availability_policy": ONS_RESOURCE_TIMESTAMP_POLICY,
+            "availability_basis": AVAILABILITY_SOURCE_LAST_MODIFIED,
+            "revision_policy": REVISION_UNREVISED,
+            "model_usable": True,
+            "availability_note": ONS_TIMESTAMP_AVAILABILITY_NOTE,
+        }
+
+    first_seen_timestamp = _timestamp_field(row, "first_seen_timestamp_utc")
+    if first_seen_timestamp is not None:
+        return {
+            "available_date": available_date_from_first_seen(first_seen_timestamp),
+            "availability_policy": ONS_FIRST_SEEN_POLICY,
+            "availability_basis": AVAILABILITY_FIRST_SEEN_DOWNLOAD_TIMESTAMP,
+            "revision_policy": REVISION_REVISED_USE_FIRST_SEEN,
+            "model_usable": True,
+            "availability_note": ONS_FIRST_SEEN_AVAILABILITY_NOTE,
+        }
+
+    return {
+        "available_date": _available_date(ref_date),
+        "availability_policy": ONS_AVAILABILITY_POLICY,
+        **_pit_reference_only(),
+    }
+
+
+def _timestamp_field(row: dict[str, object], *keys: str) -> datetime | None:
+    for key in keys:
+        value = row.get(key)
+        if value is None or value == "":
+            continue
+        if isinstance(value, datetime):
+            return value
+        text = str(value).strip()
+        if not text:
+            continue
+        return datetime.fromisoformat(text.replace("Z", "+00:00"))
+    return None
 
 
 def _available_date(value: date | None) -> date | None:

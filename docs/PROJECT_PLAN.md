@@ -274,10 +274,13 @@ available_date > asof_date
 
 `available_date` is the model-usable daily decision date, not simply the raw
 source release date. Under the default EOD daily policy, exact timestamps at or
-before the Sao Paulo cutoff are usable that date, exact timestamps after the
-cutoff are usable the next business day, and date-only releases default to next
-business day. For first-pass daily B3 market data, use the conservative
-next-business-day convention until exact publication timestamps are modeled.
+before the Sao Paulo cutoff on a B3 business day are usable that date, while
+exact timestamps after the cutoff or on a non-business date are usable the next
+B3 business day. Date-only releases are source-specific: conservative sources
+use next B3 business day, while official same-day EOD release-calendar dates can
+be usable on the release date. For first-pass daily B3 market data, use the
+conservative next-business-day convention until exact publication timestamps are
+modeled.
 
 ## 9. Modeling structure
 

@@ -6,7 +6,9 @@ import polars as pl
 import pytest
 
 from bralpha.derived.b3.di_curve import build_di_curve_contract_daily, build_di_curve_grid_daily
+from bralpha.derived.b3.futures_contract_panel import build_futures_contract_daily
 from bralpha.domain.di_futures import annual_rate_from_discount_factor, pu_from_annual_rate
+from bralpha.normalization.b3_market_daily import normalize_settlements_to_market_daily
 
 
 def test_di_curve_contract_filters_di1_and_derives_di_economics():
@@ -100,6 +102,43 @@ def test_di_contract_changes_are_bp_and_log_df_based():
 
     assert second["implied_annual_rate_bp_change_1d"] == pytest.approx(10.0)
     assert second["log_discount_factor_change_1d"] is not None
+
+
+def test_synthetic_b3_holiday_drives_market_availability_and_di_tenors():
+    holidays = {date(2024, 1, 3)}
+    settlement = normalize_settlements_to_market_daily(
+        pl.DataFrame(
+            [
+                {
+                    "ref_date": date(2024, 1, 2),
+                    "commodity": "DI1",
+                    "maturity_code": "F24",
+                    "settlement": pu_from_annual_rate(0.13, 2),
+                }
+            ]
+        ),
+        holidays=holidays,
+    )
+    contracts = build_futures_contract_daily(
+        settlements=settlement,
+        contract_master=pl.DataFrame(
+            [
+                {
+                    "contract_id": "DI1_F24",
+                    "maturity_date": date(2024, 1, 5),
+                    "source_version": "master-v0",
+                }
+            ]
+        ),
+        holidays=holidays,
+    )
+    curve = build_di_curve_contract_daily(contracts, source_roots=["DI1"])
+
+    assert settlement["available_date"].item() == date(2024, 1, 4)
+    assert contracts["calendar_source"].item() == "configured_holidays"
+    assert contracts["business_days_to_maturity"].item() == 2
+    assert curve["business_days_to_maturity"].item() == 2
+    assert curve["available_date"].item() == date(2024, 1, 4)
 
 
 def _futures_row(

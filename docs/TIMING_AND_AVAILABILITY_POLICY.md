@@ -1,27 +1,43 @@
-# Timing and availability policy
+# Timing and Availability Policy
 
-Brazil-RV uses a strict daily decision policy. A daily `ref_date` row is model
-usable only at the configured daily decision cutoff for that date, normally for
-execution in the next trading session. `available_date` is therefore the daily
-decision date on which a row may enter model inputs, not merely the source
-release date.
+Brazil-RV uses a strict daily decision policy. A model-ready daily `ref_date`
+row may enter model inputs only when the source observation was available at or
+before the configured daily decision cutoff for that date.
 
-## Default profile
+## Calendar
+
+Daily model grids use the canonical B3 trading calendar, not a weekday-only
+calendar. The current manual calendar lives at
+`configs/calendars/b3_trading_holidays.yaml` and covers 2000-2035. Production
+code fails outside this coverage instead of silently falling back to Mon-Fri
+logic.
+
+The calendar is a versioned manual file because the repo does not yet wire a
+verified machine-readable B3 source. It lists dates explicitly, including B3
+year-end no-trading dates and exchange closures that are not simple national
+holiday rules. Historical additions should be validated against official B3
+holiday bulletins or another audited exchange-calendar source before dates are
+removed or extended.
+
+## Default Profile
 
 The default profile is `eod_daily` in `configs/timing.yaml`:
 
 - timezone: `America/Sao_Paulo`
 - decision cutoff: `18:30:00` local time
 - execution lag: `next_session`
-- date-only releases: next business day
-- unknown release time: next business day
+- business calendar: canonical B3 trading calendar
 
-If an exact local timestamp is known and it is at or before the cutoff on date
-`D`, the row is usable on `D`. If the timestamp is after the cutoff, the row is
-usable on the next business day. If only a release date is known, the row is
-also usable on the next business day.
+If an exact local timestamp is known and it is at or before the cutoff on a B3
+business date `D`, the row is usable on `D`. If the timestamp is after cutoff,
+or falls on a non-business date, the row is usable on the next B3 business day.
 
-## Field meanings
+Date-only releases are source-specific. Conservative date-only releases use the
+next B3 business day. Official same-day EOD release-calendar dates are usable on
+the release date when it is a B3 business day, otherwise the next B3 business
+day.
+
+## Field Meanings
 
 - `observation_ref_date`: date the observation describes.
 - `release_date`: source-published release date, if known.
@@ -32,29 +48,42 @@ also usable on the next business day.
   as-of panels, and label start date in target panels.
 - `label_available_date`: availability date of label endpoint data.
 - `availability_policy`: named rule used to compute availability.
+- `availability_basis`: evidence class behind the timing rule.
 - `availability_note`: human-readable caveat for incomplete timing knowledge.
+- `model_usable`: whether a row is allowed into model-facing panels.
 
-Intraday releases are not usable for earlier same-day decisions. A release after
-the daily cutoff on `D` is first usable for the next business-day decision.
+Observation panels may have `available_date` after `ref_date`, because a source
+can publish an observation later than the period it describes. Model-ready as-of
+panels must have `available_date <= ref_date` and, when present,
+`observation_available_date <= ref_date`.
 
-## Scheduled events and outcomes
+## Current Source Policies
 
-Scheduled-event metadata, such as a known meeting date, can be available before
-the event. Event outcomes, such as a decision, statement, or observed statistic,
-must use the outcome's own release timing. This PR does not add event calendars
-or policy-text ingestion.
-
-## Current source policies
-
-- B3 daily market observations remain conservative: settlements, open interest,
-  trade summary, COTAHIST, and index daily market data for observation date `D`
-  are usable no earlier than the next business day unless exact publication
+- B3 daily market observations, including settlements, open interest, trade
+  summary, COTAHIST, and index daily market data for observation date `D`, are
+  usable no earlier than the next B3 business day unless exact publication
   timestamps are modeled later.
-- BCB SGS uses series-level policies: daily financial series use
-  `next_business_day`, lagged macro series use configured lags, and unknown
-  series remain not model usable or null-available until configured.
-- BCB PTAX uses `quote_datetime` as the local availability timestamp when
-  present. Date-only rows use the next-business-day policy.
-- BCB Focus expectations use a conservative date-only next-business-day policy.
-  BCB publication timing is more complex and will need a publication-calendar
-  rule before model-grade Focus timing is final.
+- B3 futures maturities, DI tenors, rolls, targets, and as-of grids use the same
+  canonical B3 calendar.
+- BCB SGS daily Selic and external-reserves series use conservative next-B3-day
+  timing. SGS IPCA is reference-only until matched to the official IBGE release
+  calendar.
+- BCB PTAX uses `dataHoraCotacao` as the source timestamp when present and
+  applies the local cutoff rule. Date-only fallback remains conservative.
+- BCB Focus and Top5 use the official weekly publication date in `Data` as a
+  same-day EOD release-calendar date.
+- IBGE SIDRA is model-usable only when matched to the official IBGE release
+  calendar. Exact timestamps use cutoff timing; official date-only releases use
+  same-day EOD timing.
+- Novo CAGED movement records carry only reference-only heuristic availability
+  until joined to the official release calendar. Model-facing movement panels
+  require an official calendar date for the competence month.
+- ONS timestampless snapshots are reference-only. Rows with a source publication
+  timestamp, resource last-modified timestamp, HTTP last-modified timestamp, or
+  explicit first-seen timestamp use cutoff timing and may be model-usable.
+  Missing PIT metadata defaults fail-closed.
+- Tesouro Direto prices/rates use next B3 business day. Sales and redemptions
+  use 2 B3 business days. Tesouro Direto stock uses 30 B3 business days, and DPF
+  stock uses 45 B3 business days.
+- FRED date-only vintages remain conservative next-B3-day unless exact vintage
+  timestamps are available.

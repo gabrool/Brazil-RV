@@ -38,12 +38,13 @@ Official source basis:
 Timing and point-in-time handling:
 
 - Movement `ref_date` is the last calendar day of the competence month.
-- Movement `available_date` uses
-  `novo_caged_conservative_next_month_end_plus_2bd`: last business day of the
-  next month plus two business days. Download timestamps are never used as
-  historical availability.
+- Movement rows carry reference-only heuristic availability under
+  `novo_caged_conservative_next_month_end_plus_2bd_reference_only`. Model-facing
+  panels must join the official release calendar for the competence month; if
+  no calendar row is available, model availability remains null.
 - Release-calendar rows preserve the official listed `release_date`; their
-  `available_date` is the date-only next-business-day usability date.
+  `available_date` is same-day EOD when the release date is a B3 business day,
+  otherwise the next B3 business day.
 
 Operational constraints:
 

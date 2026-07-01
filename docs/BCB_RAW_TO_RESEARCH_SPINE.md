@@ -52,28 +52,28 @@ SGS series with `availability_policy = unknown` or
 `revision_policy = current_snapshot_reference_only` are retained in source
 metadata but have `model_usable = false`, so they do not enter model-ready SGS
 observation, as-of, feature, or daily-long panels when `include_model_usable_only`
-is on. The only SGS series promoted to model-ready after the original
-Selic/IPCA subset is `13982` international reserves liquidity, using
-date-only next-business-day availability.
+is on. The configured SGS model-ready subset is Selic rates plus `13982`
+international reserves liquidity, using date-only next-business-day
+availability. SGS IPCA remains reference-only until it is matched to the
+official IBGE release calendar.
 
 The `sgs_feature_daily` panel is built from `sgs_asof_daily`, not raw silver, so
 the feature rows inherit point-in-time availability. It emits model-ready long
-features for Selic levels/spreads/steps, IPCA trailing sums/annualized values,
-and international reserves levels/log changes/drawdowns. The pipeline builds
-SGS features from a pre-window as-of history before filtering back to the
-requested output dates, so rolling IPCA and reserves features remain populated
-for sliced backfills and live inference windows when enough historical
-observations are available.
+features for Selic levels/spreads/steps and international reserves
+levels/log changes/drawdowns. The feature code can also derive IPCA trailing
+sums/annualized values when model-usable IPCA history is supplied by an
+official-calendar-backed source. The pipeline builds SGS features from a
+pre-window as-of history before filtering back to the requested output dates,
+so rolling reserves features remain populated for sliced backfills and live
+inference windows when enough historical observations are available.
 
 ## Focus availability limitation
 
-BCB Focus silver uses a conservative date-only next-business-day policy from
-`Data`. BCB documents that Focus statistics are calculated daily but normally
-published on the first business day of the week, so model-grade Focus usage
-later needs a publication-calendar rule. The gold Focus panels carry
-`availability_basis = official_weekly_publication_date_assumed_pre_eod_cutoff` and an
-explicit Focus availability note to
-keep this caveat visible.
+BCB Focus silver treats `Data` as the official weekly publication date and uses
+same-day EOD availability when that date is a B3 business day. The gold Focus
+panels carry
+`availability_basis = official_weekly_publication_date_assumed_pre_eod_cutoff`
+and an explicit Focus availability note to keep this timing assumption visible.
 
 ## Transformer-aware feature rule
 
@@ -84,7 +84,7 @@ explicit first-model SGS feature set documented in
 - source, series, currency, indicator, and expectation identifiers
 - observation and availability dates
 - raw official values from SGS, PTAX, and Focus
-- SGS model-ready Selic/IPCA/reserves features built from as-of panels
+- SGS model-ready Selic/reserves features built from as-of panels
 - selected PTAX bulletin flags
 - missingness and availability flags
 - as-of latest observation values

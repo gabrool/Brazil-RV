@@ -14,6 +14,7 @@ from bralpha.parsing.common import normalize_column_name
 
 _GROUP_BY_COLUMNS = {"all", "region", "state", "cnae_section"}
 _CROSS_BY_COLUMNS = {"movement_sign"}
+OFFICIAL_CALENDAR_REQUIRED_POLICY = "novo_caged_official_release_calendar_required"
 
 
 def build_movement_record_observation(
@@ -200,9 +201,7 @@ def _join_release_calendar(
 def _chosen_available_date(prefer_official_calendar: bool) -> pl.Expr:
     if not prefer_official_calendar:
         return pl.col("silver_available_date")
-    return pl.when(pl.col("calendar_available_date").is_not_null()).then(
-        pl.col("calendar_available_date")
-    ).otherwise(pl.col("silver_available_date"))
+    return pl.col("calendar_available_date")
 
 
 def _chosen_availability_source(prefer_official_calendar: bool) -> pl.Expr:
@@ -210,7 +209,7 @@ def _chosen_availability_source(prefer_official_calendar: bool) -> pl.Expr:
         return pl.lit("conservative_fallback")
     return pl.when(pl.col("calendar_available_date").is_not_null()).then(
         pl.lit("official_calendar")
-    ).otherwise(pl.lit("conservative_fallback"))
+    ).otherwise(pl.lit("missing_official_calendar"))
 
 
 def _chosen_availability_policy(prefer_official_calendar: bool) -> pl.Expr:
@@ -218,7 +217,7 @@ def _chosen_availability_policy(prefer_official_calendar: bool) -> pl.Expr:
         return pl.col("silver_availability_policy")
     return pl.when(pl.col("calendar_available_date").is_not_null()).then(
         pl.col("calendar_availability_policy")
-    ).otherwise(pl.col("silver_availability_policy"))
+    ).otherwise(pl.lit(OFFICIAL_CALENDAR_REQUIRED_POLICY))
 
 
 def _validate_groups(group_by: list[str]) -> None:

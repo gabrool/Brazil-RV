@@ -23,8 +23,31 @@ def test_ons_ear_normalization_preserves_official_values_and_availability():
 
     assert silver["ref_date"].to_list() == [date(2024, 1, 5)]
     assert silver["available_date"].to_list() == [date(2024, 1, 8)]
+    assert silver["availability_basis"].to_list() == ["current_snapshot_no_vintage"]
+    assert silver["model_usable"].to_list() == [False]
     assert silver["stored_energy_mwmes"].to_list() == [50.25]
     assert silver["raw_ear_verif_subsistema_mwmes"].to_list() == ["50,25"]
+
+
+def test_ons_resource_timestamp_uses_cutoff_and_is_model_usable():
+    bronze = _bronze(
+        "ons_ear_subsystem_daily",
+        (
+            "id_subsistema;nom_subsistema;ear_data;ear_max_subsistema;"
+            "ear_verif_subsistema_mwmes;ear_verif_subsistema_percentual\n"
+            "SE;Sudeste;2024-01-05;100,5;50,25;49,98\n"
+        ),
+    ).with_columns(
+        pl.lit(datetime(2024, 1, 5, 20, tzinfo=UTC)).alias("resource_last_modified")
+    )
+
+    silver = normalize_ons_to_silver("ons_ear_subsystem_daily", bronze)
+
+    assert silver["available_date"].to_list() == [date(2024, 1, 5)]
+    assert silver["availability_policy"].to_list() == ["ons_resource_timestamp_cutoff"]
+    assert silver["availability_basis"].to_list() == ["source_last_modified"]
+    assert silver["revision_policy"].to_list() == ["unrevised"]
+    assert silver["model_usable"].to_list() == [True]
 
 
 def test_ons_ena_normalization_emits_long_type_rows():

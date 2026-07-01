@@ -177,7 +177,7 @@ def _state_rows(
     if frame is None or frame.is_empty():
         return None
     if "model_usable" not in frame.columns:
-        frame = frame.with_columns(pl.lit(True).alias("model_usable"))
+        frame = frame.with_columns(pl.lit(False).alias("model_usable"))
     rows = []
     for metric, fixed_unit in metrics:
         unit_expr = pl.lit(fixed_unit) if fixed_unit is not None else pl.col("unit")

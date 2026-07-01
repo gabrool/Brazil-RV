@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from calendar import monthrange
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -22,7 +22,7 @@ TESOURO_DIRETO_SALES_OFFICIAL_2BD_POLICY = "tesouro_direto_sales_official_2bd"
 TESOURO_DIRETO_REDEMPTIONS_CONSERVATIVE_2BD_POLICY = (
     "tesouro_direto_redemptions_conservative_2bd"
 )
-TESOURO_DIRETO_STOCK_CONSERVATIVE_30D_POLICY = "tesouro_direto_stock_conservative_30d"
+TESOURO_DIRETO_STOCK_CONSERVATIVE_30BD_POLICY = "tesouro_direto_stock_conservative_30bd"
 TESOURO_CONFIGURED_HOLIDAY_AVAILABILITY_BASIS = "configured_holiday_calendar"
 TESOURO_CANONICAL_B3_AVAILABILITY_BASIS = "canonical_b3_calendar"
 
@@ -293,8 +293,12 @@ def normalize_tesouro_direto_stock_to_silver(
         rows.append(
             {
                 "ref_date": ref_date,
-                "available_date": _lagged_available_date(ref_date, days=30),
-                "availability_policy": TESOURO_DIRETO_STOCK_CONSERVATIVE_30D_POLICY,
+                "available_date": _business_day_lag_available_date(
+                    ref_date,
+                    days=30,
+                    holidays=None,
+                ),
+                "availability_policy": TESOURO_DIRETO_STOCK_CONSERVATIVE_30BD_POLICY,
                 "security_name": security_name,
                 "security_type": _security_type(security_name),
                 "maturity_date": _date_field(
@@ -411,12 +415,6 @@ def _business_day_lag_availability_basis(holidays: set[date] | None) -> str:
     if holidays is None:
         return TESOURO_CANONICAL_B3_AVAILABILITY_BASIS
     return TESOURO_CONFIGURED_HOLIDAY_AVAILABILITY_BASIS
-
-
-def _lagged_available_date(ref_date: date | None, *, days: int) -> date | None:
-    if ref_date is None:
-        return None
-    return usable_date_from_date_only(ref_date + timedelta(days=days))
 
 
 def _security_type(security_name: str | None) -> str | None:

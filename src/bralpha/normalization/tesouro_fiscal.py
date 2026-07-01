@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import json
 from calendar import monthrange
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 from typing import Any
 
 import polars as pl
 
+from bralpha.domain.b3_calendar import add_business_days
 from bralpha.ingestion.tesouro.common import write_partitioned_frame
 from bralpha.parsing.common import normalize_column_name, parse_decimal
-from bralpha.timing.availability import usable_date_from_date_only
 
 TESOURO_DPF_STOCK_COLUMNS = [
     "ref_date",
@@ -162,7 +162,7 @@ def _month_end(year: int, month: int) -> date:
 def _lagged_available_date(ref_date: date | None, *, days: int) -> date | None:
     if ref_date is None:
         return None
-    return usable_date_from_date_only(ref_date + timedelta(days=days))
+    return add_business_days(ref_date, days)
 
 
 def _has_value(value: Any) -> bool:

@@ -7,6 +7,8 @@ source_notes:
   - Manual B3 trading-holiday calendar committed because no verified stable machine-readable B3 source is wired into this repo.
   - Includes Brazilian national exchange holidays, Carnival Monday/Tuesday, Good Friday, Corpus Christi, Black Consciousness Day, and B3 year-end no-trading dates observed in public B3 holiday calendars.
   - Dates are listed explicitly so production code can fail outside coverage instead of using weekday-only logic.
+  - Historical exchange closures are not inferred from national-holiday rules alone; validate additions and removals against official B3 holiday bulletins or another audited exchange-calendar source before changing this file.
+  - Black Consciousness Day and year-end no-trading dates are intentionally explicit because their treatment is not a uniform national-weekday rule for the full 2000-2035 coverage period.
 years:
   2000: [2000-01-01, 2000-03-06, 2000-03-07, 2000-04-21, 2000-05-01, 2000-06-22, 2000-09-07, 2000-10-12, 2000-11-02, 2000-11-15, 2000-11-20, 2000-12-24, 2000-12-25, 2000-12-31]
   2001: [2001-01-01, 2001-02-26, 2001-02-27, 2001-04-13, 2001-04-21, 2001-05-01, 2001-06-14, 2001-09-07, 2001-10-12, 2001-11-02, 2001-11-15, 2001-11-20, 2001-12-24, 2001-12-25, 2001-12-31]
