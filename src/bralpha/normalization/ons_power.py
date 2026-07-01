@@ -9,8 +9,15 @@ import polars as pl
 from bralpha.ingestion.ons.common import write_partitioned_frame
 from bralpha.parsing.common import normalize_column_name, parse_decimal
 from bralpha.timing.availability import usable_date_from_date_only
+from bralpha.timing.vintages import (
+    AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE,
+    REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY,
+)
 
 ONS_AVAILABILITY_POLICY = "ons_conservative_next_business_day"
+ONS_AVAILABILITY_NOTE = (
+    "timestampless_ons_snapshot_reference_only_requires_last_modified_or_first_seen"
+)
 
 ONS_LINEAGE_COLUMNS = [
     "source",
@@ -26,6 +33,10 @@ ONS_EAR_SUBSYSTEM_DAILY_COLUMNS = [
     "ref_date",
     "available_date",
     "availability_policy",
+    "availability_basis",
+    "revision_policy",
+    "model_usable",
+    "availability_note",
     "subsystem_id",
     "subsystem",
     "stored_energy_mwmes",
@@ -42,6 +53,10 @@ ONS_ENA_SUBSYSTEM_DAILY_COLUMNS = [
     "ref_date",
     "available_date",
     "availability_policy",
+    "availability_basis",
+    "revision_policy",
+    "model_usable",
+    "availability_note",
     "subsystem_id",
     "subsystem",
     "ena_type",
@@ -55,6 +70,10 @@ ONS_LOAD_DAILY_COLUMNS = [
     "ref_date",
     "available_date",
     "availability_policy",
+    "availability_basis",
+    "revision_policy",
+    "model_usable",
+    "availability_note",
     "subsystem_id",
     "subsystem",
     "load_mwmed",
@@ -68,6 +87,10 @@ ONS_CMO_WEEKLY_COLUMNS = [
     "ref_date",
     "available_date",
     "availability_policy",
+    "availability_basis",
+    "revision_policy",
+    "model_usable",
+    "availability_note",
     "subsystem_id",
     "subsystem",
     "load_block",
@@ -82,6 +105,10 @@ ONS_ENERGY_BALANCE_SUBSYSTEM_COLUMNS = [
     "ref_date",
     "available_date",
     "availability_policy",
+    "availability_basis",
+    "revision_policy",
+    "model_usable",
+    "availability_note",
     "subsystem_id",
     "subsystem",
     "load_mwmed",
@@ -106,6 +133,10 @@ ONS_INTERCHANGE_SUBSYSTEM_HOURLY_COLUMNS = [
     "ref_date",
     "available_date",
     "availability_policy",
+    "availability_basis",
+    "revision_policy",
+    "model_usable",
+    "availability_note",
     "source_subsystem_id",
     "source_subsystem",
     "target_subsystem_id",
@@ -162,6 +193,7 @@ def normalize_ons_ear_subsystem_daily(
                 "ref_date": ref_date,
                 "available_date": _available_date(ref_date),
                 "availability_policy": ONS_AVAILABILITY_POLICY,
+                **_pit_reference_only(),
                 "subsystem_id": _text(_field(row, "id_subsistema")),
                 "subsystem": _text(_field(row, "nom_subsistema")),
                 "stored_energy_mwmes": _decimal(_field(row, "ear_verif_subsistema_mwmes")),
@@ -205,6 +237,7 @@ def normalize_ons_ena_subsystem_daily(
             "ref_date": ref_date,
             "available_date": _available_date(ref_date),
             "availability_policy": ONS_AVAILABILITY_POLICY,
+            **_pit_reference_only(),
             "subsystem_id": _text(_field(row, "id_subsistema")),
             "subsystem": _text(_field(row, "nom_subsistema")),
             **_lineage(row, source_version=source_version),
@@ -237,6 +270,7 @@ def normalize_ons_load_daily(
                 "ref_date": ref_date,
                 "available_date": _available_date(ref_date),
                 "availability_policy": ONS_AVAILABILITY_POLICY,
+                **_pit_reference_only(),
                 "subsystem_id": _text(_field(row, "id_subsistema")),
                 "subsystem": _text(_field(row, "nom_subsistema")),
                 "load_mwmed": _decimal(raw_load),
@@ -267,6 +301,7 @@ def normalize_ons_cmo_weekly(
             "ref_date": ref_date,
             "available_date": _available_date(ref_date),
             "availability_policy": ONS_AVAILABILITY_POLICY,
+            **_pit_reference_only(),
             "subsystem_id": _text(_field(row, "id_subsistema")),
             "subsystem": _text(_field(row, "nom_subsistema")),
             **_lineage(row, source_version=source_version),
@@ -306,6 +341,7 @@ def normalize_ons_energy_balance_subsystem(
                 "ref_date": ref_date,
                 "available_date": _available_date(ref_date),
                 "availability_policy": ONS_AVAILABILITY_POLICY,
+                **_pit_reference_only(),
                 "subsystem_id": _text(_field(row, "id_subsistema")),
                 "subsystem": _text(_field(row, "nom_subsistema")),
                 "load_mwmed": _decimal(raw_load),
@@ -345,6 +381,7 @@ def normalize_ons_interchange_subsystem_hourly(
                 "ref_date": ref_date,
                 "available_date": _available_date(ref_date),
                 "availability_policy": ONS_AVAILABILITY_POLICY,
+                **_pit_reference_only(),
                 "source_subsystem_id": _text(_field(row, "id_subsistema_origem")),
                 "source_subsystem": _text(_field(row, "nom_subsistema_origem")),
                 "target_subsystem_id": _text(_field(row, "id_subsistema_destino")),
@@ -402,6 +439,15 @@ def _available_date(value: date | None) -> date | None:
     if value is None:
         return None
     return usable_date_from_date_only(value)
+
+
+def _pit_reference_only() -> dict[str, object]:
+    return {
+        "availability_basis": AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE,
+        "revision_policy": REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY,
+        "model_usable": False,
+        "availability_note": ONS_AVAILABILITY_NOTE,
+    }
 
 
 def _decimal(value: object) -> float | None:

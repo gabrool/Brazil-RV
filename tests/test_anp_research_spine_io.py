@@ -24,7 +24,7 @@ def test_anp_research_config_loads_and_gold_root_is_scoped(repo_root):
     config = load_anp_research_config(repo_root).anp_research
     paths = resolve_project_paths(repo_root, load_paths_config(repo_root))
 
-    assert config.calendar.default == "business_days_mon_fri"
+    assert config.calendar.default == "b3_trading_calendar"
     assert config.fuel_prices.group_by == ["all", "region", "state"]
     assert config.asof.max_features == 20000
     assert gold_panel_root(paths, "daily_long") == paths.gold / "anp" / "daily_long"

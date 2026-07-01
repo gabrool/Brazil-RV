@@ -23,7 +23,7 @@ def build_ear_subsystem_observation(
     if silver.is_empty():
         return _empty_ear()
 
-    frame = silver
+    frame = _ensure_pit_columns(silver)
     if start is not None:
         frame = frame.filter(pl.col("ref_date") >= start)
     if end is not None:
@@ -61,7 +61,7 @@ def build_ena_subsystem_observation(
     if silver.is_empty():
         return _empty_ena()
 
-    frame = silver
+    frame = _ensure_pit_columns(silver)
     if start is not None:
         frame = frame.filter(pl.col("ref_date") >= start)
     if end is not None:
@@ -108,6 +108,19 @@ def _token(value: Any) -> str:
         return "null"
     token = normalize_column_name(str(value).strip())
     return token or "null"
+
+
+def _ensure_pit_columns(frame: pl.DataFrame) -> pl.DataFrame:
+    additions = []
+    if "availability_basis" not in frame.columns:
+        additions.append(pl.lit("fixture_or_legacy_model_usable").alias("availability_basis"))
+    if "revision_policy" not in frame.columns:
+        additions.append(pl.lit("fixture_or_legacy").alias("revision_policy"))
+    if "model_usable" not in frame.columns:
+        additions.append(pl.lit(True).alias("model_usable"))
+    if "availability_note" not in frame.columns:
+        additions.append(pl.lit(None, dtype=pl.Utf8).alias("availability_note"))
+    return frame.with_columns(additions) if additions else frame
 
 
 def _empty_ear() -> pl.DataFrame:

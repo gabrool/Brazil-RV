@@ -38,13 +38,16 @@ series:
     category: inflation
     frequency: monthly
     unit: percent_monthly
-    availability_policy: configured_lag_days
-    availability_lag_days: 15
-    availability_basis: source_date_only
-    revision_policy: official_lag_no_revisions
-    model_usable: true
+    availability_policy: ibge_release_calendar_required
+    availability_lag_days: null
+    availability_basis: official_release_calendar_required
+    revision_policy: current_snapshot_reference_only
+    model_usable: false
     source_reference_url: "https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados?formato=json"
-    notes: Official BCB SGS code 433. Existing model-ready 15-day lag is retained.
+    non_model_usable_reason: sgs_ipca_requires_ibge_release_calendar_match
+    alternate_source_family: ibge_sidra_release_calendar
+    reference_feature_family: inflation
+    notes: Official BCB SGS code 433. Kept as reference/compatibility only; model-ready IPCA actuals require IBGE release-calendar timing.
 
   - series_id: 27810
     slug: m2_new

@@ -71,7 +71,8 @@ BCB Focus silver uses a conservative date-only next-business-day policy from
 `Data`. BCB documents that Focus statistics are calculated daily but normally
 published on the first business day of the week, so model-grade Focus usage
 later needs a publication-calendar rule. The gold Focus panels carry
-`availability_note = date_only_next_business_day_until_publication_calendar` to
+`availability_basis = official_weekly_publication_date_assumed_pre_eod_cutoff` and an
+explicit Focus availability note to
 keep this caveat visible.
 
 ## Transformer-aware feature rule

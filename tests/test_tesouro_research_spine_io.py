@@ -21,7 +21,7 @@ from bralpha.pipelines.tesouro_research_spine import run_tesouro_research_spine
 def test_tesouro_research_config_loads(repo_root):
     config = load_tesouro_research_config(repo_root).tesouro_research
 
-    assert config.calendar.default == "business_days_mon_fri"
+    assert config.calendar.default == "b3_trading_calendar"
     assert config.prices_rates.max_dense_securities == 5000
     assert config.flows.include_sales is True
     assert config.flows.include_redemptions is True

@@ -4,7 +4,7 @@ from datetime import date
 
 import polars as pl
 
-from bralpha.derived.bcb.calendar import business_day_frame, business_days_mon_fri
+from bralpha.derived.bcb.calendar import business_day_frame, business_days_b3
 from bralpha.derived.bcb.quality import validate_asof_panel, validate_panel
 from bralpha.derived.bcb.schemas import (
     BCB_SGS_ASOF_DAILY_COLUMNS,
@@ -43,7 +43,7 @@ def build_sgs_asof_daily(
     start: date,
     end: date,
 ) -> pl.DataFrame:
-    if observations.is_empty() or not business_days_mon_fri(start, end):
+    if observations.is_empty() or not business_days_b3(start, end):
         return _empty_asof()
 
     observations = _ensure_columns(observations, BCB_SGS_OBSERVATION_DAILY_COLUMNS)

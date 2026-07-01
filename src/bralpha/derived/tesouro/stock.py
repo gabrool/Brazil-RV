@@ -5,7 +5,7 @@ from typing import Any
 
 import polars as pl
 
-from bralpha.derived.tesouro.calendar import business_day_frame, business_days_mon_fri
+from bralpha.derived.tesouro.calendar import business_day_frame, business_days_b3
 from bralpha.derived.tesouro.prices_rates import direto_feature_id
 from bralpha.derived.tesouro.quality import validate_asof_panel, validate_panel
 from bralpha.derived.tesouro.schemas import (
@@ -119,7 +119,7 @@ def _state_asof(
     columns: list[str],
     primary_keys: list[str],
 ) -> pl.DataFrame:
-    days = business_days_mon_fri(start, end)
+    days = business_days_b3(start, end)
     if observations.is_empty() or not days:
         return _empty(columns)
 

@@ -66,7 +66,7 @@ def test_tesouro_sales_preserve_quantity_value_and_investor_count():
     assert silver.columns == TESOURO_DIRETO_SALES_COLUMNS
     assert row["available_date"] == date(2024, 1, 4)
     assert row["availability_policy"] == "tesouro_direto_sales_official_2bd"
-    assert row["availability_basis"] == "weekday_fallback"
+    assert row["availability_basis"] == "canonical_b3_calendar"
     assert row["quantity"] == 123.45
     assert row["value"] == 123456.78
     assert row["investor_count"] == 42
@@ -93,7 +93,7 @@ def test_tesouro_redemptions_map_type_from_ckan_resource_name():
     assert row["redemption_type"] == "early_repurchase"
     assert row["available_date"] == date(2024, 1, 4)
     assert row["availability_policy"] == "tesouro_direto_redemptions_conservative_2bd"
-    assert row["availability_basis"] == "weekday_fallback"
+    assert row["availability_basis"] == "canonical_b3_calendar"
     assert row["value"] == 1000.0
 
 
@@ -113,7 +113,7 @@ def test_tesouro_sales_2bd_lag_skips_weekends():
     )
 
     assert silver["available_date"].item() == date(2024, 1, 9)
-    assert silver["availability_basis"].item() == "weekday_fallback"
+    assert silver["availability_basis"].item() == "canonical_b3_calendar"
 
 
 def test_tesouro_sales_2bd_lag_uses_configured_holidays():

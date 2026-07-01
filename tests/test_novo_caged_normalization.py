@@ -70,7 +70,7 @@ def test_novo_caged_release_calendar_normalizer_parses_official_style_rows():
 
     assert silver["ref_date"].to_list() == [date(2026, 1, 31), date(2026, 5, 31)]
     assert silver["release_date"].to_list() == [date(2026, 3, 3), date(2026, 6, 30)]
-    assert silver["available_date"].to_list() == [date(2026, 3, 4), date(2026, 7, 1)]
+    assert silver["available_date"].to_list() == [date(2026, 3, 3), date(2026, 6, 30)]
     assert silver["availability_policy"].to_list() == [
         "novo_caged_official_release_calendar",
         "novo_caged_official_release_calendar",

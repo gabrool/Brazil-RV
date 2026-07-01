@@ -38,7 +38,7 @@ def build_energy_balance_daily_observation(
     if silver.is_empty():
         return _empty_energy_balance()
 
-    frame = silver
+    frame = _ensure_pit_columns(silver)
     if start is not None:
         frame = frame.filter(pl.col("ref_date") >= start)
     if end is not None:
@@ -54,6 +54,10 @@ def build_energy_balance_daily_observation(
             [
                 pl.col("available_date").max().alias("available_date"),
                 pl.col("availability_policy").max().alias("availability_policy"),
+                pl.col("availability_basis").max().alias("availability_basis"),
+                pl.col("revision_policy").max().alias("revision_policy"),
+                pl.col("model_usable").fill_null(False).all().alias("model_usable"),
+                pl.col("availability_note").max().alias("availability_note"),
                 pl.len().cast(pl.Int64).alias("hour_count"),
                 pl.col("unit").max().alias("unit"),
                 pl.col("source_version").max().alias("source_version"),
@@ -101,7 +105,7 @@ def build_interchange_daily_observation(
     if silver.is_empty():
         return _empty_interchange()
 
-    frame = silver
+    frame = _ensure_pit_columns(silver)
     if start is not None:
         frame = frame.filter(pl.col("ref_date") >= start)
     if end is not None:
@@ -125,6 +129,10 @@ def build_interchange_daily_observation(
             [
                 pl.col("available_date").max().alias("available_date"),
                 pl.col("availability_policy").max().alias("availability_policy"),
+                pl.col("availability_basis").max().alias("availability_basis"),
+                pl.col("revision_policy").max().alias("revision_policy"),
+                pl.col("model_usable").fill_null(False).all().alias("model_usable"),
+                pl.col("availability_note").max().alias("availability_note"),
                 pl.len().cast(pl.Int64).alias("hour_count"),
                 pl.col("unit").max().alias("unit"),
                 pl.col("source_version").max().alias("source_version"),
@@ -181,3 +189,16 @@ def _empty_interchange() -> pl.DataFrame:
     return pl.DataFrame(
         schema={column: pl.Null for column in ONS_INTERCHANGE_DAILY_OBSERVATION_COLUMNS}
     )
+
+
+def _ensure_pit_columns(frame: pl.DataFrame) -> pl.DataFrame:
+    additions = []
+    if "availability_basis" not in frame.columns:
+        additions.append(pl.lit("fixture_or_legacy_model_usable").alias("availability_basis"))
+    if "revision_policy" not in frame.columns:
+        additions.append(pl.lit("fixture_or_legacy").alias("revision_policy"))
+    if "model_usable" not in frame.columns:
+        additions.append(pl.lit(True).alias("model_usable"))
+    if "availability_note" not in frame.columns:
+        additions.append(pl.lit(None, dtype=pl.Utf8).alias("availability_note"))
+    return frame.with_columns(additions) if additions else frame

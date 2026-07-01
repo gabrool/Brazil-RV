@@ -4,7 +4,7 @@ from datetime import date
 
 import polars as pl
 
-from bralpha.derived.ons.calendar import business_day_frame, business_days_mon_fri
+from bralpha.derived.ons.calendar import business_day_frame, business_days_b3
 from bralpha.derived.ons.quality import validate_asof_panel
 from bralpha.derived.ons.schemas import (
     ONS_DAILY_LONG_COLUMNS,
@@ -78,11 +78,12 @@ def build_ons_state_asof_daily(
             ),
         ]
     )
-    if observations.is_empty() or not business_days_mon_fri(start, end):
+    if observations.is_empty() or not business_days_b3(start, end):
         return _empty_state()
 
     obs = (
         observations.filter(pl.col("observation_available_date").is_not_null())
+        .filter(pl.col("model_usable").fill_null(False))
         .sort([*STATE_KEY_COLUMNS, "observation_available_date", "observation_ref_date"])
         .unique(
             subset=[*STATE_KEY_COLUMNS, "observation_available_date"],
@@ -175,6 +176,8 @@ def _state_rows(
 ) -> pl.DataFrame | None:
     if frame is None or frame.is_empty():
         return None
+    if "model_usable" not in frame.columns:
+        frame = frame.with_columns(pl.lit(True).alias("model_usable"))
     rows = []
     for metric, fixed_unit in metrics:
         unit_expr = pl.lit(fixed_unit) if fixed_unit is not None else pl.col("unit")
@@ -189,6 +192,7 @@ def _state_rows(
                     pl.col(metric).cast(pl.Float64).alias("value"),
                     unit_expr.alias("unit"),
                     pl.col("source_version"),
+                    pl.col("model_usable"),
                 ]
             )
         )

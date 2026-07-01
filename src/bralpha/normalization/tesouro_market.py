@@ -24,7 +24,7 @@ TESOURO_DIRETO_REDEMPTIONS_CONSERVATIVE_2BD_POLICY = (
 )
 TESOURO_DIRETO_STOCK_CONSERVATIVE_30D_POLICY = "tesouro_direto_stock_conservative_30d"
 TESOURO_CONFIGURED_HOLIDAY_AVAILABILITY_BASIS = "configured_holiday_calendar"
-TESOURO_WEEKDAY_FALLBACK_AVAILABILITY_BASIS = "weekday_fallback"
+TESOURO_CANONICAL_B3_AVAILABILITY_BASIS = "canonical_b3_calendar"
 
 TESOURO_DIRETO_PRICES_RATES_COLUMNS = [
     "ref_date",
@@ -409,7 +409,7 @@ def _business_day_lag_available_date(
 
 def _business_day_lag_availability_basis(holidays: set[date] | None) -> str:
     if holidays is None:
-        return TESOURO_WEEKDAY_FALLBACK_AVAILABILITY_BASIS
+        return TESOURO_CANONICAL_B3_AVAILABILITY_BASIS
     return TESOURO_CONFIGURED_HOLIDAY_AVAILABILITY_BASIS
 
 

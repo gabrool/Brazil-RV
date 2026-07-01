@@ -48,7 +48,7 @@ to source-specific silver tables.
   resources do not document an earlier model-usable timing.
 - Sales/redemptions business-day lags use the configured `b3_holiday_calendar`
   or `reference_calendar` silver table when available. If no project calendar is
-  present, rows keep `availability_basis = "weekday_fallback"` so that fallback
+  present, rows keep `availability_basis = "canonical_b3_calendar"` so that calendar
   timing is auditable rather than silently treated as Brazil-calendar accurate.
 - Monthly Tesouro Direto stock uses
   `available_date = next_business_day(ref_date + 30 calendar days)`.

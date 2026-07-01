@@ -4,7 +4,7 @@ from datetime import date
 
 import polars as pl
 
-from bralpha.derived.bcb.calendar import business_day_frame, business_days_mon_fri
+from bralpha.derived.bcb.calendar import business_day_frame, business_days_b3
 from bralpha.derived.bcb.quality import validate_asof_panel, validate_panel
 from bralpha.derived.bcb.schemas import (
     BCB_FOCUS_EXPECTATION_ASOF_DAILY_COLUMNS,
@@ -48,11 +48,28 @@ def build_focus_expectation_observation_daily(
         frame = frame.filter(pl.col("ref_date") >= start)
     if end is not None:
         frame = frame.filter(pl.col("ref_date") <= end)
+    if "availability_policy" not in frame.columns:
+        frame = frame.with_columns(
+            pl.lit("bcb_focus_official_weekly_publication_same_day_eod").alias(
+                "availability_policy"
+            )
+        )
+    if "availability_basis" not in frame.columns:
+        frame = frame.with_columns(
+            pl.lit("official_weekly_publication_date_assumed_pre_eod_cutoff").alias(
+                "availability_basis"
+            )
+        )
 
     frame = (
         frame.with_columns(
             expectation_key=_expectation_key_expr(),
             availability_note=pl.lit(availability_note),
+            availability_policy=pl.col("availability_policy")
+            .fill_null("bcb_focus_official_weekly_publication_same_day_eod"),
+            availability_basis=pl.col("availability_basis").fill_null(
+                "official_weekly_publication_date_assumed_pre_eod_cutoff"
+            ),
         )
         .select(BCB_FOCUS_EXPECTATION_OBSERVATION_DAILY_COLUMNS)
         .unique(
@@ -77,7 +94,7 @@ def build_focus_expectation_asof_daily(
     start: date,
     end: date,
 ) -> pl.DataFrame:
-    if observations.is_empty() or not business_days_mon_fri(start, end):
+    if observations.is_empty() or not business_days_b3(start, end):
         return _empty_asof()
 
     obs = observations

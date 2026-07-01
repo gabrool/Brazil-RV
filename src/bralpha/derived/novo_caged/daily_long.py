@@ -4,7 +4,7 @@ from datetime import date
 
 import polars as pl
 
-from bralpha.derived.novo_caged.calendar import business_day_frame, business_days_mon_fri
+from bralpha.derived.novo_caged.calendar import business_day_frame, business_days_b3
 from bralpha.derived.novo_caged.quality import validate_asof_panel
 from bralpha.derived.novo_caged.schemas import (
     NOVO_CAGED_DAILY_LONG_COLUMNS,
@@ -46,7 +46,7 @@ def build_novo_caged_state_asof_daily(
         source_family="novo_caged_movements",
         metrics=metrics,
     )
-    if observations is None or observations.is_empty() or not business_days_mon_fri(start, end):
+    if observations is None or observations.is_empty() or not business_days_b3(start, end):
         return _empty_state()
 
     obs = (

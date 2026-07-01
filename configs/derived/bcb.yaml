@@ -1,6 +1,6 @@
 bcb_research:
   calendar:
-    default: business_days_mon_fri
+    default: b3_trading_calendar
     timezone: America/Sao_Paulo
 
   sgs:
@@ -23,7 +23,7 @@ bcb_research:
     include_general_expectations: true
     include_top5_expectations: true
     max_dense_keys: 5000
-    availability_note: date_only_next_business_day_until_publication_calendar
+    availability_note: bcb_focus_data_field_is_official_weekly_publication_date_same_day_eod_if_b3_business_day
     selected_indicators:
       - IPCA
       - Selic

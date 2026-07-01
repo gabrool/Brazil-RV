@@ -26,7 +26,7 @@ def test_receita_research_config_loads_and_gold_root_is_source_specific(repo_roo
     config = load_receita_research_config(repo_root).receita_research
     paths = resolve_project_paths(repo_root, load_paths_config(repo_root))
 
-    assert config.calendar.default == "business_days_mon_fri"
+    assert config.calendar.default == "b3_trading_calendar"
     assert config.tax_collection.max_features == 20000
     assert config.asof.include_state_asof_daily is True
     assert config.daily_long.include_tax_collection is True

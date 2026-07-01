@@ -4,7 +4,7 @@ from datetime import date
 
 import polars as pl
 
-from bralpha.derived.cvm.calendar import business_day_frame, business_days_mon_fri
+from bralpha.derived.cvm.calendar import business_day_frame, business_days_b3
 from bralpha.derived.cvm.quality import validate_asof_panel, validate_panel
 from bralpha.derived.cvm.schemas import (
     CVM_FUND_DAILY_OBSERVATION_COLUMNS,
@@ -155,7 +155,7 @@ def build_fund_state_asof_daily(
     end: date,
     max_groups: int,
 ) -> pl.DataFrame:
-    if group_observations.is_empty() or not business_days_mon_fri(start, end):
+    if group_observations.is_empty() or not business_days_b3(start, end):
         return _empty(CVM_FUND_STATE_ASOF_DAILY_COLUMNS)
 
     obs = (

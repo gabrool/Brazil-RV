@@ -11,7 +11,9 @@ import polars as pl
 from bralpha.domain.b3_calendar import is_business_day, previous_business_day
 from bralpha.ingestion.novo_caged.common import write_partitioned_frame
 from bralpha.parsing.common import normalize_column_name, parse_decimal, parse_int
-from bralpha.timing.availability import usable_date_from_date_only
+from bralpha.timing.availability import (
+    usable_date_from_same_day_eod_release,
+)
 
 NOVO_CAGED_MOVEMENT_AVAILABILITY_POLICY = "novo_caged_conservative_next_month_end_plus_2bd"
 NOVO_CAGED_CALENDAR_AVAILABILITY_POLICY = "novo_caged_official_release_calendar"
@@ -227,7 +229,7 @@ def normalize_novo_caged_release_calendar(
             {
                 "ref_date": ref_date,
                 "release_date": release_date,
-                "available_date": usable_date_from_date_only(release_date),
+                "available_date": usable_date_from_same_day_eod_release(release_date),
                 "availability_policy": NOVO_CAGED_CALENDAR_AVAILABILITY_POLICY,
                 "release_year": release_date.year,
                 "competence_label": competence_label,

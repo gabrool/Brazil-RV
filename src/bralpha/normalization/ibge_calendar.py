@@ -13,7 +13,7 @@ from bralpha.timing.availability import (
     DEFAULT_TIMING_TIMEZONE,
     decision_cutoff_datetime,
     usable_date_from_available_datetime,
-    usable_date_from_date_only,
+    usable_date_from_same_day_eod_release,
 )
 
 IBGE_CALENDAR_SILVER_COLUMNS = [
@@ -108,7 +108,10 @@ def _available_date(release_datetime: datetime, *, exact_time: bool) -> tuple[da
             ),
             "exact_timestamp_cutoff",
         )
-    return usable_date_from_date_only(release_datetime.date()), "date_only_next_business_day"
+    return (
+        usable_date_from_same_day_eod_release(release_datetime.date()),
+        "official_date_same_day_eod",
+    )
 
 
 def _reference_period_bounds(row: dict[str, Any]) -> tuple[date | None, date | None]:

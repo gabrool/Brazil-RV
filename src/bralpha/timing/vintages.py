@@ -13,6 +13,7 @@ from bralpha.timing.availability import (
     DEFAULT_TIMING_TIMEZONE,
     usable_date_from_available_datetime,
     usable_date_from_date_only,
+    usable_date_from_same_day_eod_release,
 )
 
 AVAILABILITY_EXACT_SOURCE_TIMESTAMP = "exact_source_timestamp"
@@ -85,6 +86,12 @@ def available_date_from_first_seen(
 
 
 def available_date_from_official_date_only(release_date: date | None) -> date | None:
+    if release_date is None:
+        return None
+    return usable_date_from_same_day_eod_release(release_date)
+
+
+def available_date_from_conservative_date_only(release_date: date | None) -> date | None:
     if release_date is None:
         return None
     return usable_date_from_date_only(release_date)
@@ -214,6 +221,37 @@ def assert_pit_audit_columns(
 
 
 def pit_audit_violations(
+    frame: pl.DataFrame,
+    *,
+    panel_kind: str = "model_ready",
+    allow_current_snapshot: bool = False,
+    require_model_usable: bool = True,
+) -> list[str]:
+    if panel_kind == "observation":
+        return observation_panel_violations(frame)
+    if panel_kind != "model_ready":
+        raise ValueError("panel_kind must be 'observation' or 'model_ready'")
+    return model_ready_panel_violations(
+        frame,
+        allow_current_snapshot=allow_current_snapshot,
+        require_model_usable=require_model_usable,
+    )
+
+
+def observation_panel_violations(frame: pl.DataFrame) -> list[str]:
+    violations: list[str] = []
+    columns = set(frame.columns)
+    if {"available_date", "ref_date"} <= columns:
+        early = frame.filter(
+            pl.col("available_date").is_not_null()
+            & (pl.col("available_date") < pl.col("ref_date"))
+        )
+        if not early.is_empty():
+            violations.append(f"available_date_before_ref_date:{early.height}")
+    return violations
+
+
+def model_ready_panel_violations(
     frame: pl.DataFrame,
     *,
     allow_current_snapshot: bool = False,

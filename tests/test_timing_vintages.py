@@ -31,6 +31,7 @@ from bralpha.timing.vintages import (
     make_vintage_id,
     missing_pit_audit_columns,
     model_usable_from_revision_policy,
+    observation_panel_violations,
     pit_audit_violations,
 )
 
@@ -198,7 +199,7 @@ def test_source_datetime_and_official_date_helpers_use_existing_cutoff_policy():
     assert available_date_from_source_datetime(
         datetime(2024, 1, 2, 22, 0, tzinfo=UTC)
     ) == date(2024, 1, 3)
-    assert available_date_from_official_date_only(date(2024, 1, 5)) == date(2024, 1, 8)
+    assert available_date_from_official_date_only(date(2024, 1, 5)) == date(2024, 1, 5)
 
 
 def test_choose_model_usable_blocks_unknown_and_current_snapshot_basis():
@@ -279,3 +280,17 @@ def test_pit_audit_flags_row_level_violations():
     assert "current_snapshot_rows:1" in violations
     with pytest.raises(ValueError, match="PIT audit violations"):
         assert_pit_model_ready_panel(frame)
+
+
+def test_observation_panel_audit_allows_release_after_observation_date():
+    frame = pl.DataFrame(
+        [
+            {"ref_date": date(2024, 1, 2), "available_date": date(2024, 1, 3)},
+            {"ref_date": date(2024, 1, 3), "available_date": date(2024, 1, 2)},
+        ]
+    )
+
+    assert observation_panel_violations(frame) == ["available_date_before_ref_date:1"]
+    assert pit_audit_violations(frame, panel_kind="observation") == [
+        "available_date_before_ref_date:1"
+    ]

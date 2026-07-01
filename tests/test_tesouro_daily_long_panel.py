@@ -40,7 +40,7 @@ def test_daily_long_includes_all_tesouro_families_and_drops_null_values():
         & (pl.col("value_name") == "quantity")
     ).row(0, named=True)
     assert flow["availability_policy"] == "tesouro_direto_sales_official_2bd"
-    assert flow["availability_basis"] == "weekday_fallback"
+    assert flow["availability_basis"] == "canonical_b3_calendar"
     assert not panel.filter(pl.col("value").is_null()).height
 
 
@@ -97,7 +97,7 @@ def _flows_daily() -> pl.DataFrame:
                 "observation_ref_date": date(2024, 1, 2),
                 "observation_available_date": date(2024, 1, 3),
                 "availability_policy": "tesouro_direto_sales_official_2bd",
-                "availability_basis": "weekday_fallback",
+                "availability_basis": "canonical_b3_calendar",
                 "flow_type": "sale",
                 "redemption_type": None,
                 "security_name": "Tesouro Selic",

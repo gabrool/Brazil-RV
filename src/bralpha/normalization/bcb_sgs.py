@@ -101,6 +101,8 @@ def _available_date(
         return None
     if config.availability_policy in {"next_business_day", "date_only_next_business_day"}:
         return next_business_day(ref_date)
+    if config.availability_policy == "ibge_release_calendar_required":
+        return None
     if config.availability_policy == "configured_lag_days":
         lag_days = config.availability_lag_days
         if lag_days is None:

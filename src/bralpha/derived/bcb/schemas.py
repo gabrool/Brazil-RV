@@ -86,6 +86,8 @@ BCB_PTAX_SELECTED_DAILY_COLUMNS = [
 BCB_FOCUS_EXPECTATION_OBSERVATION_DAILY_COLUMNS = [
     "ref_date",
     "available_date",
+    "availability_policy",
+    "availability_basis",
     "expectation_key",
     "endpoint",
     "indicator",
@@ -137,6 +139,8 @@ BCB_FOCUS_EXPECTATION_ASOF_DAILY_COLUMNS = [
     "is_available",
     "is_observed_on_ref_date",
     "staleness_days",
+    "availability_policy",
+    "availability_basis",
     "availability_note",
     "source_dataset",
     "source_version",

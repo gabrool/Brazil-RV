@@ -105,6 +105,19 @@ def test_ons_daily_long_drops_null_values_and_keeps_long_primary_key():
     assert set(daily_long["source_family"].unique().to_list()) == {"ons_ear_subsystem"}
 
 
+def test_ons_state_asof_excludes_non_model_usable_snapshot_rows():
+    ear = _ear_observation().with_columns(pl.lit(False).alias("model_usable"))
+
+    state = build_ons_state_asof_daily(
+        ear=ear,
+        start=date(2024, 1, 3),
+        end=date(2024, 1, 8),
+        max_features=10,
+    )
+
+    assert state.is_empty()
+
+
 def _ear_observation(feature_id: str = "ons_ear_subsystem|se|sudeste") -> pl.DataFrame:
     return pl.DataFrame(
         {

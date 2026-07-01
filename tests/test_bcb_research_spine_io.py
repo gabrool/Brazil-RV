@@ -10,6 +10,7 @@ import pytest
 
 import bralpha.derived.bcb.io as io_module
 from bralpha.derived.bcb.io import gold_panel_root, write_gold_panel
+from bralpha.domain.b3_calendar import business_days
 from bralpha.infra.config import (
     load_bcb_research_config,
     load_paths_config,
@@ -22,11 +23,12 @@ from bralpha.pipelines.bcb_research_spine import run_bcb_research_spine
 def test_bcb_research_config_loads(repo_root):
     config = load_bcb_research_config(repo_root).bcb_research
 
-    assert config.calendar.default == "business_days_mon_fri"
+    assert config.calendar.default == "b3_trading_calendar"
     assert config.ptax.currencies[:2] == ["USD", "EUR"]
     assert (
         config.focus.availability_note
-        == "date_only_next_business_day_until_publication_calendar"
+        == "bcb_focus_data_field_is_official_weekly_publication_date_"
+        "same_day_eod_if_b3_business_day"
     )
 
 
@@ -309,13 +311,7 @@ def _sgs_silver_row(
 
 
 def _business_dates(start: date, count: int) -> list[date]:
-    dates = []
-    current = start
-    while len(dates) < count:
-        if current.weekday() < 5:
-            dates.append(current)
-        current += timedelta(days=1)
-    return dates
+    return business_days(start, start + timedelta(days=count * 2))[:count]
 
 
 def _monthly_dates(start: date, count: int) -> list[date]:

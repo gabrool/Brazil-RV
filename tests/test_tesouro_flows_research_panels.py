@@ -27,7 +27,7 @@ def test_flows_align_to_available_date_without_forward_fill():
         "tesouro_direto_redemptions_conservative_2bd",
     }
     assert set(panel["flow_type"].to_list()) == {"sale", "redemption"}
-    assert set(panel["availability_basis"].to_list()) == {"weekday_fallback"}
+    assert set(panel["availability_basis"].to_list()) == {"canonical_b3_calendar"}
     assert panel.filter(pl.col("ref_date") == date(2024, 1, 2)).is_empty()
 
 
@@ -57,7 +57,7 @@ def _sales_row() -> dict[str, object]:
         "ref_date": date(2024, 1, 1),
         "available_date": date(2024, 1, 3),
         "availability_policy": "tesouro_direto_sales_official_2bd",
-        "availability_basis": "weekday_fallback",
+        "availability_basis": "canonical_b3_calendar",
         "security_name": "Tesouro Selic",
         "security_type": "Tesouro Selic",
         "maturity_date": date(2027, 3, 1),
@@ -75,7 +75,7 @@ def _redemption_row() -> dict[str, object]:
         "ref_date": date(2024, 1, 1),
         "available_date": date(2024, 1, 3),
         "availability_policy": "tesouro_direto_redemptions_conservative_2bd",
-        "availability_basis": "weekday_fallback",
+        "availability_basis": "canonical_b3_calendar",
         "redemption_type": "early_repurchase",
         "security_name": "Tesouro Selic",
         "security_type": "Tesouro Selic",

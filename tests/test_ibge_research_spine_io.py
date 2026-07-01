@@ -21,7 +21,7 @@ from bralpha.pipelines.ibge_research_spine import run_ibge_research_spine
 def test_ibge_research_config_loads(repo_root):
     config = load_ibge_research_config(repo_root).ibge_research
 
-    assert config.calendar.default == "business_days_mon_fri"
+    assert config.calendar.default == "b3_trading_calendar"
     assert config.sidra.include_model_usable_only is True
     assert config.sidra.selected_dataset_slugs[:3] == ["ipca", "ipca15", "inpc"]
     assert config.sidra.max_dense_features == 20000
@@ -164,8 +164,8 @@ def test_ibge_pipeline_writes_sidra_gold_outputs_from_silver(repo_root, tmp_path
     )
 
     assert status["sidra_observation"] == "written: 1 rows"
-    assert status["sidra_asof_daily"] == "written: 2 rows"
-    assert status["daily_long"] == "written: 2 rows"
+    assert status["sidra_asof_daily"] == "written: 1 rows"
+    assert status["daily_long"] == "written: 1 rows"
     assert (tmp_path / "data" / "gold" / "ibge" / "sidra_observation").exists()
     assert (tmp_path / "data" / "gold" / "ibge" / "sidra_asof_daily").exists()
     assert (tmp_path / "data" / "gold" / "ibge" / "daily_long").exists()
