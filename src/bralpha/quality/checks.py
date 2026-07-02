@@ -55,6 +55,26 @@ def check_available_date_on_or_after_ref_date(frame: pl.DataFrame) -> None:
         raise QualityCheckError("available_date_on_or_after_ref_date failed")
 
 
+def check_available_date_on_or_before_ref_date(frame: pl.DataFrame) -> None:
+    check_required_columns_present(frame, ["ref_date", "available_date"])
+    if frame.filter(pl.col("available_date") > pl.col("ref_date")).height:
+        raise QualityCheckError("available_date_on_or_before_ref_date failed")
+
+
+def check_observation_panel_dates(frame: pl.DataFrame) -> None:
+    if "available_date" in frame.columns and "ref_date" in frame.columns:
+        check_available_date_on_or_after_ref_date(frame)
+
+
+def check_model_ready_panel_dates(frame: pl.DataFrame) -> None:
+    if "available_date" in frame.columns and "ref_date" in frame.columns:
+        check_available_date_on_or_before_ref_date(frame)
+    if "observation_available_date" in frame.columns and "ref_date" in frame.columns:
+        bad = frame.filter(pl.col("observation_available_date") > pl.col("ref_date")).height
+        if bad:
+            raise QualityCheckError("observation_available_date_on_or_before_ref_date failed")
+
+
 def check_rate_within_plausible_bounds(frame: pl.DataFrame, column: str = "rate") -> None:
     if column in frame.columns:
         bad = frame.filter(pl.col(column).is_not_null() & ~pl.col(column).is_between(-1.0, 2.0))

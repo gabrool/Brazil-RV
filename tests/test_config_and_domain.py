@@ -7,7 +7,9 @@ from pydantic import ValidationError
 
 from bralpha.domain.b3_calendar import (
     add_business_days,
+    business_days,
     business_days_between,
+    default_calendar,
     is_business_day,
     next_business_day,
     previous_business_day,
@@ -104,6 +106,23 @@ def test_calendar_helpers_handle_weekends_and_holidays():
     assert previous_business_day(date(2024, 1, 2), holidays) == date(2023, 12, 29)
     assert add_business_days(date(2023, 12, 29), 2, holidays) == date(2024, 1, 3)
     assert business_days_between(date(2023, 12, 29), date(2024, 1, 3), holidays) == 2
+
+
+def test_default_b3_calendar_uses_versioned_holidays_and_coverage():
+    calendar = default_calendar()
+
+    assert calendar.start_year == 2000
+    assert calendar.end_year == 2035
+    assert not is_business_day(date(2024, 12, 24))
+    assert not is_business_day(date(2024, 12, 25))
+    assert next_business_day(date(2024, 12, 23)) == date(2024, 12, 26)
+    assert add_business_days(date(2024, 12, 23), 1) == date(2024, 12, 26)
+    assert business_days(date(2024, 12, 23), date(2024, 12, 26)) == [
+        date(2024, 12, 23),
+        date(2024, 12, 26),
+    ]
+    with pytest.raises(ValueError, match="does not cover"):
+        is_business_day(date(2036, 1, 2))
 
 
 def test_di_futures_pu_rate_helpers_round_trip():

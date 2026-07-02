@@ -4,7 +4,7 @@ from datetime import date
 
 import polars as pl
 
-from bralpha.derived.anp.calendar import business_day_frame, business_days_mon_fri
+from bralpha.derived.anp.calendar import business_day_frame, business_days_b3
 from bralpha.derived.anp.quality import validate_asof_panel
 from bralpha.derived.anp.schemas import (
     ANP_DAILY_LONG_COLUMNS,
@@ -63,7 +63,7 @@ def build_anp_state_asof_daily(
             ),
         ]
     )
-    if observations.is_empty() or not business_days_mon_fri(start, end):
+    if observations.is_empty() or not business_days_b3(start, end):
         return _empty_state()
 
     obs = (

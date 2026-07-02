@@ -11,7 +11,9 @@ from bralpha.derived.bcb.focus import (
     build_focus_reference_dates,
 )
 
-AVAILABILITY_NOTE = "date_only_next_business_day_until_publication_calendar"
+AVAILABILITY_NOTE = (
+    "bcb_focus_data_field_is_official_weekly_publication_date_same_day_eod_if_b3_business_day"
+)
 
 
 def test_focus_observation_panel_builds_stable_key_and_keeps_top5_coexistence():

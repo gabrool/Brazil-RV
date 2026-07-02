@@ -47,6 +47,6 @@ IBGE SIDRA model-ready rows use matched IBGE release-calendar events as publicat
 
 Tesouro Direto sales use the official two-business-day lag from CKAN resource metadata. Redemptions use a conservative two-business-day lag until official metadata documents a more precise rule. Prices/rates keep their existing date-only next-business-day rule.
 
-ONS data should follow the existing docs-grounded ONS contract: prefer official ONS metadata where available, use first-seen snapshots when implemented, and keep mutable current-snapshot revised data out of model-ready panels.
+ONS timestamped rows carry `vintage_id`, `source_publication_datetime_utc`, `resource_last_modified`, `http_last_modified`, and `first_seen_timestamp_utc` through silver and gold observation/as-of panels. ONS as-of panels select the latest versioned snapshot available by the model date. Mutable ONS rows without timestamp or first-seen lineage remain `current_snapshot_reference_only` and are not model usable.
 
 BCB SGS series must carry source references, timing notes, and revision metadata. Series with unknown timing or unverified identifiers are configuration candidates only and must remain `model_usable = false`.

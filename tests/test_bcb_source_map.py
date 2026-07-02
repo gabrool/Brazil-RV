@@ -37,9 +37,10 @@ def test_bcb_source_map_scopes_sgs_reference_expansion(repo_root):
 
     assert "monetary/liquidity metadata" in text
     assert (
-        "Model-ready SGS currently includes Selic, IPCA, and daily international reserves"
+        "Model-ready SGS currently includes Selic and daily international reserves"
         in text
     )
+    assert "SGS IPCA is reference-only" in text
     assert "BCB_LIVE_TESTS=1" in text
     assert "sgs_feature_daily" in raw_to_research
     assert "international reserves liquidity" in raw_to_research

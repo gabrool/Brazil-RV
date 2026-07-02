@@ -9,6 +9,8 @@ import polars as pl
 from bralpha.parsing.common import parse_decimal, write_source_partitioned
 from bralpha.timing.availability import (
     DEFAULT_DECISION_CUTOFF_TIME,
+    DEFAULT_TIMING_TIMEZONE,
+    localize_source_timestamp,
     usable_date_from_available_datetime,
     usable_date_from_date_only,
 )
@@ -48,12 +50,20 @@ def normalize_ptax_to_silver(
         if release_date is None:
             continue
         quote_datetime = _parse_datetime(row.get("dataHoraCotacao"))
-        available_date = (
-            usable_date_from_available_datetime(
+        quote_datetime_local = (
+            localize_source_timestamp(
                 quote_datetime,
-                cutoff_time=DEFAULT_DECISION_CUTOFF_TIME,
+                source_tz_name=DEFAULT_TIMING_TIMEZONE,
             )
             if quote_datetime is not None
+            else None
+        )
+        available_date = (
+            usable_date_from_available_datetime(
+                quote_datetime_local,
+                cutoff_time=DEFAULT_DECISION_CUTOFF_TIME,
+            )
+            if quote_datetime_local is not None
             else usable_date_from_date_only(release_date)
         )
         currency_code = _currency_code(row)
@@ -66,7 +76,11 @@ def normalize_ptax_to_silver(
                 "currency_name": currency_names.get(currency_code),
                 "endpoint": row.get("endpoint"),
                 "bulletin_type": bulletin_type,
-                "quote_datetime": quote_datetime,
+                "quote_datetime": (
+                    quote_datetime_local.replace(tzinfo=None)
+                    if quote_datetime_local is not None
+                    else None
+                ),
                 "is_selected_bulletin": False,
                 "bid_rate": parse_decimal(row.get("cotacaoCompra")),
                 "ask_rate": parse_decimal(row.get("cotacaoVenda")),
@@ -148,7 +162,7 @@ def _parse_datetime(value: object) -> datetime | None:
         return None
     if "T" not in text and " " not in text.strip():
         return None
-    return datetime.fromisoformat(text.replace("Z", "+00:00")).replace(tzinfo=None)
+    return datetime.fromisoformat(text.replace("Z", "+00:00"))
 
 
 def _parse_release_date(value: object) -> date | None:

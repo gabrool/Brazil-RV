@@ -1,6 +1,6 @@
 receita_research:
   calendar:
-    default: business_days_mon_fri
+    default: b3_trading_calendar
     timezone: America/Sao_Paulo
 
   tax_collection:

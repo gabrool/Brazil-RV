@@ -209,7 +209,11 @@ def test_focus_normalizer_handles_generic_selic_top5_and_reference_dates():
         0, named=True
     )
     assert annual["indicator_detail"] == "Livres"
-    assert annual["available_date"] == date(2024, 1, 3)
+    assert annual["available_date"] == date(2024, 1, 2)
+    assert (
+        annual["availability_basis"]
+        == "official_weekly_publication_date_assumed_pre_eod_cutoff"
+    )
     assert annual["reference_year"] == 2025
     assert annual["base_calculation"] == 1
     selic_row = expectations.filter(pl.col("meeting") == "R1").row(0, named=True)

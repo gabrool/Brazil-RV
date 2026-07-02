@@ -180,7 +180,7 @@ def test_tesouro_pipeline_flow_calendar_fallback_is_explicit(repo_root, tmp_path
         / "year=2024"
         / "data.parquet"
     )
-    assert silver["availability_basis"].item() == "weekday_fallback"
+    assert silver["availability_basis"].item() == "canonical_b3_calendar"
     assert silver["available_date"].item() == date(2024, 1, 4)
 
 

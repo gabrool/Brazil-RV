@@ -83,10 +83,10 @@ datasets:
     ckan_package: estoque-do-tesouro-direto
     ckan_resource_formats: [CSV]
     ckan_resource_name_contains: [Estoque do Tesouro Direto]
-    availability_policy: configured_lag_next_business_day
+    availability_policy: configured_b3_business_day_lag
     availability_lag_days: 30
     license_note: ODbL open data; cite Tesouro Transparente as source.
-    notes: One historical CSV; starts Jan 2002; monthly. Uses issuance-rate stock calculation, not market prices.
+    notes: One historical CSV; starts Jan 2002; monthly. Uses a 30 B3-business-day conservative lag and issuance-rate stock calculation, not market prices.
 
   - dataset_id: tesouro_dpf_stock
     source: tesouro
@@ -101,10 +101,10 @@ datasets:
     ckan_package: estoque-da-divida-publica-federal
     ckan_resource_formats: [CSV]
     ckan_resource_name_contains: [Estoque da Dívida Pública Federal]
-    availability_policy: configured_lag_next_business_day
+    availability_policy: configured_b3_business_day_lag
     availability_lag_days: 45
     license_note: ODbL open data; cite Tesouro Transparente as source.
-    notes: One historical CSV; starts Jan 2006; monthly. Conservative availability lag.
+    notes: One historical CSV; starts Jan 2006; monthly. Uses a 45 B3-business-day conservative availability lag.
 
   - dataset_id: tesouro_rtn_series
     source: tesouro

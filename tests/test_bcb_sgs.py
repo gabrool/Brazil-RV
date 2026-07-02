@@ -130,8 +130,8 @@ def test_sgs_model_usable_categories_are_documented_subset(repo_root):
     model_usable_categories = {item.category for item in series if item.model_usable}
     model_usable_ids = {item.series_id for item in series if item.model_usable}
 
-    assert model_usable_categories == {"rates", "inflation", "external_reserves"}
-    assert model_usable_ids == {11, 432, 433, 13982}
+    assert model_usable_categories == {"rates", "external_reserves"}
+    assert model_usable_ids == {11, 432, 13982}
 
 
 def test_sgs_live_configured_ids_resolve_through_official_api(repo_root):
@@ -264,6 +264,29 @@ def test_sgs_reserves_use_next_business_day_availability(repo_root):
     assert silver["availability_basis"].item() == "source_date_only"
     assert silver["revision_policy"].item() == "unrevised"
     assert silver["model_usable"].item() is True
+
+
+def test_sgs_ipca_requires_ibge_release_calendar_timing(repo_root):
+    bronze = parse_sgs_bytes(
+        b'[{"data":"31/01/2024","valor":"0.42"}]',
+        series_id=433,
+        source_dataset="bcb_sgs_series",
+        download_timestamp_utc=datetime(2024, 2, 1, 12, tzinfo=UTC),
+        raw_path=repo_root / "raw.json",
+        sha256="abc",
+    )
+
+    silver = normalize_sgs_to_silver(
+        bronze,
+        series_config=load_sgs_series_config(repo_root),
+    )
+
+    assert silver["available_date"].item() is None
+    assert silver["availability_policy"].item() == "ibge_release_calendar_required"
+    assert silver["model_usable"].item() is False
+    assert silver["non_model_usable_reason"].item() == (
+        "sgs_ipca_requires_ibge_release_calendar_match"
+    )
 
 
 def test_sgs_bop_four_week_policy_remains_reference_only(repo_root):

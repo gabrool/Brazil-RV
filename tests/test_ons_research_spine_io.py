@@ -24,7 +24,7 @@ def test_ons_research_config_loads_and_gold_root_is_scoped(repo_root):
     config = load_ons_research_config(repo_root).ons_research
     paths = resolve_project_paths(repo_root, load_paths_config(repo_root))
 
-    assert config.calendar.default == "business_days_mon_fri"
+    assert config.calendar.default == "b3_trading_calendar"
     assert config.hourly_daily.aggregation == "daily_mean"
     assert config.asof.max_features == 10000
     assert gold_panel_root(paths, "daily_long") == paths.gold / "ons" / "daily_long"

@@ -18,7 +18,17 @@ def test_novo_caged_movement_normalizer_maps_aliases_and_availability():
     row = silver.to_dicts()[0]
     assert row["ref_date"] == date(2024, 1, 31)
     assert row["available_date"] == date(2024, 3, 4)
-    assert row["availability_policy"] == "novo_caged_conservative_next_month_end_plus_2bd"
+    assert (
+        row["availability_policy"]
+        == "novo_caged_conservative_next_month_end_plus_2bd_reference_only"
+    )
+    assert row["availability_basis"] == "conservative_heuristic"
+    assert row["revision_policy"] == "current_snapshot_reference_only"
+    assert row["model_usable"] is False
+    assert (
+        row["non_model_usable_reason"]
+        == "novo_caged_movement_requires_official_release_calendar"
+    )
     assert row["state"] == "SP"
     assert row["municipality_code"] == "3550308"
     assert row["cnae_section"] == "G"
@@ -70,7 +80,7 @@ def test_novo_caged_release_calendar_normalizer_parses_official_style_rows():
 
     assert silver["ref_date"].to_list() == [date(2026, 1, 31), date(2026, 5, 31)]
     assert silver["release_date"].to_list() == [date(2026, 3, 3), date(2026, 6, 30)]
-    assert silver["available_date"].to_list() == [date(2026, 3, 4), date(2026, 7, 1)]
+    assert silver["available_date"].to_list() == [date(2026, 3, 3), date(2026, 6, 30)]
     assert silver["availability_policy"].to_list() == [
         "novo_caged_official_release_calendar",
         "novo_caged_official_release_calendar",

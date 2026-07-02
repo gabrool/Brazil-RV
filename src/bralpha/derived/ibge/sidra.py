@@ -4,7 +4,7 @@ from datetime import date
 
 import polars as pl
 
-from bralpha.derived.ibge.calendar import business_day_frame, business_days_mon_fri
+from bralpha.derived.ibge.calendar import business_day_frame, business_days_b3
 from bralpha.derived.ibge.quality import validate_asof_panel, validate_panel
 from bralpha.derived.ibge.schemas import (
     IBGE_SIDRA_ASOF_DAILY_COLUMNS,
@@ -61,7 +61,7 @@ def build_sidra_asof_daily(
     end: date,
     max_dense_features: int,
 ) -> pl.DataFrame:
-    if observations.is_empty() or not business_days_mon_fri(start, end):
+    if observations.is_empty() or not business_days_b3(start, end):
         return _empty_asof()
 
     obs = (

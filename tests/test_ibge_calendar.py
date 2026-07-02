@@ -59,17 +59,17 @@ def test_ibge_calendar_before_cutoff_is_available_same_day(repo_root):
 def test_ibge_calendar_after_cutoff_is_available_next_business_day(repo_root):
     silver = _normalize(repo_root, "09/02/2024 18:31:00")
 
-    assert silver["available_date"].item() == date(2024, 2, 12)
+    assert silver["available_date"].item() == date(2024, 2, 14)
 
 
-def test_ibge_calendar_date_only_is_available_next_business_day(repo_root):
+def test_ibge_calendar_date_only_official_release_is_available_same_day(repo_root):
     silver = _normalize(repo_root, "09/02/2024")
 
     row = silver.row(0, named=True)
     assert row["release_time_local"] is None
     assert row["available_datetime_local"] is None
-    assert row["available_date"] == date(2024, 2, 12)
-    assert row["availability_policy"] == "date_only_next_business_day"
+    assert row["available_date"] == date(2024, 2, 9)
+    assert row["availability_policy"] == "official_date_same_day_eod"
 
 
 def _normalize(repo_root, release_datetime: str):

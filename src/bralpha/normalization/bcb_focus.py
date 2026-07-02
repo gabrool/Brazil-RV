@@ -6,11 +6,20 @@ from pathlib import Path
 import polars as pl
 
 from bralpha.parsing.common import parse_decimal, parse_int, write_source_partitioned
-from bralpha.timing.availability import usable_date_from_date_only
+from bralpha.timing.availability import (
+    FOCUS_DATE_ONLY_AVAILABILITY_NOTE,
+    usable_date_from_same_day_eod_release,
+)
+
+FOCUS_AVAILABILITY_POLICY = "bcb_focus_official_weekly_publication_same_day_eod"
+FOCUS_AVAILABILITY_BASIS = "official_weekly_publication_date_assumed_pre_eod_cutoff"
 
 BCB_FOCUS_EXPECTATION_COLUMNS = [
     "ref_date",
     "available_date",
+    "availability_policy",
+    "availability_basis",
+    "availability_note",
     "endpoint",
     "indicator",
     "indicator_detail",
@@ -87,7 +96,10 @@ def normalize_focus_expectations_to_silver(
         rows.append(
             {
                 "ref_date": ref_date,
-                "available_date": usable_date_from_date_only(ref_date),
+                "available_date": usable_date_from_same_day_eod_release(ref_date),
+                "availability_policy": FOCUS_AVAILABILITY_POLICY,
+                "availability_basis": FOCUS_AVAILABILITY_BASIS,
+                "availability_note": FOCUS_DATE_ONLY_AVAILABILITY_NOTE,
                 "endpoint": row.get("endpoint"),
                 "indicator": _text(row.get("Indicador") or row.get("indicador")),
                 "indicator_detail": _text(row.get("IndicadorDetalhe") or row.get("Suavizada")),

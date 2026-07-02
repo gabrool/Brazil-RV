@@ -4,7 +4,7 @@ from datetime import date
 
 import polars as pl
 
-from bralpha.derived.receita.calendar import business_day_frame, business_days_mon_fri
+from bralpha.derived.receita.calendar import business_day_frame, business_days_b3
 from bralpha.derived.receita.quality import validate_asof_panel
 from bralpha.derived.receita.schemas import (
     PANEL_PRIMARY_KEYS,
@@ -23,7 +23,7 @@ def build_receita_state_asof_daily(
     max_features: int,
 ) -> pl.DataFrame:
     observations = _state_rows(feature_observations)
-    if observations is None or observations.is_empty() or not business_days_mon_fri(start, end):
+    if observations is None or observations.is_empty() or not business_days_b3(start, end):
         return _empty_state()
 
     obs = (

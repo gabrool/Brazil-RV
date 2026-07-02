@@ -31,7 +31,7 @@ datasets:
       - available_date_not_null
       - available_date_on_or_after_ref_date
     source_map_status: live_download
-    availability_policy: novo_caged_conservative_next_month_end_plus_2bd
+    availability_policy: novo_caged_conservative_next_month_end_plus_2bd_reference_only
     license_note: Brazilian federal open-data terms; cite MTE/PDET and dataset/source.
     resource_families:
       - name: movement_records
@@ -40,7 +40,7 @@ datasets:
         applies_from: "2020-01-01"
         url_template: "https://ftp.mtps.gov.br/pdet/microdados/NOVO%20CAGED/{year}/{period}/CAGEDMOV{period}.7z"
         filename_template: "CAGEDMOV{period}.7z"
-    notes: Monthly Novo CAGED movement microdata. Preserve official movement rows; do not aggregate in ingestion.
+    notes: Monthly Novo CAGED movement microdata. Preserve official movement rows; do not aggregate in ingestion. Movement-row heuristic availability is reference-only; model-facing panels require the official release calendar.
 
   - dataset_id: novo_caged_release_calendar
     source: novo_caged

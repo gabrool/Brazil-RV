@@ -11,16 +11,31 @@ import polars as pl
 from bralpha.domain.b3_calendar import is_business_day, previous_business_day
 from bralpha.ingestion.novo_caged.common import write_partitioned_frame
 from bralpha.parsing.common import normalize_column_name, parse_decimal, parse_int
-from bralpha.timing.availability import usable_date_from_date_only
+from bralpha.timing.availability import (
+    usable_date_from_same_day_eod_release,
+)
+from bralpha.timing.vintages import (
+    AVAILABILITY_CONSERVATIVE_HEURISTIC,
+    REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY,
+)
 
-NOVO_CAGED_MOVEMENT_AVAILABILITY_POLICY = "novo_caged_conservative_next_month_end_plus_2bd"
+NOVO_CAGED_MOVEMENT_AVAILABILITY_POLICY = (
+    "novo_caged_conservative_next_month_end_plus_2bd_reference_only"
+)
 NOVO_CAGED_CALENDAR_AVAILABILITY_POLICY = "novo_caged_official_release_calendar"
+NOVO_CAGED_MOVEMENT_NON_MODEL_USABLE_REASON = (
+    "novo_caged_movement_requires_official_release_calendar"
+)
 
 NOVO_CAGED_MOVEMENT_COLUMNS = [
     "movement_record_id",
     "ref_date",
     "available_date",
     "availability_policy",
+    "availability_basis",
+    "revision_policy",
+    "model_usable",
+    "non_model_usable_reason",
     "competence",
     "year",
     "month",
@@ -188,6 +203,12 @@ def normalize_novo_caged_movements_monthly(
             .map_elements(_movement_available_date, return_dtype=pl.Date)
             .alias("available_date"),
             pl.lit(NOVO_CAGED_MOVEMENT_AVAILABILITY_POLICY).alias("availability_policy"),
+            pl.lit(AVAILABILITY_CONSERVATIVE_HEURISTIC).alias("availability_basis"),
+            pl.lit(REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY).alias("revision_policy"),
+            pl.lit(False).alias("model_usable"),
+            pl.lit(NOVO_CAGED_MOVEMENT_NON_MODEL_USABLE_REASON).alias(
+                "non_model_usable_reason"
+            ),
         ]
     )
     id_columns = [
@@ -227,7 +248,7 @@ def normalize_novo_caged_release_calendar(
             {
                 "ref_date": ref_date,
                 "release_date": release_date,
-                "available_date": usable_date_from_date_only(release_date),
+                "available_date": usable_date_from_same_day_eod_release(release_date),
                 "availability_policy": NOVO_CAGED_CALENDAR_AVAILABILITY_POLICY,
                 "release_year": release_date.year,
                 "competence_label": competence_label,

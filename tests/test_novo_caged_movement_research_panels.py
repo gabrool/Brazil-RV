@@ -56,7 +56,7 @@ def test_movement_group_observation_uses_calendar_availability_and_aggregates():
     ).is_empty()
 
 
-def test_movement_group_observation_falls_back_to_silver_availability_without_calendar():
+def test_movement_group_observation_requires_official_calendar_for_model_availability():
     records = build_movement_record_observation(_movement_silver())
 
     panel = build_movement_group_observation(
@@ -71,9 +71,10 @@ def test_movement_group_observation_falls_back_to_silver_availability_without_ca
         (pl.col("ref_date") == date(2024, 1, 31)) & (pl.col("movement_sign") == "1")
     ).to_dicts()[0]
 
-    assert row["available_date"] == date(2024, 3, 12)
+    assert row["available_date"] is None
     assert row["calendar_available_date"] is None
-    assert row["availability_source"] == "conservative_fallback"
+    assert row["availability_source"] == "missing_official_calendar"
+    assert row["availability_policy"] == "novo_caged_official_release_calendar_required"
 
 
 def test_movement_group_observation_normalizes_group_values_and_sign_tokens():
@@ -143,7 +144,11 @@ def _row(
         "movement_record_id": row_id,
         "ref_date": ref_date,
         "available_date": available_date,
-        "availability_policy": "novo_caged_conservative_next_month_end_plus_2bd",
+        "availability_policy": "novo_caged_conservative_next_month_end_plus_2bd_reference_only",
+        "availability_basis": "conservative_heuristic",
+        "revision_policy": "current_snapshot_reference_only",
+        "model_usable": False,
+        "non_model_usable_reason": "novo_caged_movement_requires_official_release_calendar",
         "competence": f"{ref_date.year}{ref_date.month:02d}",
         "year": ref_date.year,
         "month": ref_date.month,

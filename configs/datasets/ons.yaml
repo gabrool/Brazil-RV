@@ -23,7 +23,7 @@ datasets:
     raw_format: csv_annual
     canonical_table: ons_ear_subsystem_daily
     partition_keys: [year]
-    primary_keys: [ref_date, subsystem]
+    primary_keys: [ref_date, subsystem, vintage_id]
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys
@@ -46,7 +46,7 @@ datasets:
     raw_format: csv_annual
     canonical_table: ons_ena_subsystem_daily
     partition_keys: [year]
-    primary_keys: [ref_date, subsystem, ena_type]
+    primary_keys: [ref_date, subsystem, ena_type, vintage_id]
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys
@@ -69,7 +69,7 @@ datasets:
     raw_format: csv_annual
     canonical_table: ons_load_daily
     partition_keys: [year]
-    primary_keys: [ref_date, subsystem]
+    primary_keys: [ref_date, subsystem, vintage_id]
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys
@@ -92,7 +92,7 @@ datasets:
     raw_format: csv_annual
     canonical_table: ons_cmo_weekly
     partition_keys: [year]
-    primary_keys: [ref_date, subsystem, load_block]
+    primary_keys: [ref_date, subsystem, load_block, vintage_id]
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys
@@ -115,7 +115,7 @@ datasets:
     raw_format: csv_annual
     canonical_table: ons_energy_balance_subsystem
     partition_keys: [year]
-    primary_keys: [ref_datetime, subsystem]
+    primary_keys: [ref_datetime, subsystem, vintage_id]
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys
@@ -137,7 +137,7 @@ datasets:
     raw_format: csv_annual
     canonical_table: ons_interchange_subsystem_hourly
     partition_keys: [year]
-    primary_keys: [ref_datetime, source_subsystem, target_subsystem]
+    primary_keys: [ref_datetime, source_subsystem, target_subsystem, vintage_id]
     quality_checks:
       - required_columns_present
       - no_duplicate_primary_keys

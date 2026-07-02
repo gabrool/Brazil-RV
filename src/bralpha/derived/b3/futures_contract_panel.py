@@ -275,7 +275,7 @@ def _calendar_inputs(
     if holidays is not None:
         return holidays, "configured_holidays"
     if holiday_calendar is None or holiday_calendar.is_empty():
-        return None, "weekday_fallback"
+        return None, "canonical_b3_calendar"
     rows = holiday_calendar.to_dicts()
     return {
         _as_date(row["ref_date"])

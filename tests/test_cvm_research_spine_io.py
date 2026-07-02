@@ -22,7 +22,7 @@ from bralpha.pipelines.cvm_research_spine import run_cvm_research_spine
 def test_cvm_research_config_loads(repo_root):
     config = load_cvm_research_config(repo_root).cvm_research
 
-    assert config.calendar.default == "business_days_mon_fri"
+    assert config.calendar.default == "b3_trading_calendar"
     assert config.fund_reports.group_by == ["all", "fund_type"]
     assert config.fund_reports.max_groups == 100
     assert config.fund_reports.include_per_fund_observation is True

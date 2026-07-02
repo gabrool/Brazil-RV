@@ -9,9 +9,14 @@ from bralpha.derived.ons.quality import validate_panel
 from bralpha.derived.ons.schemas import (
     ONS_EAR_SUBSYSTEM_OBSERVATION_COLUMNS,
     ONS_ENA_SUBSYSTEM_OBSERVATION_COLUMNS,
+    ONS_PIT_SNAPSHOT_COLUMNS,
     PANEL_PRIMARY_KEYS,
 )
 from bralpha.parsing.common import normalize_column_name
+from bralpha.timing.vintages import (
+    AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE,
+    REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY,
+)
 
 
 def build_ear_subsystem_observation(
@@ -23,7 +28,7 @@ def build_ear_subsystem_observation(
     if silver.is_empty():
         return _empty_ear()
 
-    frame = silver
+    frame = _ensure_pit_columns(silver)
     if start is not None:
         frame = frame.filter(pl.col("ref_date") >= start)
     if end is not None:
@@ -61,7 +66,7 @@ def build_ena_subsystem_observation(
     if silver.is_empty():
         return _empty_ena()
 
-    frame = silver
+    frame = _ensure_pit_columns(silver)
     if start is not None:
         frame = frame.filter(pl.col("ref_date") >= start)
     if end is not None:
@@ -108,6 +113,24 @@ def _token(value: Any) -> str:
         return "null"
     token = normalize_column_name(str(value).strip())
     return token or "null"
+
+
+def _ensure_pit_columns(frame: pl.DataFrame) -> pl.DataFrame:
+    additions = []
+    if "availability_basis" not in frame.columns:
+        additions.append(
+            pl.lit(AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE).alias("availability_basis")
+        )
+    if "revision_policy" not in frame.columns:
+        additions.append(pl.lit(REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY).alias("revision_policy"))
+    if "model_usable" not in frame.columns:
+        additions.append(pl.lit(False).alias("model_usable"))
+    for column in ONS_PIT_SNAPSHOT_COLUMNS:
+        if column not in frame.columns:
+            additions.append(pl.lit(None).alias(column))
+    if "availability_note" not in frame.columns:
+        additions.append(pl.lit(None, dtype=pl.Utf8).alias("availability_note"))
+    return frame.with_columns(additions) if additions else frame
 
 
 def _empty_ear() -> pl.DataFrame:

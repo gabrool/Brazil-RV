@@ -22,7 +22,7 @@ from bralpha.pipelines.fred_research_spine import run_fred_research_spine
 def test_fred_research_config_loads(repo_root):
     config = load_fred_research_config(repo_root).fred_research
 
-    assert config.calendar.default == "business_days_mon_fri"
+    assert config.calendar.default == "b3_trading_calendar"
     assert config.observations.include_model_usable_only is True
     assert config.observations.include_priorities == ["P0", "P1"]
     assert config.observations.max_dense_series == 5000

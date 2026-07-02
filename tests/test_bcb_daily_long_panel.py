@@ -89,7 +89,7 @@ def _sgs_asof() -> pl.DataFrame:
         [
             {
                 "ref_date": date(2024, 1, 2),
-                "available_date": date(2024, 1, 3),
+                "available_date": date(2024, 1, 2),
                 "series_id": 11,
                 "series_slug": "selic_over",
                 "series_name": "Selic",
@@ -110,7 +110,7 @@ def _sgs_asof() -> pl.DataFrame:
             },
             {
                 "ref_date": date(2024, 1, 2),
-                "available_date": date(2024, 1, 3),
+                "available_date": date(2024, 1, 2),
                 "series_id": 27810,
                 "series_slug": "m2_new",
                 "series_name": "M2",
@@ -244,7 +244,10 @@ def _focus_asof() -> pl.DataFrame:
                 "is_available": True,
                 "is_observed_on_ref_date": True,
                 "staleness_days": 0,
-                "availability_note": "date_only_next_business_day_until_publication_calendar",
+                "availability_note": (
+                    "bcb_focus_data_field_is_official_weekly_publication_date_"
+                    "same_day_eod_if_b3_business_day"
+                ),
                 "source_dataset": "bcb_focus_expectations",
                 "source_version": "v0",
             }
