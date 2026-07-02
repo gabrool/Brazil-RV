@@ -8,6 +8,7 @@ from bralpha.derived.ons.calendar import business_day_frame, business_days_b3
 from bralpha.derived.ons.quality import validate_asof_panel
 from bralpha.derived.ons.schemas import (
     ONS_DAILY_LONG_COLUMNS,
+    ONS_PIT_SNAPSHOT_COLUMNS,
     ONS_STATE_ASOF_DAILY_COLUMNS,
     PANEL_PRIMARY_KEYS,
 )
@@ -84,7 +85,24 @@ def build_ons_state_asof_daily(
     obs = (
         observations.filter(pl.col("observation_available_date").is_not_null())
         .filter(pl.col("model_usable").fill_null(False))
-        .sort([*STATE_KEY_COLUMNS, "observation_available_date", "observation_ref_date"])
+        .with_columns(
+            observation_snapshot_timestamp_utc=pl.coalesce(
+                [
+                    pl.col("observation_source_publication_datetime_utc"),
+                    pl.col("observation_resource_last_modified"),
+                    pl.col("observation_http_last_modified"),
+                    pl.col("observation_first_seen_timestamp_utc"),
+                ]
+            )
+        )
+        .sort(
+            [
+                *STATE_KEY_COLUMNS,
+                "observation_available_date",
+                "observation_snapshot_timestamp_utc",
+                "observation_ref_date",
+            ]
+        )
         .unique(
             subset=[*STATE_KEY_COLUMNS, "observation_available_date"],
             keep="last",
@@ -176,8 +194,7 @@ def _state_rows(
 ) -> pl.DataFrame | None:
     if frame is None or frame.is_empty():
         return None
-    if "model_usable" not in frame.columns:
-        frame = frame.with_columns(pl.lit(False).alias("model_usable"))
+    frame = _ensure_state_pit_columns(frame)
     rows = []
     for metric, fixed_unit in metrics:
         unit_expr = pl.lit(fixed_unit) if fixed_unit is not None else pl.col("unit")
@@ -189,6 +206,17 @@ def _state_rows(
                     pl.lit(metric).alias("value_name"),
                     pl.col("ref_date").alias("observation_ref_date"),
                     pl.col("available_date").alias("observation_available_date"),
+                    pl.col("vintage_id").alias("observation_vintage_id"),
+                    pl.col("source_publication_datetime_utc").alias(
+                        "observation_source_publication_datetime_utc"
+                    ),
+                    pl.col("resource_last_modified").alias(
+                        "observation_resource_last_modified"
+                    ),
+                    pl.col("http_last_modified").alias("observation_http_last_modified"),
+                    pl.col("first_seen_timestamp_utc").alias(
+                        "observation_first_seen_timestamp_utc"
+                    ),
                     pl.col(metric).cast(pl.Float64).alias("value"),
                     unit_expr.alias("unit"),
                     pl.col("source_version"),
@@ -197,6 +225,16 @@ def _state_rows(
             )
         )
     return _concat(rows)
+
+
+def _ensure_state_pit_columns(frame: pl.DataFrame) -> pl.DataFrame:
+    additions = []
+    if "model_usable" not in frame.columns:
+        additions.append(pl.lit(False).alias("model_usable"))
+    for column in ONS_PIT_SNAPSHOT_COLUMNS:
+        if column not in frame.columns:
+            additions.append(pl.lit(None).alias(column))
+    return frame.with_columns(additions) if additions else frame
 
 
 def _included_families(

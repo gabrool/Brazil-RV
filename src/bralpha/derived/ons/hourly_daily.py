@@ -9,6 +9,7 @@ from bralpha.derived.ons.quality import validate_panel
 from bralpha.derived.ons.schemas import (
     ONS_ENERGY_BALANCE_DAILY_OBSERVATION_COLUMNS,
     ONS_INTERCHANGE_DAILY_OBSERVATION_COLUMNS,
+    ONS_PIT_SNAPSHOT_COLUMNS,
     PANEL_PRIMARY_KEYS,
 )
 from bralpha.timing.vintages import (
@@ -53,7 +54,7 @@ def build_energy_balance_daily_observation(
     metric_cols = [metric for metric, _ in ENERGY_BALANCE_METRICS]
     frame = frame.with_columns([pl.col(column).cast(pl.Float64) for column in metric_cols])
     aggregated = (
-        frame.group_by(["ref_date", "subsystem_id", "subsystem"])
+        frame.group_by(["ref_date", "subsystem_id", "subsystem", "vintage_id"])
         .agg(
             [
                 pl.col("available_date").max().alias("available_date"),
@@ -61,6 +62,11 @@ def build_energy_balance_daily_observation(
                 pl.col("availability_basis").max().alias("availability_basis"),
                 pl.col("revision_policy").max().alias("revision_policy"),
                 pl.col("model_usable").fill_null(False).all().alias("model_usable"),
+                *[
+                    pl.col(column).max().alias(column)
+                    for column in ONS_PIT_SNAPSHOT_COLUMNS
+                    if column != "vintage_id"
+                ],
                 pl.col("availability_note").max().alias("availability_note"),
                 pl.len().cast(pl.Int64).alias("hour_count"),
                 pl.col("unit").max().alias("unit"),
@@ -127,6 +133,7 @@ def build_interchange_daily_observation(
                 "source_subsystem",
                 "target_subsystem_id",
                 "target_subsystem",
+                "vintage_id",
             ]
         )
         .agg(
@@ -136,6 +143,11 @@ def build_interchange_daily_observation(
                 pl.col("availability_basis").max().alias("availability_basis"),
                 pl.col("revision_policy").max().alias("revision_policy"),
                 pl.col("model_usable").fill_null(False).all().alias("model_usable"),
+                *[
+                    pl.col(column).max().alias(column)
+                    for column in ONS_PIT_SNAPSHOT_COLUMNS
+                    if column != "vintage_id"
+                ],
                 pl.col("availability_note").max().alias("availability_note"),
                 pl.len().cast(pl.Int64).alias("hour_count"),
                 pl.col("unit").max().alias("unit"),
@@ -198,11 +210,16 @@ def _empty_interchange() -> pl.DataFrame:
 def _ensure_pit_columns(frame: pl.DataFrame) -> pl.DataFrame:
     additions = []
     if "availability_basis" not in frame.columns:
-        additions.append(pl.lit(AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE).alias("availability_basis"))
+        additions.append(
+            pl.lit(AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE).alias("availability_basis")
+        )
     if "revision_policy" not in frame.columns:
         additions.append(pl.lit(REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY).alias("revision_policy"))
     if "model_usable" not in frame.columns:
         additions.append(pl.lit(False).alias("model_usable"))
+    for column in ONS_PIT_SNAPSHOT_COLUMNS:
+        if column not in frame.columns:
+            additions.append(pl.lit(None).alias(column))
     if "availability_note" not in frame.columns:
         additions.append(pl.lit(None, dtype=pl.Utf8).alias("availability_note"))
     return frame.with_columns(additions) if additions else frame

@@ -1,5 +1,21 @@
 from __future__ import annotations
 
+ONS_PIT_SNAPSHOT_COLUMNS = [
+    "vintage_id",
+    "source_publication_datetime_utc",
+    "resource_last_modified",
+    "http_last_modified",
+    "first_seen_timestamp_utc",
+]
+
+ONS_ASOF_SNAPSHOT_COLUMNS = [
+    "observation_vintage_id",
+    "observation_source_publication_datetime_utc",
+    "observation_resource_last_modified",
+    "observation_http_last_modified",
+    "observation_first_seen_timestamp_utc",
+]
+
 ONS_EAR_SUBSYSTEM_OBSERVATION_COLUMNS = [
     "ref_date",
     "available_date",
@@ -7,6 +23,7 @@ ONS_EAR_SUBSYSTEM_OBSERVATION_COLUMNS = [
     "availability_basis",
     "revision_policy",
     "model_usable",
+    *ONS_PIT_SNAPSHOT_COLUMNS,
     "availability_note",
     "subsystem_id",
     "subsystem",
@@ -28,6 +45,7 @@ ONS_ENA_SUBSYSTEM_OBSERVATION_COLUMNS = [
     "availability_basis",
     "revision_policy",
     "model_usable",
+    *ONS_PIT_SNAPSHOT_COLUMNS,
     "availability_note",
     "subsystem_id",
     "subsystem",
@@ -46,6 +64,7 @@ ONS_LOAD_DAILY_OBSERVATION_COLUMNS = [
     "availability_basis",
     "revision_policy",
     "model_usable",
+    *ONS_PIT_SNAPSHOT_COLUMNS,
     "availability_note",
     "subsystem_id",
     "subsystem",
@@ -64,6 +83,7 @@ ONS_CMO_WEEKLY_OBSERVATION_COLUMNS = [
     "availability_basis",
     "revision_policy",
     "model_usable",
+    *ONS_PIT_SNAPSHOT_COLUMNS,
     "availability_note",
     "subsystem_id",
     "subsystem",
@@ -82,6 +102,7 @@ ONS_ENERGY_BALANCE_DAILY_OBSERVATION_COLUMNS = [
     "availability_basis",
     "revision_policy",
     "model_usable",
+    *ONS_PIT_SNAPSHOT_COLUMNS,
     "availability_note",
     "subsystem_id",
     "subsystem",
@@ -112,6 +133,7 @@ ONS_INTERCHANGE_DAILY_OBSERVATION_COLUMNS = [
     "availability_basis",
     "revision_policy",
     "model_usable",
+    *ONS_PIT_SNAPSHOT_COLUMNS,
     "availability_note",
     "source_subsystem_id",
     "source_subsystem",
@@ -134,6 +156,7 @@ ONS_STATE_ASOF_DAILY_COLUMNS = [
     "feature_id",
     "observation_ref_date",
     "observation_available_date",
+    *ONS_ASOF_SNAPSHOT_COLUMNS,
     "value_name",
     "value",
     "unit",
@@ -154,21 +177,23 @@ ONS_DAILY_LONG_COLUMNS = [
     "unit",
     "observation_ref_date",
     "observation_available_date",
+    *ONS_ASOF_SNAPSHOT_COLUMNS,
     "is_available",
     "staleness_days",
     "source_version",
 ]
 
 PANEL_PRIMARY_KEYS = {
-    "ear_subsystem_observation": ["ref_date", "subsystem_id"],
-    "ena_subsystem_observation": ["ref_date", "subsystem_id", "ena_type"],
-    "load_daily_observation": ["ref_date", "subsystem_id"],
-    "cmo_weekly_observation": ["ref_date", "subsystem_id", "load_block"],
-    "energy_balance_daily_observation": ["ref_date", "subsystem_id"],
+    "ear_subsystem_observation": ["ref_date", "subsystem_id", "vintage_id"],
+    "ena_subsystem_observation": ["ref_date", "subsystem_id", "ena_type", "vintage_id"],
+    "load_daily_observation": ["ref_date", "subsystem_id", "vintage_id"],
+    "cmo_weekly_observation": ["ref_date", "subsystem_id", "load_block", "vintage_id"],
+    "energy_balance_daily_observation": ["ref_date", "subsystem_id", "vintage_id"],
     "interchange_daily_observation": [
         "ref_date",
         "source_subsystem_id",
         "target_subsystem_id",
+        "vintage_id",
     ],
     "state_asof_daily": ["ref_date", "source_family", "feature_id", "value_name"],
     "daily_long": ["ref_date", "source_family", "feature_id", "value_name"],

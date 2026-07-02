@@ -46,8 +46,12 @@ def test_ons_resource_timestamp_uses_cutoff_and_is_model_usable():
     assert silver["available_date"].to_list() == [date(2024, 1, 5)]
     assert silver["availability_policy"].to_list() == ["ons_resource_timestamp_cutoff"]
     assert silver["availability_basis"].to_list() == ["source_last_modified"]
-    assert silver["revision_policy"].to_list() == ["unrevised"]
+    assert silver["revision_policy"].to_list() == ["revised_use_vintages"]
     assert silver["model_usable"].to_list() == [True]
+    assert silver["vintage_id"].item().startswith("ons:ons_ear_subsystem_daily:")
+    assert silver["resource_last_modified"].to_list() == [
+        datetime(2024, 1, 5, 20, tzinfo=UTC)
+    ]
 
 
 def test_ons_ena_normalization_emits_long_type_rows():

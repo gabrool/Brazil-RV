@@ -16,9 +16,10 @@ from bralpha.timing.vintages import (
     AVAILABILITY_SOURCE_LAST_MODIFIED,
     REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY,
     REVISION_REVISED_USE_FIRST_SEEN,
-    REVISION_UNREVISED,
+    REVISION_REVISED_USE_VINTAGES,
     available_date_from_first_seen,
     available_date_from_source_datetime,
+    make_vintage_id,
 )
 
 ONS_AVAILABILITY_POLICY = "ons_conservative_next_business_day"
@@ -41,6 +42,14 @@ ONS_LINEAGE_COLUMNS = [
     "source_version",
 ]
 
+ONS_PIT_SNAPSHOT_COLUMNS = [
+    "vintage_id",
+    "source_publication_datetime_utc",
+    "resource_last_modified",
+    "http_last_modified",
+    "first_seen_timestamp_utc",
+]
+
 ONS_EAR_SUBSYSTEM_DAILY_COLUMNS = [
     "ref_date",
     "available_date",
@@ -48,6 +57,7 @@ ONS_EAR_SUBSYSTEM_DAILY_COLUMNS = [
     "availability_basis",
     "revision_policy",
     "model_usable",
+    *ONS_PIT_SNAPSHOT_COLUMNS,
     "availability_note",
     "subsystem_id",
     "subsystem",
@@ -68,6 +78,7 @@ ONS_ENA_SUBSYSTEM_DAILY_COLUMNS = [
     "availability_basis",
     "revision_policy",
     "model_usable",
+    *ONS_PIT_SNAPSHOT_COLUMNS,
     "availability_note",
     "subsystem_id",
     "subsystem",
@@ -85,6 +96,7 @@ ONS_LOAD_DAILY_COLUMNS = [
     "availability_basis",
     "revision_policy",
     "model_usable",
+    *ONS_PIT_SNAPSHOT_COLUMNS,
     "availability_note",
     "subsystem_id",
     "subsystem",
@@ -102,6 +114,7 @@ ONS_CMO_WEEKLY_COLUMNS = [
     "availability_basis",
     "revision_policy",
     "model_usable",
+    *ONS_PIT_SNAPSHOT_COLUMNS,
     "availability_note",
     "subsystem_id",
     "subsystem",
@@ -120,6 +133,7 @@ ONS_ENERGY_BALANCE_SUBSYSTEM_COLUMNS = [
     "availability_basis",
     "revision_policy",
     "model_usable",
+    *ONS_PIT_SNAPSHOT_COLUMNS,
     "availability_note",
     "subsystem_id",
     "subsystem",
@@ -148,6 +162,7 @@ ONS_INTERCHANGE_SUBSYSTEM_HOURLY_COLUMNS = [
     "availability_basis",
     "revision_policy",
     "model_usable",
+    *ONS_PIT_SNAPSHOT_COLUMNS,
     "availability_note",
     "source_subsystem_id",
     "source_subsystem",
@@ -436,36 +451,46 @@ def _lineage(row: dict[str, object], *, source_version: str) -> dict[str, object
 
 
 def _pit_timing(row: dict[str, object], ref_date: date | None) -> dict[str, object]:
-    source_timestamp = _timestamp_field(row, "source_publication_datetime_utc")
+    timestamps = _pit_timestamp_fields(row)
+    source_timestamp = timestamps["source_publication_datetime_utc"]
     if source_timestamp is not None:
+        vintage_id = _vintage_id(row, source_timestamp, timestamps)
         return {
             "available_date": available_date_from_source_datetime(source_timestamp),
             "availability_policy": ONS_SOURCE_TIMESTAMP_POLICY,
             "availability_basis": AVAILABILITY_EXACT_SOURCE_TIMESTAMP,
-            "revision_policy": REVISION_UNREVISED,
+            "revision_policy": REVISION_REVISED_USE_VINTAGES,
             "model_usable": True,
+            "vintage_id": vintage_id,
+            **timestamps,
             "availability_note": ONS_TIMESTAMP_AVAILABILITY_NOTE,
         }
 
-    resource_timestamp = _timestamp_field(row, "resource_last_modified", "http_last_modified")
+    resource_timestamp = timestamps["resource_last_modified"] or timestamps["http_last_modified"]
     if resource_timestamp is not None:
+        vintage_id = _vintage_id(row, resource_timestamp, timestamps)
         return {
             "available_date": available_date_from_source_datetime(resource_timestamp),
             "availability_policy": ONS_RESOURCE_TIMESTAMP_POLICY,
             "availability_basis": AVAILABILITY_SOURCE_LAST_MODIFIED,
-            "revision_policy": REVISION_UNREVISED,
+            "revision_policy": REVISION_REVISED_USE_VINTAGES,
             "model_usable": True,
+            "vintage_id": vintage_id,
+            **timestamps,
             "availability_note": ONS_TIMESTAMP_AVAILABILITY_NOTE,
         }
 
-    first_seen_timestamp = _timestamp_field(row, "first_seen_timestamp_utc")
+    first_seen_timestamp = timestamps["first_seen_timestamp_utc"]
     if first_seen_timestamp is not None:
+        vintage_id = _vintage_id(row, first_seen_timestamp, timestamps, content_snapshot=True)
         return {
             "available_date": available_date_from_first_seen(first_seen_timestamp),
             "availability_policy": ONS_FIRST_SEEN_POLICY,
             "availability_basis": AVAILABILITY_FIRST_SEEN_DOWNLOAD_TIMESTAMP,
             "revision_policy": REVISION_REVISED_USE_FIRST_SEEN,
             "model_usable": True,
+            "vintage_id": vintage_id,
+            **timestamps,
             "availability_note": ONS_FIRST_SEEN_AVAILABILITY_NOTE,
         }
 
@@ -473,6 +498,18 @@ def _pit_timing(row: dict[str, object], ref_date: date | None) -> dict[str, obje
         "available_date": _available_date(ref_date),
         "availability_policy": ONS_AVAILABILITY_POLICY,
         **_pit_reference_only(),
+        **timestamps,
+    }
+
+
+def _pit_timestamp_fields(row: dict[str, object]) -> dict[str, datetime | None]:
+    return {
+        "source_publication_datetime_utc": _timestamp_field(
+            row, "source_publication_datetime_utc"
+        ),
+        "resource_last_modified": _timestamp_field(row, "resource_last_modified"),
+        "http_last_modified": _timestamp_field(row, "http_last_modified"),
+        "first_seen_timestamp_utc": _timestamp_field(row, "first_seen_timestamp_utc"),
     }
 
 
@@ -490,6 +527,30 @@ def _timestamp_field(row: dict[str, object], *keys: str) -> datetime | None:
     return None
 
 
+def _vintage_id(
+    row: dict[str, object],
+    publication_timestamp: datetime,
+    timestamps: dict[str, datetime | None],
+    *,
+    content_snapshot: bool = False,
+) -> str:
+    content_hash = str(row.get("sha256") or "")
+    publication_for_id = None if content_snapshot and content_hash else publication_timestamp
+    first_seen_for_id = (
+        None
+        if content_snapshot and content_hash
+        else timestamps["first_seen_timestamp_utc"]
+    )
+    return make_vintage_id(
+        source=str(row.get("source") or "ons"),
+        dataset_id=str(row.get("source_dataset") or "ons"),
+        resource_id=str(row.get("resource_name") or row.get("raw_path") or "ons_resource"),
+        publication_timestamp=publication_for_id,
+        first_seen_timestamp_utc=first_seen_for_id,
+        content_hash=content_hash,
+    )
+
+
 def _available_date(value: date | None) -> date | None:
     if value is None:
         return None
@@ -501,6 +562,7 @@ def _pit_reference_only() -> dict[str, object]:
         "availability_basis": AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE,
         "revision_policy": REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY,
         "model_usable": False,
+        "vintage_id": None,
         "availability_note": ONS_AVAILABILITY_NOTE,
     }
 

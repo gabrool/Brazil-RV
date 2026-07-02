@@ -80,10 +80,22 @@ panels must have `available_date <= ref_date` and, when present,
   require an official calendar date for the competence month.
 - ONS timestampless snapshots are reference-only. Rows with a source publication
   timestamp, resource last-modified timestamp, HTTP last-modified timestamp, or
-  explicit first-seen timestamp use cutoff timing and may be model-usable.
-  Missing PIT metadata defaults fail-closed.
+  explicit first-seen timestamp carry `vintage_id` plus the timestamp fields
+  through silver and gold observation/as-of panels. ONS as-of builders select
+  the latest versioned snapshot whose `available_date <= ref_date`; missing PIT
+  metadata defaults fail-closed.
 - Tesouro Direto prices/rates use next B3 business day. Sales and redemptions
   use 2 B3 business days. Tesouro Direto stock uses 30 B3 business days, and DPF
   stock uses 45 B3 business days.
+- ANP fuel and oil/gas sources use their source-specific conservative release
+  lags and remain outside the B3 calendar refactor except where their derived
+  as-of grids consume the canonical model calendar.
+- CVM fund reports use their configured source lags and first-pass as-of
+  safeguards; this timing pass does not introduce CVM vintage reconstruction.
+- Receita research panels read existing silver data only and preserve their
+  configured conservative availability policy; live Receita discovery is not
+  part of this pass.
+- ANBIMA is intentionally ignored for this timing pass. Actual ANBIMA
+  preprocessing and model-grade availability will be handled in a later issue.
 - FRED date-only vintages remain conservative next-B3-day unless exact vintage
   timestamps are available.

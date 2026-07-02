@@ -9,6 +9,7 @@ from bralpha.derived.ons.quality import validate_panel
 from bralpha.derived.ons.schemas import (
     ONS_CMO_WEEKLY_OBSERVATION_COLUMNS,
     ONS_LOAD_DAILY_OBSERVATION_COLUMNS,
+    ONS_PIT_SNAPSHOT_COLUMNS,
     PANEL_PRIMARY_KEYS,
 )
 from bralpha.timing.vintages import (
@@ -115,11 +116,16 @@ def _empty_cmo() -> pl.DataFrame:
 def _ensure_pit_columns(frame: pl.DataFrame) -> pl.DataFrame:
     additions = []
     if "availability_basis" not in frame.columns:
-        additions.append(pl.lit(AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE).alias("availability_basis"))
+        additions.append(
+            pl.lit(AVAILABILITY_CURRENT_SNAPSHOT_NO_VINTAGE).alias("availability_basis")
+        )
     if "revision_policy" not in frame.columns:
         additions.append(pl.lit(REVISION_CURRENT_SNAPSHOT_REFERENCE_ONLY).alias("revision_policy"))
     if "model_usable" not in frame.columns:
         additions.append(pl.lit(False).alias("model_usable"))
+    for column in ONS_PIT_SNAPSHOT_COLUMNS:
+        if column not in frame.columns:
+            additions.append(pl.lit(None).alias(column))
     if "availability_note" not in frame.columns:
         additions.append(pl.lit(None, dtype=pl.Utf8).alias("availability_note"))
     return frame.with_columns(additions) if additions else frame
